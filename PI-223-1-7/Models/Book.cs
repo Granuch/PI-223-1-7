@@ -17,7 +17,7 @@ namespace PI_223_1_7.Models
         public required string Name { get; set; }
 
         [Required]
-        public required string Autor {  get; set; }
+        public required string Author {  get; set; }
 
         [Required]
         public required string Description { get; set; }
@@ -32,8 +32,13 @@ namespace PI_223_1_7.Models
         public bool IsAvaliable { get; set; }
 
         [Required]
-        public required int Year { get; set; }
+        public required DateTime Year { get; set; }
 
         public virtual ICollection<Order>? Orders { get; set; }
+
+        public override string ToString()
+        {
+            return $"Book: {Name}, Author: {Author}, Genre: {Genre}, Type: {Type}, Available: {IsAvaliable}, Year: {Year.Year}";
+        }
     }
 }
