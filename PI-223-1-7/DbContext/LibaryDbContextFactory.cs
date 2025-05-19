@@ -10,10 +10,12 @@ namespace PI_223_1_7.DbContext
 {
     public class LibaryDbContextFactory : IDesignTimeDbContextFactory<LibraryDbContext>
     {
+        private const string conStr = "Server=(localdb)\\Course;Database=LibraryDb;Trusted_Connection=True;";
+
         public LibraryDbContext CreateDbContext(string[] args)
         {
             var optionsBuilder = new DbContextOptionsBuilder<LibraryDbContext>();
-            optionsBuilder.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=MuseumDb;Trusted_Connection=True;");
+            optionsBuilder.UseSqlServer(conStr);
 
             return new LibraryDbContext(optionsBuilder.Options);
         }
