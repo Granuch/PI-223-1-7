@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace PI_223_1_7.Models
 {
-    internal class Admin
+    public class ApplicationUser
     {
     }
 }

@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using PI_223_1_7.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +15,10 @@ namespace PI_223_1_7.DbContext
 
         }
         public LibraryDbContext() { }
+
+        public DbSet<Order> Orders { get; set; }
+        public DbSet<Book> Books { get; set; }
+        public DbSet<ApplicationUser> Users { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
