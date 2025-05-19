@@ -12,7 +12,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Mapping\Mapping.csproj" />
     <ProjectReference Include="..\PI-223-1-7\DAL.csproj" />
   </ItemGroup>
 
