@@ -11,13 +11,13 @@ namespace PI_223_1_7.Patterns.Repository
 {
     public interface IRepository<T> where T : class
     {
-        IEnumerable<T> GetAll();
-        T GetById(int id);
-        IEnumerable<T> Find(Expression<Func<T, bool>> predicate);
-        void Add(T entity);
+        Task<IEnumerable<T>> GetAllAsync();
+        Task<T> GetByIdAsync(int id);
+        Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate);
+        Task AddAsync(T entity);
         void Update(T entity);
         void Delete(T entity);
-        void Save();
+        Task SaveAsync();
     }
 
     public class Repository<T> : IRepository<T> where T : class
@@ -31,30 +31,29 @@ namespace PI_223_1_7.Patterns.Repository
             _dbSet = context.Set<T>();
         }
 
-        public virtual IEnumerable<T> GetAll()
+        public async virtual Task<IEnumerable<T>> GetAllAsync()
         {
-            return _dbSet.ToList();
+            return await _dbSet.ToListAsync();
         }
 
-        public virtual T GetById(int id)
+        public async virtual Task<T> GetByIdAsync(int id)
         {
-            return _dbSet.Find(id);
+            return await _dbSet.FindAsync(id);
         }
 
-        public virtual IEnumerable<T> Find(Expression<Func<T, bool>> predicate)
+        public async virtual Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate)
         {
-            return _dbSet.Where(predicate).ToList();
+            return await _dbSet.Where(predicate).ToListAsync();
         }
 
-        public virtual void Add(T entity)
+        public virtual async Task AddAsync(T entity)
         {
-            _dbSet.Add(entity);
+            await _dbSet.AddAsync(entity);
         }
 
         public virtual void Update(T entity)
         {
-            _dbSet.Attach(entity);
-            _context.Entry(entity).State = EntityState.Modified;
+            _dbSet.Update(entity);
         }
 
         public virtual void Delete(T entity)
@@ -66,9 +65,9 @@ namespace PI_223_1_7.Patterns.Repository
             _dbSet.Remove(entity);
         }
 
-        public void Save()
+        public async Task SaveAsync()
         {
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
         }
     }
 }
