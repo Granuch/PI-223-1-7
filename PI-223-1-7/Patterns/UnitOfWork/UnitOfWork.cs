@@ -14,6 +14,8 @@ namespace PI_223_1_7.Patterns.UnitOfWork
         public IOrderRepository orders { get; set; }
         public IBookRepository books { get; set; }
         public IRepository<ApplicationUser> users { get; set; }
+
+        public Task<int> Complete();
     }
 
     public class UnitOfWork : IUnitOfWork
