@@ -9,7 +9,7 @@ using PI_223_1_7.Models;
 using Microsoft.Extensions.Configuration;
 using AutoMapper;
 
-namespace BLL
+namespace BLL.Services
 {
     public class UserService : IUserService
     {
