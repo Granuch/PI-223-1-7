@@ -11,7 +11,7 @@ namespace PI_223_1_7.Patterns.UnitOfWork
 {
     public interface IUnitOfWork : IAsyncDisposable
     {
-        public IRepository<Order> orders { get; set; }
+        public IOrderRepository orders { get; set; }
         public IBookRepository books { get; set; }
         public IRepository<ApplicationUser> users { get; set; }
     }
@@ -19,14 +19,14 @@ namespace PI_223_1_7.Patterns.UnitOfWork
     public class UnitOfWork : IUnitOfWork
     {
         private readonly LibraryDbContext _libraryDbContext;
-        public IRepository<Order> orders {  set; get; }
+        public IOrderRepository orders {  set; get; }
         public IBookRepository books {  set; get; }
         public IRepository<ApplicationUser> users {  set; get; }
 
         public UnitOfWork(LibraryDbContext libraryDbContext)
         {
             _libraryDbContext = libraryDbContext;
-            orders = new Repository<Order>(_libraryDbContext);
+            orders = new OrderRepository(_libraryDbContext);
             books = new BookRepository(_libraryDbContext);
             users = new Repository<ApplicationUser>(_libraryDbContext);
         }
