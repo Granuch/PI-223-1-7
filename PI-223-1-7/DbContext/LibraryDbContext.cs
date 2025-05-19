@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using PI_223_1_7.Models;
 using System;
 using System.Collections.Generic;
@@ -8,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace PI_223_1_7.DbContext
 {
-    public class LibraryDbContext : Microsoft.EntityFrameworkCore.DbContext
+    public class LibraryDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, string>
     {
         public LibraryDbContext(DbContextOptions<LibraryDbContext> options) : base(options)
         {
@@ -51,6 +52,7 @@ namespace PI_223_1_7.DbContext
 
                 entity.Property(o => o.Type).IsRequired();
             });
+            base.OnModelCreating(modelBuilder);
         }
     }
 }
