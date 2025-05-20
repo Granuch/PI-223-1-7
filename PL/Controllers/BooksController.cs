@@ -4,9 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 using PI_223_1_7.Models;
 using BLL.Interfaces;
 using Mapping.DTOs;
-using System.Threading.Tasks;
-using System.Collections.Generic;
-using System;
 using PI_223_1_7.Enums;
 using BLL.Exceptions;
 
@@ -117,7 +114,7 @@ namespace PL.Controllers
         /// <response code="403">Доступ заборонено</response>
         /// <response code="500">Помилка на сервері</response>
         [HttpPost]
-        [Authorize(Roles = "Manager,Administrator")]
+        //[Authorize(Roles = "Manager,Administrator")]
         [ProducesResponseType(typeof(BookDTO), 201)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -150,7 +147,7 @@ namespace PL.Controllers
         /// <response code="404">Книга не знайдена</response>
         /// <response code="500">Помилка на сервері</response>
         [HttpPut("{id}")]
-        [Authorize(Roles = "Manager,Administrator")]
+        //[Authorize(Roles = "Manager,Administrator")]
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -192,7 +189,7 @@ namespace PL.Controllers
         /// <response code="404">Книга не знайдена</response>
         /// <response code="500">Помилка на сервері</response>
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Administrator")]
+        //[Authorize(Roles = "Administrator")]
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -228,7 +225,7 @@ namespace PL.Controllers
         /// <response code="404">Книга не знайдена</response>
         /// <response code="500">Помилка на сервері</response>
         [HttpPost("{id}/order")]
-        [Authorize(Roles = "RegisteredUser,Manager,Administrator")]
+        //[Authorize(Roles = "RegisteredUser,Manager,Administrator")]
         [ProducesResponseType(typeof(OrderDTO), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -269,7 +266,7 @@ namespace PL.Controllers
         /// <response code="403">Доступ заборонено</response>
         /// <response code="500">Помилка на сервері</response>
         [HttpGet("myorders")]
-        [Authorize(Roles = "RegisteredUser,Manager,Administrator")]
+        //[Authorize(Roles = "RegisteredUser,Manager,Administrator")]
         [ProducesResponseType(typeof(IEnumerable<BookDTO>), 200)]
         [ProducesResponseType(401)]
         [ProducesResponseType(403)]
