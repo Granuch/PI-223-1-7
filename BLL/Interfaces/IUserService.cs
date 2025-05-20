@@ -8,5 +8,6 @@ namespace BLL.Interfaces
 {
     internal interface IUserService
     {
+
     }
 }

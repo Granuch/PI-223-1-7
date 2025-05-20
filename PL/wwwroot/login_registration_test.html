@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Бібліотека - Реєстрація та Логін</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .nav {
+            display: flex;
+            margin-bottom: 20px;
+            padding: 10px 0;
+            border-bottom: 1px solid #ddd;
+        }
+        .nav a {
+            margin-right: 15px;
+            text-decoration: none;
+            color: #0066cc;
+        }
+        .nav a:hover {
+            text-decoration: underline;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="email"], input[type="password"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0052a3;
+        }
+        .field-validation-error {
+            color: #dc3545;
+            font-size: 14px;
+        }
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+        }
+        .checkbox-container input {
+            margin-right: 10px;
+        }
+        .alert {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .user-info {
+            background-color: #e9f5ff;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .tab-container {
+            margin-top: 20px;
+        }
+        .tab-buttons {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+        }
+        .tab-button {
+            background: none;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #666;
+        }
+        .tab-button.active {
+            border-bottom: 3px solid #0066cc;
+            color: #0066cc;
+        }
+        .tab-content {
+            display: none;
+            padding: 20px 0;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="#" id="home-link">Головна</a>
+            <a href="#" id="books-link">Книги</a>
+            <a href="#" id="orders-link">Замовлення</a>
+            <a href="#" id="login-link">Увійти</a>
+            <a href="#" id="register-link">Зареєструватися</a>
+            <a href="#" id="logout-link" style="display: none;">Вийти</a>
+        </div>
+
+        <div id="welcome-section">
+            <h1>Бібліотека</h1>
+            <p>Тестова сторінка для перевірки реєстрації та логіну</p>
+        </div>
+
+        <div id="user-section" style="display: none;">
+            <div class="user-info">
+                <h3>Інформація про користувача</h3>
+                <p><strong>Email:</strong> <span id="user-email"></span></p>
+                <p><strong>Ім'я:</strong> <span id="user-firstname"></span></p>
+                <p><strong>Прізвище:</strong> <span id="user-lastname"></span></p>
+                <p><strong>Роль:</strong> <span id="user-role"></span></p>
+            </div>
+        </div>
+
+        <div id="login-section" style="display: none;">
+            <h2>Вхід в систему</h2>
+            <div id="login-error" class="alert alert-danger" style="display: none;"></div>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-email">Email:</label>
+                    <input type="email" id="login-email" name="email" required>
+                    <span class="field-validation-error" id="login-email-error"></span>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Пароль:</label>
+                    <input type="password" id="login-password" name="password" required>
+                    <span class="field-validation-error" id="login-password-error"></span>
+                </div>
+                <div class="form-group checkbox-container">
+                    <input type="checkbox" id="remember-me" name="rememberMe">
+                    <label for="remember-me">Запам'ятати мене</label>
+                </div>
+                <button type="submit">Увійти</button>
+            </form>
+        </div>
+
+        <div id="register-section" style="display: none;">
+            <h2>Реєстрація</h2>
+            <div id="register-error" class="alert alert-danger" style="display: none;"></div>
+            <form id="register-form">
+                <div class="form-group">
+                    <label for="register-email">Email:</label>
+                    <input type="email" id="register-email" name="email" required>
+                    <span class="field-validation-error" id="register-email-error"></span>
+                </div>
+                <div class="form-group">
+                    <label for="register-firstname">Ім'я:</label>
+                    <input type="text" id="register-firstname" name="firstName" required>
+                    <span class="field-validation-error" id="register-firstname-error"></span>
+                </div>
+                <div class="form-group">
+                    <label for="register-lastname">Прізвище:</label>
+                    <input type="text" id="register-lastname" name="lastName" required>
+                    <span class="field-validation-error" id="register-lastname-error"></span>
+                </div>
+                <div class="form-group">
+                    <label for="register-password">Пароль:</label>
+                    <input type="password" id="register-password" name="password" required>
+                    <span class="field-validation-error" id="register-password-error"></span>
+                </div>
+                <div class="form-group">
+                    <label for="register-confirm-password">Підтвердження паролю:</label>
+                    <input type="password" id="register-confirm-password" name="confirmPassword" required>
+                    <span class="field-validation-error" id="register-confirm-password-error"></span>
+                </div>
+                <button type="submit">Зареєструватися</button>
+            </form>
+        </div>
+
+        <div id="books-section" style="display: none;">
+            <h2>Книги</h2>
+            <div class="tab-container">
+                <div class="tab-buttons">
+                    <button class="tab-button active" data-tab="books-list">Список книг</button>
+                    <button class="tab-button" data-tab="book-details">Деталі книги</button>
+                    <button class="tab-button admin-manager-only" data-tab="book-create">Створити книгу</button>
+                    <button class="tab-button admin-manager-only" data-tab="book-edit">Редагувати книгу</button>
+                    <button class="tab-button admin-only" data-tab="book-delete">Видалити книгу</button>
+                    <button class="tab-button user-only" data-tab="book-order">Замовити книгу</button>
+                </div>
+                <div class="tab-content active" id="books-list">
+                    <p>Список книг (доступний для всіх)</p>
+                    <ul>
+                        <li>Книга 1 - <a href="#" class="book-details-link" data-id="1">Деталі</a></li>
+                        <li>Книга 2 - <a href="#" class="book-details-link" data-id="2">Деталі</a></li>
+                        <li>Книга 3 - <a href="#" class="book-details-link" data-id="3">Деталі</a></li>
+                    </ul>
+                </div>
+                <div class="tab-content" id="book-details">
+                    <p>Перегляд деталей книги (ID: <span id="book-details-id">-</span>)</p>
+                    <div class="admin-manager-only">
+                        <button id="book-edit-button">Редагувати</button>
+                    </div>
+                    <div class="admin-only">
+                        <button id="book-delete-button">Видалити</button>
+                    </div>
+                    <div class="user-only">
+                        <button id="book-order-button">Замовити</button>
+                    </div>
+                </div>
+                <div class="tab-content" id="book-create">
+                    <p>Створення нової книги (доступно для менеджера або адміністратора)</p>
+                    <form id="book-create-form">
+                        <div class="form-group">
+                            <label for="book-title">Назва:</label>
+                            <input type="text" id="book-title" name="title" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="book-author">Автор:</label>
+                            <input type="text" id="book-author" name="author" required>
+                        </div>
+                        <button type="submit">Створити книгу</button>
+                    </form>
+                </div>
+                <div class="tab-content" id="book-edit">
+                    <p>Редагування книги (ID: <span id="book-edit-id">-</span>)</p>
+                    <form id="book-edit-form">
+                        <div class="form-group">
+                            <label for="book-edit-title">Назва:</label>
+                            <input type="text" id="book-edit-title" name="title" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="book-edit-author">Автор:</label>
+                            <input type="text" id="book-edit-author" name="author" required>
+                        </div>
+                        <button type="submit">Зберегти зміни</button>
+                    </form>
+                </div>
+                <div class="tab-content" id="book-delete">
+                    <p>Видалення книги (ID: <span id="book-delete-id">-</span>)</p>
+                    <p>Ви впевнені, що хочете видалити цю книгу?</p>
+                    <button id="confirm-delete-button">Так, видалити</button>
+                    <button id="cancel-delete-button">Скасувати</button>
+                </div>
+                <div class="tab-content" id="book-order">
+                    <p>Замовлення книги (ID: <span id="book-order-id">-</span>)</p>
+                    <form id="book-order-form">
+                        <div class="form-group">
+                            <label for="order-type">Тип замовлення:</label>
+                            <select id="order-type" name="orderType">
+                                <option value="borrow">Позичити</option>
+                                <option value="read">Читати в бібліотеці</option>
+                            </select>
+                        </div>
+                        <button type="submit">Підтвердити замовлення</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div id="orders-section" style="display: none;">
+            <h2>Мої замовлення</h2>
+            <p>Список замовлень (доступний для авторизованих користувачів)</p>
+            <ul id="orders-list">
+                <li>Замовлення #1 - <a href="#" class="order-details-link" data-id="1">Деталі</a></li>
+                <li>Замовлення #2 - <a href="#" class="order-details-link" data-id="2">Деталі</a></li>
+            </ul>
+            <div id="order-details" style="display: none;">
+                <h3>Деталі замовлення #<span id="order-details-id">-</span></h3>
+                <p><strong>Книга:</strong> <span id="order-book-title">-</span></p>
+                <p><strong>Тип замовлення:</strong> <span id="order-type-value">-</span></p>
+                <p><strong>Дата:</strong> <span id="order-date">-</span></p>
+                <div class="admin-only">
+                    <button id="order-delete-button">Видалити замовлення</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="access-denied-section" style="display: none;">
+            <h2>Доступ заборонено</h2>
+            <div class="alert alert-danger">
+                <p>У вас немає прав для доступу до цієї сторінки.</p>
+            </div>
+            <button id="back-button">Повернутися назад</button>
+        </div>
+    </div>
+
+    <script>
+        // Симуляція бази даних для тестування
+        const users = [
+            { email: 'admin@example.com', firstName: 'Admin', lastName: 'User', password: 'Admin123', role: 'Administrator' },
+            { email: 'manager@example.com', firstName: 'Manager', lastName: 'User', password: 'Manager123', role: 'Manager' },
+            { email: 'user@example.com', firstName: 'Regular', lastName: 'User', password: 'User123', role: 'RegisteredUser' }
+        ];
+
+        const books = [
+            { id: 1, title: 'Кобзар', author: 'Тарас Шевченко' },
+            { id: 2, title: 'Лісова пісня', author: 'Леся Українка' },
+            { id: 3, title: 'Тигролови', author: 'Іван Багряний' }
+        ];
+
+        const orders = [
+            { id: 1, bookId: 1, bookTitle: 'Кобзар', orderType: 'borrow', date: '2025-05-15' },
+            { id: 2, bookId: 3, bookTitle: 'Тигролови', orderType: 'read', date: '2025-05-18' }
+        ];
+
+        // Стан програми
+        let currentUser = null;
+        let selectedBookId = null;
+        let selectedOrderId = null;
+
+        // DOM-елементи
+        const sections = {
+            welcome: document.getElementById('welcome-section'),
+            user: document.getElementById('user-section'),
+            login: document.getElementById('login-section'),
+            register: document.getElementById('register-section'),
+            books: document.getElementById('books-section'),
+            orders: document.getElementById('orders-section'),
+            accessDenied: document.getElementById('access-denied-section')
+        };
+
+        // Навігація
+        document.getElementById('home-link').addEventListener('click', function(e) {
+            e.preventDefault();
+            showSection('welcome');
+        });
+
+        document.getElementById('login-link').addEventListener('click', function(e) {
+            e.preventDefault();
+            showSection('login');
+        });
+
+        document.getElementById('register-link').addEventListener('click', function(e) {
+            e.preventDefault();
+            showSection('register');
+        });
+
+        document.getElementById('books-link').addEventListener('click', function(e) {
+            e.preventDefault();
+            showSection('books');
+        });
+
+        document.getElementById('orders-link').addEventListener('click', function(e) {
+            e.preventDefault();
+            if (currentUser) {
+                showSection('orders');
+            } else {
+                showAccessDenied();
+            }
+        });
+
+        document.getElementById('logout-link').addEventListener('click', function(e) {
+            e.preventDefault();
+            logout();
+        });
+
+        document.getElementById('back-button').addEventListener('click', function(e) {
+            e.preventDefault();
+            showSection('welcome');
+        });
+
+        // Перемикання вкладок
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const tabId = this.getAttribute('data-tab');
+                
+                // Перевірка прав доступу
+                if (this.classList.contains('admin-only') && (!currentUser || currentUser.role !== 'Administrator')) {
+                    showAccessDenied();
+                    return;
+                }
+                
+                if (this.classList.contains('admin-manager-only') && 
+                    (!currentUser || (currentUser.role !== 'Administrator' && currentUser.role !== 'Manager'))) {
+                    showAccessDenied();
+                    return;
+                }
+                
+                if (this.classList.contains('user-only') && !currentUser) {
+                    showAccessDenied();
+                    return;
+                }
+
+                // Активація вкладки
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+
+        // Функції роботи з книгами
+        document.querySelectorAll('.book-details-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                selectedBookId = parseInt(this.getAttribute('data-id'));
+                document.getElementById('book-details-id').textContent = selectedBookId;
+                document.getElementById('book-edit-id').textContent = selectedBookId;
+                document.getElementById('book-delete-id').textContent = selectedBookId;
+                document.getElementById('book-order-id').textContent = selectedBookId;
+                
+                // Активація вкладки з деталями
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                document.querySelector('[data-tab="book-details"]').classList.add('active');
+                
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                document.getElementById('book-details').classList.add('active');
+            });
+        });
+
+        document.getElementById('book-edit-button').addEventListener('click', function() {
+            if (!currentUser || (currentUser.role !== 'Administrator' && currentUser.role !== 'Manager')) {
+                showAccessDenied();
+                return;
+            }
+            
+            const book = books.find(b => b.id === selectedBookId);
+            document.getElementById('book-edit-title').value = book.title;
+            document.getElementById('book-edit-author').value = book.author;
+            
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('[data-tab="book-edit"]').classList.add('active');
+            
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById('book-edit').classList.add('active');
+        });
+
+        document.getElementById('book-delete-button').addEventListener('click', function() {
+            if (!currentUser || currentUser.role !== 'Administrator') {
+                showAccessDenied();
+                return;
+            }
+            
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('[data-tab="book-delete"]').classList.add('active');
+            
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById('book-delete').classList.add('active');
+        });
+
+        document.getElementById('book-order-button').addEventListener('click', function() {
+            if (!currentUser) {
+                showAccessDenied();
+                return;
+            }
+            
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('[data-tab="book-order"]').classList.add('active');
+            
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById('book-order').classList.add('active');
+        });
+
+        // Функції роботи з замовленнями
+        document.querySelectorAll('.order-details-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                selectedOrderId = parseInt(this.getAttribute('data-id'));
+                showOrderDetails(selectedOrderId);
+            });
+        });
+
+        // Форми
+        document.getElementById('login-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const rememberMe = document.getElementById('remember-me').checked;
+            
+            login(email, password, rememberMe);
+        });
+
+        document.getElementById('register-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const email = document.getElementById('register-email').value;
+            const firstName = document.getElementById('register-firstname').value;
+            const lastName = document.getElementById('register-lastname').value;
+            const password = document.getElementById('register-password').value;
+            const confirmPassword = document.getElementById('register-confirm-password').value;
+            
+            register(email, firstName, lastName, password, confirmPassword);
+        });
+
+        document.getElementById('book-create-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Книга успішно створена (імітація)');
+        });
+
+        document.getElementById('book-edit-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Книга успішно відредагована (імітація)');
+        });
+
+        document.getElementById('book-order-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Замовлення успішно створено (імітація)');
+        });
+
+        document.getElementById('confirm-delete-button').addEventListener('click', function() {
+            alert('Книга успішно видалена (імітація)');
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('[data-tab="books-list"]').classList.add('active');
+            
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById('books-list').classList.add('active');
+        });
+
+        document.getElementById('cancel-delete-button').addEventListener('click', function() {
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('[data-tab="book-details"]').classList.add('active');
+            
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById('book-details').classList.add('active');
+        });
+
+        document.getElementById('order-delete-button').addEventListener('click', function() {
+            if (!currentUser || currentUser.role !== 'Administrator') {
+                showAccessDenied();
+                return;
+            }
+            
+            alert('Замовлення успішно видалено (імітація)');
+            document.getElementById('order-details').style.display = 'none';
+        });
+
+        // Допоміжні функції
+        function showSection(sectionName) {
+            Object.keys(sections).forEach(key => {
+                sections[key].style.display = 'none';
+            });
+            
+            sections[sectionName].style.display = 'block';
+            
+            // Додаткова логіка для розділу книг
+            if (sectionName === 'books') {
+                updateBookPermissions();
+            }
+        }
+
+        function showAccessDenied() {
+            Object.keys(sections).forEach(key => {
+                sections[key].style.display = 'none';
+            });
+            
+            sections.accessDenied.style.display = 'block';
+        }
+
+        function login(email, password, rememberMe) {
+            const user = users.find(u => u.email === email && u.password === password);
+            
+            if (user) {
+                currentUser = user;
+                updateUIAfterLogin();
+                showSection('welcome');
+            } else {
+                document.getElementById('login-error').textContent = 'Невірний логін або пароль';
+                document.getElementById('login-error').style.display = 'block';
+            }
+        }
+
+        function register(email, firstName, lastName, password, confirmPassword) {
+            // Валідація
+            let hasError = false;
+            
+            if (password !== confirmPassword) {
+                document.getElementById('register-confirm-password-error').textContent = 'Паролі не співпадають';
+                hasError = true;
+            }
+            
+            if (users.some(u => u.email === email)) {
+                document.getElementById('register-email-error').textContent = 'Користувач з таким email вже існує';
+                hasError = true;
+            }
+            
+            if (password.length < 6) {
+                document.getElementById('register-password-error').textContent = 'Пароль повинен містити не менше 6 символів';
+                hasError = true;
+            }
+            
+            if (!hasError) {
+                const newUser = {
+                    email,
+                    firstName,
+                    lastName,
+                    password,
+                    role: 'RegisteredUser'
+                };
+                
+                users.push(newUser);
+                currentUser = newUser;
+                updateUIAfterLogin();
+                showSection('welcome');
+                alert('Реєстрація успішна!');
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('login-link').style.display = 'inline-block';
+            document.getElementById('register-link').style.display = 'inline-block';
+            document.getElementById('logout-link').style.display = 'none';
+            document.getElementById('user-section').style.display = 'none';
+            showSection('welcome');
+        }
+
+        function updateUIAfterLogin() {
+            document.getElementById('login-link').style.display = 'none';
+            document.getElementById('register-link').style.display = 'none';
+            document.getElementById('logout-link').style.display = 'inline-block';
+            
+            document.getElementById('user-email').textContent = currentUser.email;
+            document.getElementById('user-firstname').textContent = currentUser.firstName;
+            document.getElementById('user-lastname').textContent = currentUser.lastName;
+            document.getElementById('user-role').textContent = currentUser.role;
+            document.getElementById('user-section').style.display = 'block';
+            
+            updateBookPermissions();
+        }
+
+        function updateBookPermissions() {
+            // Оновлення видимості елементів залежно від ролі
+            const adminOnly = document.querySelectorAll('.admin-only');
+            const adminManagerOnly = document.querySelectorAll('.admin-manager-only');
+            const userOnly = document.querySelectorAll('.user-only');
+            
+            adminOnly.forEach(el => {
+                el.style.display = (currentUser && currentUser.role === 'Administrator') ? 'block' : 'none';
+            });
+            
+            adminManagerOnly.forEach(el => {
+                el.style.display = (currentUser && (currentUser.role === 'Administrator' || currentUser.role === 'Manager')) 
+                    ? 'block' : 'none';
+            });
+            
+            userOnly.forEach(el => {
+                el.style.display = currentUser ? 'block' : 'none';
+            });
+        }
+
+        function showOrderDetails(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            
+            if (order) {
+                document.getElementById('order-details-id').textContent = order.id;
+                document.getElementById('order-book-title').textContent = order.bookTitle;
+                document.getElementById('order-type-value').textContent = order.orderType === 'borrow' ? 'Позичити' : 'Читати в бібліотеці';
+                document.getElementById('order-date').textContent = order.date;
+                document.getElementById('order-details').style.display = 'block';
+            }
+        }
+
+        // Ініціалізація
+        showSection('welcome');
+    </script>
+</body>
+</html>
