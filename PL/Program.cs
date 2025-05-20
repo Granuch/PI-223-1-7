@@ -26,7 +26,7 @@ namespace PL
             builder.Services.AddControllersWithViews();
 
             builder.Services.AddDbContext<LibraryDbContext>(options =>
-                options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=LibratyDb;Trusted_Connection=True;"));
+                options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=LibraryDb;Trusted_Connection=True;"));
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
             builder.Services.AddScoped<IOrderService, OrderService>();
