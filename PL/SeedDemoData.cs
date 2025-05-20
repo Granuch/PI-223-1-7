@@ -82,6 +82,19 @@ public class SeedDemoData
 
     private static async Task CreateDemoUsers(UserManager<ApplicationUser> userManager)
     {
+        var existingUsers = userManager.Users.Where(u => u.Email != "admin@example.com");
+        if (existingUsers.Any())
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Demo users already exist. Skipping user seeding.");
+            Console.ResetColor();
+            return;
+        }
+
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("No demo users found. Creating demo users...");
+        Console.ResetColor();
+
         // Create a manager user
         string managerEmail = "manager@example.com";
         if (await userManager.FindByNameAsync(managerEmail) == null)
@@ -134,6 +147,19 @@ public class SeedDemoData
 
     private static async Task<List<BookDTO>> SeedBooks(IBookService bookService)
     {
+        var existingBooks = await bookService.GetAllBooksAsync();
+        if (existingBooks != null && existingBooks.Any())
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Books already exist in the database. Skipping seeding books.");
+            Console.ResetColor();
+            return new List<BookDTO>();
+        }
+
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("No books found. Starting seeding...");
+        Console.ResetColor();
+
         var demoBooks = new List<BookDTO>
         {
             new BookDTO
@@ -226,8 +252,18 @@ public class SeedDemoData
 
     private static async Task SeedOrders(IUnitOfWork unitOfWork, List<BookDTO> books)
     {
-        if (!books.Any())
+        var existingOrders = await unitOfWork.orders.GetAllAsync();
+        if (existingOrders != null && existingOrders.Any())
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Orders already exist in the database. Skipping seeding order.");
+            Console.ResetColor();
             return;
+        }
+
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("No orders found. Starting seeding...");
+        Console.ResetColor();
 
         // Create some orders
         var random = new Random();
