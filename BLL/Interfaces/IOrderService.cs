@@ -15,4 +15,5 @@ namespace BLL.Interfaces
         public Task<IEnumerable<OrderDTO>> GetAllWithoutDetails();
         public Task DeleteOrderById(int i);
     }
+
 }

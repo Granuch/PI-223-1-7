@@ -14,6 +14,7 @@ namespace PL
     {
         public static async Task Main(string[] args)
         {
+            
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
@@ -30,6 +31,11 @@ namespace PL
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
             builder.Services.AddScoped<IOrderService, OrderService>();
+
+            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+            builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
+
+
 
             builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
             {
@@ -53,7 +59,22 @@ namespace PL
                 options.ExpireTimeSpan = TimeSpan.FromHours(3);
             });
 
+
             var app = builder.Build();
+
+            await using (var scope = app.Services.CreateAsyncScope())
+            {
+                var services = scope.ServiceProvider;
+                try
+                {
+                    await SeedDemoData.SeedData(services);
+                }
+                catch (Exception ex)
+                {
+                    var logger = services.GetRequiredService<ILogger<Program>>();
+                    logger.LogError(ex, "Помилка при сидінгу демо-даних.");
+                }
+            }
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
