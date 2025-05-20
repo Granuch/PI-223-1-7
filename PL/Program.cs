@@ -23,7 +23,7 @@ namespace PL
             builder.Services.AddControllersWithViews();
 
             builder.Services.AddDbContext<LibraryDbContext>(options =>
-                options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=LibratyDb;Trusted_Connection=True;"));
+                options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=LibraryDb;Trusted_Connection=True;"));
 
             builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
             {
