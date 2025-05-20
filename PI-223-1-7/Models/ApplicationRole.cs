@@ -15,6 +15,6 @@ namespace PI_223_1_7.Models
 
         public string Description { get; set; }
 
-        public virtual ICollection<ApplicationUser> UserRoles { get; set; }
+        public virtual ICollection<ApplicationUserRole> UserRoles { get; set; }
     }
 }

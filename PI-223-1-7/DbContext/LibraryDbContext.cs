@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using PI_223_1_7.Models;
 using System;
@@ -9,7 +10,9 @@ using System.Threading.Tasks;
 
 namespace PI_223_1_7.DbContext
 {
-    public class LibraryDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, string>
+    public class LibraryDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, string,
+        IdentityUserClaim<string>, ApplicationUserRole, IdentityUserLogin<string>,
+        IdentityRoleClaim<string>, IdentityUserToken<string>>
     {
         public LibraryDbContext(DbContextOptions<LibraryDbContext> options) : base(options)
         {
@@ -19,10 +22,10 @@ namespace PI_223_1_7.DbContext
 
         public DbSet<Order> Orders { get; set; }
         public DbSet<Book> Books { get; set; }
-        public DbSet<ApplicationUser> Users { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            base.OnModelCreating(modelBuilder);
             //Configuration for Book model
             modelBuilder.Entity<Book>(entity =>
             {
@@ -52,7 +55,22 @@ namespace PI_223_1_7.DbContext
 
                 entity.Property(o => o.Type).IsRequired();
             });
-            base.OnModelCreating(modelBuilder);
+
+            //Configuration for ApplicationUser model
+            modelBuilder.Entity<ApplicationUserRole>(userRole =>
+            {
+                userRole.HasKey(ur => new { ur.UserId, ur.RoleId });
+
+                userRole.HasOne(ur => ur.Role)
+                    .WithMany(r => r.UserRoles)
+                    .HasForeignKey(ur => ur.RoleId)
+                    .IsRequired();
+
+                userRole.HasOne(ur => ur.User)
+                    .WithMany(u => u.UserRoles)
+                    .HasForeignKey(ur => ur.UserId)
+                    .IsRequired();
+            });
         }
     }
 }

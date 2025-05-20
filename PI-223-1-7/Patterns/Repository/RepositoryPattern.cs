@@ -1,11 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PI_223_1_7.DbContext;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace PI_223_1_7.Patterns.Repository
 {

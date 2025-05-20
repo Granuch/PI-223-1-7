@@ -15,7 +15,8 @@ namespace PI_223_1_7.Models
         public string LastName { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public virtual ICollection<ApplicationUser> Users { get; set; }
+        public virtual ICollection<ApplicationUserRole> UserRoles { get; set; }
 
+        public virtual ICollection<Order> Orders { get; set; }
     }
 }
