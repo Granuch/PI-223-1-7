@@ -10,10 +10,11 @@ namespace BLL.Interfaces
 {
     public interface IOrderService
     {
-        public Task<OrderDTO> CreateOrder(Order order);
+        public Task<OrderDTO> CreateOrder(OrderDTO order);
         public Task<IEnumerable<OrderDTO>> GetAllWithDetails();
         public Task<IEnumerable<OrderDTO>> GetAllWithoutDetails();
         public Task DeleteOrderById(int i);
+        public Task UpdateOrder(int i);
     }
 
 }

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace PL.Controllers
 {
-    [Authorize]// Базовий доступ для авторизованих 
+    //[Authorize]// Базовий доступ для авторизованих 
     [ApiController]
     [Route("[controller]")]
     public class OrdersController : ControllerBase
@@ -32,7 +32,7 @@ namespace PL.Controllers
         [HttpGet("all")]
         public async Task<IActionResult> GetAllOrders()
         {
-            var orders = await _orderService.GetAllWithoutDetails();
+            var orders = await _orderService.GetAllWithDetails();
             return Ok(orders);
         }
     }

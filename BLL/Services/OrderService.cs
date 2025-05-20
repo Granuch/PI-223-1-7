@@ -23,14 +23,14 @@ namespace BLL.Services
             this.mapper = mapper;
         }
 
-        public async Task<OrderDTO> CreateOrder(Order order)
+        public async Task<OrderDTO> CreateOrder(OrderDTO order)
         {
             if(order == null)
                 throw new ArgumentNullException(nameof(order));
 
-            await unitOfWork.orders.AddAsync(order);
+            await unitOfWork.orders.AddAsync(mapper.Map<Order>(order));
             await unitOfWork.Complete();
-            return mapper.Map<OrderDTO>(order);
+            return order;
         }
 
         public async Task<IEnumerable<OrderDTO>> GetAllWithDetails()
@@ -54,6 +54,13 @@ namespace BLL.Services
 
             unitOfWork.orders.Delete(order);
             await unitOfWork.orders.SaveAsync();
+        }
+
+        public async Task UpdateOrder(int i)
+        {
+            var order = await unitOfWork.orders.GetByIdAsync(i);
+
+            unitOfWork.orders.Update(order);
         }
     }
 }

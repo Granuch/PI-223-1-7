@@ -1,6 +1,7 @@
 ﻿
 using BLL.Interfaces;
 using BLL.Services;
+using Mapping.Mapping;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using PI_223_1_7.DbContext;
@@ -27,12 +28,11 @@ namespace PL
             builder.Services.AddControllersWithViews();
 
             builder.Services.AddDbContext<LibraryDbContext>(options =>
-                options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=LibraryDb;Trusted_Connection=True;"));
+                options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=LibratyDb;Trusted_Connection=True;"));
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
             builder.Services.AddScoped<IOrderService, OrderService>();
 
-            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
 

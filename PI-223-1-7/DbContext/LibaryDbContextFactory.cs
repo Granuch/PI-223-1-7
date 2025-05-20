@@ -10,7 +10,7 @@ namespace PI_223_1_7.DbContext
 {
     public class LibaryDbContextFactory : IDesignTimeDbContextFactory<LibraryDbContext>
     {
-        private const string conStr = "Server=(localdb)\\mssqllocaldb;Database=LibraryDb;Trusted_Connection=True;";
+        private const string conStr = "Server=(localdb)\\mssqllocaldb;Database=LibratyDb;Trusted_Connection=True;";
 
         public LibraryDbContext CreateDbContext(string[] args)
         {
