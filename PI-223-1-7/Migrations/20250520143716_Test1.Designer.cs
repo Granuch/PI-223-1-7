@@ -12,7 +12,7 @@ using PI_223_1_7.DbContext;
 namespace PI_223_1_7.Migrations
 {
     [DbContext(typeof(LibraryDbContext))]
-    [Migration("20250519181746_Test1")]
+    [Migration("20250520143716_Test1")]
     partial class Test1
     {
         /// <inheritdoc />

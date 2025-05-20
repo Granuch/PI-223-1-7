@@ -1,8 +1,11 @@
 ﻿
+using BLL.Interfaces;
+using BLL.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using PI_223_1_7.DbContext;
 using PI_223_1_7.Models;
+using PI_223_1_7.Patterns.UnitOfWork;
 using PL.Controllers;
 
 namespace PL
@@ -24,6 +27,9 @@ namespace PL
 
             builder.Services.AddDbContext<LibraryDbContext>(options =>
                 options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=LibratyDb;Trusted_Connection=True;"));
+            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+            builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+            builder.Services.AddScoped<IOrderService, OrderService>();
 
             builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
             {

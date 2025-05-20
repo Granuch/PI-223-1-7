@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using BLL.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using PI_223_1_7.DbContext;
@@ -7,66 +8,32 @@ using System.Threading.Tasks;
 
 namespace PL.Controllers
 {
-    [Authorize] // Базовий доступ для авторизованих
-    public class OrdersController : Controller
+    [Authorize]// Базовий доступ для авторизованих 
+    [ApiController]
+    [Route("[controller]")]
+    public class OrdersController : ControllerBase
     {
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IOrderService _orderService;
 
-        public OrdersController(UserManager<ApplicationUser> userManager)
+        public OrdersController(UserManager<ApplicationUser> userManager, IOrderService orderService)
         {
             _userManager = userManager;
+            _orderService = orderService;
         }
 
-        // GET: Orders
-        public async Task<IActionResult> Index()
+        [HttpGet("GetSpecific/{id}")]
+        public async Task<IActionResult> GetOrder(int? id)
         {
-            var user = await _userManager.GetUserAsync(User);
-            ViewBag.Message = $"[Index] Доступ дозволено для: {user?.UserName}";
-            return View();
+            var order = await _orderService.GetAllWithDetails();
+            return Ok(order);
         }
 
-        // GET: Orders/Details/5
-        public async Task<IActionResult> Details(int? id)
+        [HttpGet("all")]
+        public async Task<IActionResult> GetAllOrders()
         {
-            var user = await _userManager.GetUserAsync(User);
-            ViewBag.Message = $"[Details] Доступ до замовлення #{id} для: {user?.UserName}";
-            return View();
-        }
-
-        // GET: Orders/Create
-        public async Task<IActionResult> Create(int? bookId)
-        {
-            var user = await _userManager.GetUserAsync(User);
-            ViewBag.Message = $"[Create] Створення замовлення для книги #{bookId} користувачем: {user?.UserName}";
-            return View();
-        }
-
-        // POST: Orders/Create
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create()
-        {
-            var user = await _userManager.GetUserAsync(User);
-            ViewBag.Message = $"[POST Create] Замовлення створене користувачем: {user?.UserName}";
-            return View("Create");
-        }
-
-        // GET: Orders/Delete/5 (тільки адміністратори)
-        [Authorize(Roles = "Administrator")]
-        public IActionResult Delete(int? id)
-        {
-            ViewBag.Message = $"[Delete] Адміністратор має доступ до видалення замовлення #{id}";
-            return View();
-        }
-
-        // POST: Orders/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Administrator")]
-        public IActionResult DeleteConfirmed(int id)
-        {
-            ViewBag.Message = $"[POST Delete] Замовлення #{id} видалено адміністратором";
-            return RedirectToAction(nameof(Index));
+            var orders = await _orderService.GetAllWithoutDetails();
+            return Ok(orders);
         }
     }
 }
