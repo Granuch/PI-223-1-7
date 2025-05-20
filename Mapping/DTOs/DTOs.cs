@@ -28,5 +28,25 @@ namespace Mapping.DTOs
         public OrderStatusTypes Type { get; set; }
         public BookDTO Book { get; set; }
     }
+
+    public class UserDTO
+    {
+        public string Id { get; set; }
+        public string UserName { get; set; }
+        public string Email { get; set; }
+        public string PhoneNumber { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string FullName { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public ICollection<string> Roles { get; set; }
+    }
+
+    public class RoleDTO
+    {
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+    }
 }
 
