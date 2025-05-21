@@ -5,7 +5,9 @@ using PL.ViewModels;
 
 namespace PL.Controllers
 {
-    public class AccountController : Controller
+    [Route("api/account")]
+    [ApiController]
+    public class AccountController : ControllerBase
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
@@ -21,14 +23,8 @@ namespace PL.Controllers
             _roleManager = roleManager;
         }
 
-        [HttpGet]
-        public IActionResult Register()
-        {
-            return View();
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> Register(RegisterViewModel model)
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] RegisterViewModel model)
         {
             if (ModelState.IsValid)
             {
@@ -41,30 +37,32 @@ namespace PL.Controllers
                 };
 
                 var result = await _userManager.CreateAsync(user, model.Password);
+
                 if (result.Succeeded)
                 {
                     await _userManager.AddToRoleAsync(user, "RegisteredUser");
-
                     await _signInManager.SignInAsync(user, isPersistent: false);
-                    return RedirectToAction("Index", "Home");
+
+                    return Ok(new { success = true, message = "Реєстрація пройшла успішно" });
                 }
 
-                foreach (var error in result.Errors)
+                return BadRequest(new
                 {
-                    ModelState.AddModelError(string.Empty, error.Description);
-                }
+                    success = false,
+                    errors = result.Errors.Select(e => e.Description)
+                });
             }
-            return View(model);
+
+            return BadRequest(new
+            {
+                success = false,
+                errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)
+            });
         }
 
-        [HttpGet]
-        public IActionResult Login(string returnUrl = null)
-        {
-            return View(new LoginViewModel { ReturnUrl = returnUrl });
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> Login(LoginViewModel model)
+        // Авторизація користувача
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginViewModel model)
         {
             if (ModelState.IsValid)
             {
@@ -73,35 +71,64 @@ namespace PL.Controllers
 
                 if (result.Succeeded)
                 {
-                    if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
+                    var user = await _userManager.FindByEmailAsync(model.Email);
+                    var roles = await _userManager.GetRolesAsync(user);
+
+                    return Ok(new
                     {
-                        return Redirect(model.ReturnUrl);
-                    }
-                    else
-                    {
-                        return RedirectToAction("Index", "Home");
-                    }
+                        success = true,
+                        message = "Вхід виконано успішно",
+                        user = new
+                        {
+                            email = user.Email,
+                            firstName = user.FirstName,
+                            lastName = user.LastName,
+                            roles = roles
+                        }
+                    });
                 }
-                else
-                {
-                    ModelState.AddModelError(string.Empty, "Невірний логін або пароль");
-                }
+
+                return BadRequest(new { success = false, message = "Невірний логін або пароль" });
             }
-            return View(model);
+
+            return BadRequest(new
+            {
+                success = false,
+                errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)
+            });
         }
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
+        // Вихід з системи
+        [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {
             await _signInManager.SignOutAsync();
-            return RedirectToAction("Index", "Home");
+            return Ok(new { success = true, message = "Вихід виконано успішно" });
         }
 
-        [HttpGet]
-        public IActionResult AccessDenied()
+        // Перевірка статусу автентифікації
+        [HttpGet("status")]
+        public async Task<IActionResult> CheckAuthStatus()
         {
-            return View();
+            if (User.Identity.IsAuthenticated)
+            {
+                var user = await _userManager.GetUserAsync(User);
+                var roles = await _userManager.GetRolesAsync(user);
+
+                return Ok(new
+                {
+                    isAuthenticated = true,
+                    user = new
+                    {
+                        email = user.Email,
+                        firstName = user.FirstName,
+                        lastName = user.LastName,
+                        roles = roles
+                    }
+                });
+            }
+
+            return Ok(new { isAuthenticated = false });
         }
     }
 }

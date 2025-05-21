@@ -48,10 +48,6 @@ namespace PL.Controllers
                 return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
             }
         }
-
-        /// <summary>
-        /// Отримує книги з фільтрацією за різними параметрами
-        /// </summary>
         /// <response code="200">Успішне повернення списку книг</response>
         /// <response code="500">Помилка на сервері</response>
         [HttpGet("Filter")]
@@ -89,7 +85,6 @@ namespace PL.Controllers
                     _logger.LogInformation("Getting all books (no filters applied)");
                 }
 
-                // Сортування
                 if (!string.IsNullOrEmpty(sortOrder))
                 {
                     switch (sortOrder.ToLower())
@@ -117,6 +112,7 @@ namespace PL.Controllers
                 return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
             }
         }
+
 
         /// <summary>
         /// Отримує книгу за ідентифікатором
@@ -148,14 +144,13 @@ namespace PL.Controllers
             }
         }
 
-        /// <summary>
-        /// Створює нову книгу
-        /// </summary>
+
         /// <response code="201">Книга успішно створена</response>
         /// <response code="400">Неправильні дані у запиті</response>
         /// <response code="401">Користувач не авторизований</response>
         /// <response code="403">Доступ заборонено</response>
         /// <response code="500">Помилка на сервері</response>
+
         [HttpPost("Create")]
         [Authorize(Roles = "Manager,Administrator")]
         [ProducesResponseType(typeof(BookDTO), 201)]
@@ -173,7 +168,7 @@ namespace PL.Controllers
 
             try
             {
-                book.IsAvailable = true; // За замовчуванням нова книга доступна
+                book.IsAvailable = true;
                 var createdBook = await _bookService.AddBookAsync(book);
                 _logger.LogInformation($"Book created successfully: {createdBook.Id}");
                 return CreatedAtAction(nameof(GetBookById), new { id = createdBook.Id }, createdBook);
@@ -194,6 +189,7 @@ namespace PL.Controllers
         /// <response code="403">Доступ заборонено</response>
         /// <response code="404">Книга не знайдена</response>
         /// <response code="500">Помилка на сервері</response>
+
         [HttpPut("Update/{id}")]
         [Authorize(Roles = "Manager,Administrator")]
         [ProducesResponseType(204)]
@@ -243,6 +239,7 @@ namespace PL.Controllers
         /// <response code="403">Доступ заборонено</response>
         /// <response code="404">Книга не знайдена</response>
         /// <response code="500">Помилка на сервері</response>
+
         [HttpDelete("Delete/{id}")]
         [Authorize(Roles = "Administrator")]
         [ProducesResponseType(204)]
@@ -275,8 +272,7 @@ namespace PL.Controllers
                 return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
             }
         }
-
-
+        
         /// <summary>
         /// Отримує всі книги, замовлені поточним користувачем
         /// </summary>
