@@ -14,7 +14,8 @@ namespace BLL.Interfaces
         public Task<IEnumerable<OrderDTO>> GetAllWithDetails();
         public Task<IEnumerable<OrderDTO>> GetAllWithoutDetails();
         public Task DeleteOrderById(int i);
-        public Task UpdateOrder(int i);
+        public Task UpdateOrder(OrderDTO order);
+        public Task<OrderDTO> GetSpecificOrder(int i);
     }
 
 }

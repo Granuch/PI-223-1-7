@@ -23,6 +23,12 @@ namespace BLL.Services
             this.mapper = mapper;
         }
 
+        public async Task<OrderDTO> GetSpecificOrder(int i)
+        {
+            var order = await unitOfWork.orders.GetByIdAsync(i);
+            return mapper.Map<OrderDTO>(order);
+        }
+
         public async Task<OrderDTO> CreateOrder(OrderDTO order)
         {
             if(order == null)
@@ -56,11 +62,17 @@ namespace BLL.Services
             await unitOfWork.orders.SaveAsync();
         }
 
-        public async Task UpdateOrder(int i)
+        public async Task UpdateOrder(OrderDTO order)
         {
-            var order = await unitOfWork.orders.GetByIdAsync(i);
+            if (order == null)
+                throw new ArgumentNullException(nameof(order));
 
-            unitOfWork.orders.Update(order);
+            var existingOrder = await unitOfWork.orders.GetByIdAsync(order.Id);
+
+            mapper.Map(order, existingOrder);
+
+            unitOfWork.orders.Update(existingOrder);
+            await unitOfWork.Complete();
         }
     }
 }

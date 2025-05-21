@@ -1,4 +1,5 @@
 ﻿using BLL.Interfaces;
+using Mapping.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -23,17 +24,46 @@ namespace PL.Controllers
         }
 
         [HttpGet("GetSpecific/{id}")]
-        public async Task<IActionResult> GetOrder(int? id)
+        public async Task<IActionResult> GetOrder(int id)
         {
-            var order = await _orderService.GetAllWithDetails();
+            var order = await _orderService.GetSpecificOrder(id);
             return Ok(order);
         }
 
-        [HttpGet("all")]
+        [HttpGet("Getall")]
         public async Task<IActionResult> GetAllOrders()
         {
             var orders = await _orderService.GetAllWithDetails();
             return Ok(orders);
+        }
+
+        [HttpPost("CreateNewOrder")]
+        public async Task<IActionResult> CreateOrder([FromBody]OrderDTO orderDTO)
+        {
+           await _orderService.CreateOrder(orderDTO);
+           return Ok();
+        }
+
+        [HttpPut("Update")]
+        public async Task<IActionResult> UpdateOrder(int orderId, [FromBody]OrderDTO UpdatedOrder)
+        {
+            if(orderId != UpdatedOrder.Id)
+                return NotFound();
+
+            var exist = await _orderService.GetSpecificOrder(orderId);
+            if(exist == null)
+                return NotFound();
+
+            await _orderService.UpdateOrder(UpdatedOrder);
+
+            return NoContent();
+        }
+
+        [HttpDelete("Delete")]
+        public async Task<IActionResult> DeleteOrder(int id)
+        {
+            await _orderService.DeleteOrderById(id);
+            return NoContent();
         }
     }
 }

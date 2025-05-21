@@ -63,9 +63,18 @@ public class SeedDemoData
             Console.WriteLine("Seeding books...");
             var books = await SeedBooks(bookService);
 
-            // Seed orders
-            Console.WriteLine("Seeding orders...");
-            await SeedOrders(unitOfWork, books);
+            if (books == null || books.Count == 0)
+            {
+                IEnumerable<BookDTO> bookss = await bookService.GetAllBooksAsync();
+                Console.WriteLine("Seeding orders...");
+                await SeedOrders(unitOfWork, bookss.ToList());
+            }
+            else
+            {
+                Console.WriteLine("Seeding orders...");
+                await SeedOrders(unitOfWork, books);
+            }
+                          
 
             Console.WriteLine("Database seeding completed successfully.");
         }
