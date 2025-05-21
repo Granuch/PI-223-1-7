@@ -59,7 +59,6 @@ public class SeedDemoData
                 Console.WriteLine($"Identity services not available. Skipping user and role seeding. Error: {ex.Message}");
             }
 
-            // Seed books
             Console.WriteLine("Seeding books...");
             var books = await SeedBooks(bookService);
 
@@ -74,8 +73,7 @@ public class SeedDemoData
                 Console.WriteLine("Seeding orders...");
                 await SeedOrders(unitOfWork, books);
             }
-                          
-
+          
             Console.WriteLine("Database seeding completed successfully.");
         }
         catch (Exception ex)

@@ -1,13 +1,16 @@
-﻿
+
 using BLL.Interfaces;
 using BLL.Services;
 using Mapping.Mapping;
+
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using PI_223_1_7.DbContext;
 using PI_223_1_7.Models;
 using PI_223_1_7.Patterns.UnitOfWork;
 using PL.Controllers;
+using BLL.Interfaces;
+using BLL.Services;
 
 namespace PL
 {
@@ -36,7 +39,7 @@ namespace PL
 
             builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
-
+            builder.Services.AddScoped<IBookService, BookService>();
 
             builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
             {
