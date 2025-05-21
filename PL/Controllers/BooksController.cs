@@ -6,6 +6,7 @@ using BLL.Interfaces;
 using Mapping.DTOs;
 using PI_223_1_7.Enums;
 using BLL.Exceptions;
+using Microsoft.Extensions.Logging;
 
 namespace PL.Controllers
 {
@@ -16,11 +17,13 @@ namespace PL.Controllers
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IBookService _bookService;
+        private readonly ILogger<BooksController> _logger;
 
-        public BooksController(UserManager<ApplicationUser> userManager, IBookService bookService)
+        public BooksController(UserManager<ApplicationUser> userManager, IBookService bookService, ILogger<BooksController> logger)
         {
             _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
             _bookService = bookService ?? throw new ArgumentNullException(nameof(bookService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         // Отримує всі книги з можливістю пошуку, фільтрації та сортування
@@ -78,6 +81,7 @@ namespace PL.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error retrieving books");
                 return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
             }
         }
@@ -97,12 +101,14 @@ namespace PL.Controllers
                 var book = await _bookService.GetBookByIdAsync(id);
                 return Ok(book);
             }
-            catch (BookNotFoundException)
+            catch (BookNotFoundException ex)
             {
+                _logger.LogWarning(ex, $"Book not found: {id}");
                 return NotFound(new { message = $"Книга з ID {id} не знайдена" });
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, $"Error retrieving book with ID: {id}");
                 return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
             }
         }
@@ -124,6 +130,7 @@ namespace PL.Controllers
         {
             if (!ModelState.IsValid)
             {
+                _logger.LogWarning("Invalid model state when creating book");
                 return BadRequest(ModelState);
             }
 
@@ -131,10 +138,12 @@ namespace PL.Controllers
             {
                 book.IsAvailable = true; // За замовчуванням нова книга доступна
                 var createdBook = await _bookService.AddBookAsync(book);
+                _logger.LogInformation($"Book created successfully: {createdBook.Id}");
                 return CreatedAtAction(nameof(GetBook), new { id = createdBook.Id }, createdBook);
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error creating book");
                 return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
             }
         }
@@ -158,25 +167,30 @@ namespace PL.Controllers
         {
             if (id != book.Id)
             {
+                _logger.LogWarning($"Mismatch between URL ID: {id} and body ID: {book.Id}");
                 return BadRequest(new { message = "Ідентифікатор книги в URL повинен співпадати з ідентифікатором в тілі запиту" });
             }
 
             if (!ModelState.IsValid)
             {
+                _logger.LogWarning("Invalid model state when updating book");
                 return BadRequest(ModelState);
             }
 
             try
             {
                 await _bookService.UpdateBookAsync(book);
+                _logger.LogInformation($"Book successfully updated: {id}");
                 return NoContent();
             }
-            catch (BookNotFoundException)
+            catch (BookNotFoundException ex)
             {
+                _logger.LogWarning(ex, $"Book not found: {id}");
                 return NotFound(new { message = $"Книга з ID {id} не знайдена" });
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, $"Error updating book with ID: {id}");
                 return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
             }
         }
@@ -201,18 +215,22 @@ namespace PL.Controllers
             try
             {
                 await _bookService.DeleteBookAsync(id);
+                _logger.LogInformation($"Book successfully deleted: {id}");
                 return NoContent();
             }
-            catch (BookNotFoundException)
+            catch (BookNotFoundException ex)
             {
+                _logger.LogWarning(ex, $"Book not found: {id}");
                 return NotFound(new { message = $"Книга з ID {id} не знайдена" });
             }
             catch (BookDeleteException ex)
             {
+                _logger.LogWarning(ex, $"Cannot delete book: {id}. {ex.Message}");
                 return BadRequest(new { message = ex.Message });
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, $"Error deleting book with ID: {id}");
                 return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
             }
         }
@@ -248,18 +266,22 @@ namespace PL.Controllers
 
                 // Використовуємо фіксований ID замість user.Id
                 var order = await _bookService.OrderBookAsync(id, userId);
+                _logger.LogInformation($"Book ordered successfully: Book ID: {id}, User ID: {userId}");
                 return Ok(order);
             }
-            catch (BookNotFoundException)
+            catch (BookNotFoundException ex)
             {
+                _logger.LogWarning(ex, $"Book not found: {id}");
                 return NotFound(new { message = $"Книга з ID {id} не знайдена" });
             }
             catch (BookNotAvailableException ex)
             {
+                _logger.LogWarning(ex, $"Book not available: {id}");
                 return BadRequest(new { message = ex.Message });
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, $"Error ordering book with ID: {id}");
                 return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
             }
         }
@@ -291,10 +313,12 @@ namespace PL.Controllers
                 // Використовуємо фіксований userId замість user.Id
                 // Також прибрав параметр id, якого немає в оригінальному методі
                 var books = await _bookService.GetUserOrderedBooksAsync(userId);
+                _logger.LogInformation($"Retrieved orders for user: {userId}");
                 return Ok(books);
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error retrieving user's ordered books");
                 return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
             }
         }
@@ -311,16 +335,19 @@ namespace PL.Controllers
         {
             if (string.IsNullOrWhiteSpace(author))
             {
+                _logger.LogWarning("Empty author parameter provided");
                 return BadRequest(new { message = "Ім'я автора не може бути порожнім" });
             }
 
             try
             {
                 var books = await _bookService.GetBooksByAuthorAsync(author);
+                _logger.LogInformation($"Retrieved books by author: {author}");
                 return Ok(books);
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, $"Error retrieving books by author: {author}");
                 return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
             }
         }
@@ -338,14 +365,17 @@ namespace PL.Controllers
             try
             {
                 var isAvailable = await _bookService.IsBookAvailableAsync(id);
+                _logger.LogInformation($"Checked availability for book: {id}, result: {isAvailable}");
                 return Ok(isAvailable);
             }
-            catch (BookNotFoundException)
+            catch (BookNotFoundException ex)
             {
+                _logger.LogWarning(ex, $"Book not found: {id}");
                 return NotFound(new { message = $"Книга з ID {id} не знайдена" });
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, $"Error checking availability for book with ID: {id}");
                 return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
             }
         }
@@ -370,14 +400,17 @@ namespace PL.Controllers
             try
             {
                 await _bookService.SetBookAvailabilityAsync(id, isAvailable);
+                _logger.LogInformation($"Book availability updated: {id}, set to: {isAvailable}");
                 return NoContent();
             }
-            catch (BookNotFoundException)
+            catch (BookNotFoundException ex)
             {
+                _logger.LogWarning(ex, $"Book not found: {id}");
                 return NotFound(new { message = $"Книга з ID {id} не знайдена" });
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, $"Error updating availability for book with ID: {id}");
                 return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
             }
         }
