@@ -26,6 +26,26 @@ namespace PL.Controllers
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
+        /// <response code="200">Успішне повернення списку всіх книг</response>
+        /// <response code="500">Помилка на сервері</response>
+        [HttpGet("all")]
+        [ProducesResponseType(typeof(IEnumerable<BookDTO>), 200)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult<IEnumerable<BookDTO>>> GetAllBooks()
+        {
+            try
+            {
+                var books = await _bookService.GetAllBooksAsync();
+                _logger.LogInformation("Retrieved all books successfully");
+                return Ok(books);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving all books");
+                return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
+            }
+        }
+
         // Отримує всі книги з можливістю пошуку, фільтрації та сортування
         /// <response code="200">Успішне повернення списку книг</response>
         /// <response code="500">Помилка на сервері</response>
