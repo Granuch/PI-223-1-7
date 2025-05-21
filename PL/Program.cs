@@ -83,6 +83,7 @@ namespace PL
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
+                app.UseDeveloperExceptionPage();
             }
             app.UseStaticFiles();
             app.UseHttpsRedirection();
