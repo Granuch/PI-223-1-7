@@ -12,8 +12,8 @@ using PI_223_1_7.DbContext;
 namespace PI_223_1_7.Migrations
 {
     [DbContext(typeof(LibraryDbContext))]
-    [Migration("20250519181649_Test")]
-    partial class Test
+    [Migration("20250520162614_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
