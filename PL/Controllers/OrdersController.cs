@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace PL.Controllers
 {
-    //[Authorize]// Базовий доступ для авторизованих 
+    [Authorize]
     [ApiController]
     [Route("[controller]")]
     public class OrdersController : ControllerBase
@@ -25,6 +25,7 @@ namespace PL.Controllers
             _logger = logger;
         }
 
+        [Authorize(Roles = "Manager,Administrator")]
         [HttpGet("GetSpecific/{id}")]
         public async Task<IActionResult> GetOrder(int id)
         {
@@ -40,6 +41,7 @@ namespace PL.Controllers
             }
         }
 
+        [Authorize(Roles = "Manager,Administrator")]
         [HttpGet("Getall")]
         public async Task<IActionResult> GetAllOrders()
         {
@@ -68,6 +70,7 @@ namespace PL.Controllers
             }
         }
 
+        [Authorize(Roles = "Manager,Administrator")]
         [HttpPut("Update")]
         public async Task<IActionResult> UpdateOrder(int orderId, [FromBody]OrderDTO UpdatedOrder)
         {
@@ -99,6 +102,7 @@ namespace PL.Controllers
             }
         }
 
+        [Authorize(Roles = "Administrator")]
         [HttpDelete("Delete")]
         public async Task<IActionResult> DeleteOrder(int id)
         {
