@@ -17,27 +17,62 @@ namespace BLL.Services
         private readonly IUnitOfWork unitOfWork;
         private readonly IMapper mapper;
 
-        public OrderService(UnitOfWork unitOfWork, IMapper mapper)
+        public OrderService(IUnitOfWork unitOfWork, IMapper mapper)
         {
             this.unitOfWork = unitOfWork;
             this.mapper = mapper;
         }
 
-        public async Task<Order> CreateOrder(Order order)
+        public async Task<OrderDTO> GetSpecificOrder(int i)
         {
-            await unitOfWork.orders.AddAsync(order);
+            var order = await unitOfWork.orders.GetByIdAsync(i);
+            return mapper.Map<OrderDTO>(order);
+        }
+
+        public async Task<OrderDTO> CreateOrder(OrderDTO order)
+        {
+            if(order == null)
+                throw new ArgumentNullException(nameof(order));
+
+            await unitOfWork.orders.AddAsync(mapper.Map<Order>(order));
             await unitOfWork.Complete();
             return order;
         }
 
-        public async Task<IEnumerable<Order>> GetAllWithDetails()
+        public async Task<IEnumerable<OrderDTO>> GetAllWithDetails()
         {
-            return await unitOfWork.orders.GetAllWithDetailsAsync();
+            var order = await unitOfWork.orders.GetAllWithDetailsAsync();
+            return mapper.Map<IEnumerable<OrderDTO>>(order);
         }
 
-        public async Task<IEnumerable<Order>> GetAllWithoutDetails()
+        public async Task<IEnumerable<OrderDTO>> GetAllWithoutDetails()
         {
-            return await unitOfWork.orders.GetAllAsync();
+            var order = await unitOfWork.orders.GetAllAsync();
+            return mapper.Map<IEnumerable<OrderDTO>>(order);
+        }
+
+        public async Task DeleteOrderById(int i)
+        {
+            var order = await unitOfWork.orders.GetByIdAsync(i);
+
+            if (order == null)
+                throw new ArgumentException();
+
+            unitOfWork.orders.Delete(order);
+            await unitOfWork.orders.SaveAsync();
+        }
+
+        public async Task UpdateOrder(OrderDTO order)
+        {
+            if (order == null)
+                throw new KeyNotFoundException(nameof(order));
+
+            var existingOrder = await unitOfWork.orders.GetByIdAsync(order.Id);
+
+            mapper.Map(order, existingOrder);
+
+            unitOfWork.orders.Update(existingOrder);
+            await unitOfWork.Complete();
         }
     }
 }

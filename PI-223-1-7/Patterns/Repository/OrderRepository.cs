@@ -28,5 +28,10 @@ namespace PI_223_1_7.Patterns.Repository
         {
             return await libraryDbContext.Orders.Include(b => b.Book).ToListAsync();
         }
+
+        public async override Task<Order> GetByIdAsync(int id)
+        {
+            return await libraryDbContext.Orders.Include(b => b.Book).FirstOrDefaultAsync(i => i.Id == id);
+        }
     }
 }

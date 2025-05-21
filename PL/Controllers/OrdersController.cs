@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using BLL.Interfaces;
+using Mapping.DTOs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using PI_223_1_7.DbContext;
@@ -7,66 +9,117 @@ using System.Threading.Tasks;
 
 namespace PL.Controllers
 {
-    [Authorize] // Базовий доступ для авторизованих
-    public class OrdersController : Controller
+    //[Authorize]// Базовий доступ для авторизованих 
+    [ApiController]
+    [Route("[controller]")]
+    public class OrdersController : ControllerBase
     {
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IOrderService _orderService;
+        private readonly ILogger<OrdersController> _logger;
 
-        public OrdersController(UserManager<ApplicationUser> userManager)
+        public OrdersController(UserManager<ApplicationUser> userManager, IOrderService orderService, ILogger<OrdersController> logger)
         {
             _userManager = userManager;
+            _orderService = orderService;
+            _logger = logger;
         }
 
-        // GET: Orders
-        public async Task<IActionResult> Index()
+        [HttpGet("GetSpecific/{id}")]
+        public async Task<IActionResult> GetOrder(int id)
         {
-            var user = await _userManager.GetUserAsync(User);
-            ViewBag.Message = $"[Index] Доступ дозволено для: {user?.UserName}";
-            return View();
+            try
+            {
+                var order = await _orderService.GetSpecificOrder(id);
+                return Ok(order);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning(ex, $"Order not found: {id}");
+                return NotFound(ex.Message);
+            }
         }
 
-        // GET: Orders/Details/5
-        public async Task<IActionResult> Details(int? id)
+        [HttpGet("Getall")]
+        public async Task<IActionResult> GetAllOrders()
         {
-            var user = await _userManager.GetUserAsync(User);
-            ViewBag.Message = $"[Details] Доступ до замовлення #{id} для: {user?.UserName}";
-            return View();
+            try
+            {
+                var orders = await _orderService.GetAllWithDetails();
+                return Ok(orders);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
-        // GET: Orders/Create
-        public async Task<IActionResult> Create(int? bookId)
+        [HttpPost("CreateNewOrder")]
+        public async Task<IActionResult> CreateOrder([FromBody]OrderDTO orderDTO)
         {
-            var user = await _userManager.GetUserAsync(User);
-            ViewBag.Message = $"[Create] Створення замовлення для книги #{bookId} користувачем: {user?.UserName}";
-            return View();
+            try
+            {
+                await _orderService.CreateOrder(orderDTO);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
-        // POST: Orders/Create
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create()
+        [HttpPut("Update")]
+        public async Task<IActionResult> UpdateOrder(int orderId, [FromBody]OrderDTO UpdatedOrder)
         {
-            var user = await _userManager.GetUserAsync(User);
-            ViewBag.Message = $"[POST Create] Замовлення створене користувачем: {user?.UserName}";
-            return View("Create");
+            try
+            {
+                if (orderId != UpdatedOrder.Id)
+                    return NotFound();
+
+                var exist = await _orderService.GetSpecificOrder(orderId);
+                if (exist == null)
+                    return NotFound();
+
+                await _orderService.UpdateOrder(UpdatedOrder);
+
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
-        // GET: Orders/Delete/5 (тільки адміністратори)
-        [Authorize(Roles = "Administrator")]
-        public IActionResult Delete(int? id)
+        [HttpDelete("Delete")]
+        public async Task<IActionResult> DeleteOrder(int id)
         {
-            ViewBag.Message = $"[Delete] Адміністратор має доступ до видалення замовлення #{id}";
-            return View();
-        }
-
-        // POST: Orders/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Administrator")]
-        public IActionResult DeleteConfirmed(int id)
-        {
-            ViewBag.Message = $"[POST Delete] Замовлення #{id} видалено адміністратором";
-            return RedirectToAction(nameof(Index));
+            try
+            {
+                await _orderService.DeleteOrderById(id);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning($"Order with id: {id} not found");
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
     }
 }

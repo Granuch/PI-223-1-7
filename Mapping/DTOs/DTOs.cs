@@ -26,7 +26,7 @@ namespace Mapping.DTOs
         public int BookId { get; set; }
         public DateTime OrderDate { get; set; }
         public OrderStatusTypes Type { get; set; }
-        public BookDTO Book { get; set; }
+        //public BookDTO Book { get; set; }
     }
 
     public class UserDTO

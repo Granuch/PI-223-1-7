@@ -17,8 +17,8 @@ namespace Mapping.Mapping
                 .ForMember(dest => dest.Orders, opt => opt.Ignore());
 
             // Order mappings
-            CreateMap<Order, OrderDTO>()
-                .ForMember(dest => dest.Book, opt => opt.MapFrom(src => src.Book));
+            CreateMap<Order, OrderDTO>();
+                //.ForMember(dest => dest.Book, opt => opt.MapFrom(src => src.Book));
 
             CreateMap<OrderDTO, Order>()
                 .ForMember(dest => dest.Book, opt => opt.Ignore());
