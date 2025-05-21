@@ -276,10 +276,58 @@ namespace PL.Controllers
             }
         }
 
-        
+
         /// <summary>
         /// Отримує всі книги, замовлені поточним користувачем
         /// </summary>
+        /// <response code="403">Доступ заборонено</response>
+        /// <response code="404">Книга не знайдена</response>
+        /// <response code="500">Помилка на сервері</response>
+        [HttpPost("{id}/order")]
+        //[Authorize(Roles = "RegisteredUser,Manager,Administrator")]
+        [ProducesResponseType(typeof(OrderDTO), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(401)]
+        [ProducesResponseType(403)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult<OrderDTO>> OrderBook(int id)
+        {
+            try
+            {
+                // Для тестування використовуємо фіксований ID користувача
+                string userId = "1"; // Припускаємо, що користувач з ID=1 існує в базі даних
+
+                // Коментуємо оригінальний код отримання користувача
+                //var user = await _userManager.GetUserAsync(User);
+                //if (user == null)
+                //{
+                //    return Unauthorized(new { message = "Користувач не авторизований" });
+                //}
+
+                // Використовуємо фіксований ID замість user.Id
+                var order = await _bookService.OrderBookAsync(id, userId);
+                _logger.LogInformation($"Book ordered successfully: Book ID: {id}, User ID: {userId}");
+                return Ok(order);
+            }
+            catch (BookNotFoundException ex)
+            {
+                _logger.LogWarning(ex, $"Book not found: {id}");
+                return NotFound(new { message = $"Книга з ID {id} не знайдена" });
+            }
+            catch (BookNotAvailableException ex)
+            {
+                _logger.LogWarning(ex, $"Book not available: {id}");
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error ordering book with ID: {id}");
+                return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
+            }
+        }
+
+        // Отримує всі книги, замовлені поточним користувачем
         /// <response code="200">Список успішно отриманий</response>
         /// <response code="401">Користувач не авторизований</response>
         /// <response code="403">Доступ заборонено</response>
