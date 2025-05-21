@@ -65,7 +65,7 @@ namespace BLL.Services
         public async Task UpdateOrder(OrderDTO order)
         {
             if (order == null)
-                throw new ArgumentNullException(nameof(order));
+                throw new KeyNotFoundException(nameof(order));
 
             var existingOrder = await unitOfWork.orders.GetByIdAsync(order.Id);
 

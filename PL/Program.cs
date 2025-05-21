@@ -26,6 +26,7 @@ namespace PL
             builder.Services.AddSwaggerGen();
 
             builder.Services.AddControllersWithViews();
+            builder.Logging.AddConsole();
 
             builder.Services.AddDbContext<LibraryDbContext>(options =>
                 options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=LibratyDb;Trusted_Connection=True;"));

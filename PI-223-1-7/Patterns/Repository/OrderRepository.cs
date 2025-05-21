@@ -31,7 +31,7 @@ namespace PI_223_1_7.Patterns.Repository
 
         public async override Task<Order> GetByIdAsync(int id)
         {
-            return await libraryDbContext.Orders.Include(b => b.Book).FirstAsync(i => i.Id == id);
+            return await libraryDbContext.Orders.Include(b => b.Book).FirstOrDefaultAsync(i => i.Id == id);
         }
     }
 }
