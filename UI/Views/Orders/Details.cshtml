@@ -1,0 +1,118 @@
+﻿@model UI.Models.DTOs.OrderDTO
+@{
+    ViewData["Title"] = "Деталі замовлення";
+}
+
+<h2>@ViewData["Title"] #@Model.Id</h2>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    Інформація про замовлення
+                    <span class="badge @Model.StatusBadgeClass float-end">@Model.StatusUkrainian</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-3">ID замовлення:</dt>
+                    <dd class="col-sm-9"><strong>@Model.Id</strong></dd>
+
+                    <dt class="col-sm-3">Користувач:</dt>
+                    <dd class="col-sm-9">
+                        @if (!string.IsNullOrEmpty(Model.UserEmail))
+                        {
+                            <span class="text-primary">@Model.UserEmail</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">ID: @Model.UserId</span>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-3">Дата замовлення:</dt>
+                    <dd class="col-sm-9">
+                        <span class="text-info">@Model.OrderDate.ToString("dd MMMM yyyy 'о' HH:mm")</span>
+                    </dd>
+
+                    @if (Model.ReturnDate.HasValue)
+                    {
+                        <dt class="col-sm-3">Дата повернення:</dt>
+                        <dd class="col-sm-9">
+                            <span class="text-success">@Model.ReturnDate.Value.ToString("dd MMMM yyyy 'о' HH:mm")</span>
+                        </dd>
+                    }
+
+                    <dt class="col-sm-3">Статус:</dt>
+                    <dd class="col-sm-9">
+                        <span class="badge @Model.StatusBadgeClass fs-6">@Model.StatusUkrainian</span>
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        @if (Model.Book != null)
+        {
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Інформація про книгу</h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="card-title">@Model.Book.Title</h6>
+                    <p class="card-text">
+                        <strong>Автор:</strong> @Model.Book.Author<br />
+                        <strong>Рік видання:</strong> @Model.Book.Year.Year<br />
+                        <strong>Жанр:</strong> @Model.Book.Genre<br />
+                        <strong>Тип:</strong> @Model.Book.Type
+                    </p>
+
+                    @if (!string.IsNullOrEmpty(Model.Book.Description))
+                    {
+                        <hr />
+                        <p class="card-text">
+                            <small class="text-muted">@Model.Book.Description</small>
+                        </p>
+                    }
+
+                    <div class="mt-3">
+                        <span class="badge @(Model.Book.IsAvailable ? "bg-success" : "bg-danger")">
+                            @(Model.Book.IsAvailable ? "Доступна" : "Недоступна")
+                        </span>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card">
+                <div class="card-body">
+                    <p class="text-muted">Інформація про книгу недоступна</p>
+                    <p><strong>ID книги:</strong> @Model.BookId</p>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="mt-4">
+    <div class="btn-group" role="group">
+        @if (ViewBag.IsManager == true || ViewBag.IsAdministrator == true)
+        {
+            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">
+                <i class="fas fa-edit"></i> Редагувати
+            </a>
+        }
+        @if (ViewBag.IsAdministrator == true)
+        {
+            <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">
+                <i class="fas fa-trash"></i> Видалити
+            </a>
+        }
+        <a asp-action="Index" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Назад до списку
+        </a>
+    </div>
+</div>

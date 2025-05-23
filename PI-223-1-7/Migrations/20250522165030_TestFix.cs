@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace PI_223_1_7.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class TestFix : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -185,11 +185,12 @@ namespace PI_223_1_7.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    UserId = table.Column<int>(type: "int", nullable: false),
+                    UserId = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     BookId = table.Column<int>(type: "int", nullable: false),
                     OrderDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Type = table.Column<int>(type: "int", nullable: false),
-                    ApplicationUserId = table.Column<string>(type: "nvarchar(450)", nullable: true)
+                    ApplicationUserId = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    BookId1 = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -204,7 +205,12 @@ namespace PI_223_1_7.Migrations
                         column: x => x.BookId,
                         principalTable: "Books",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Orders_Books_BookId1",
+                        column: x => x.BookId1,
+                        principalTable: "Books",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateIndex(
@@ -255,6 +261,11 @@ namespace PI_223_1_7.Migrations
                 name: "IX_Orders_BookId",
                 table: "Orders",
                 column: "BookId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Orders_BookId1",
+                table: "Orders",
+                column: "BookId1");
         }
 
         /// <inheritdoc />

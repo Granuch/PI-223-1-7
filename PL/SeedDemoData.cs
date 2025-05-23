@@ -272,37 +272,30 @@ public class SeedDemoData
         Console.WriteLine("No orders found. Starting seeding...");
         Console.ResetColor();
 
-        // Create some orders
         var random = new Random();
-
-        // Take a few books to be ordered
         var booksToOrder = books.Take(3).ToList();
 
-        // Create default user IDs if we don't have actual users
-        List<int> userIds = new List<int> { 1, 2, 3 };
+        List<string> userIds = new();
 
         try
         {
-            // Try to get actual users if available
             var users = await unitOfWork.users.FindAsync(u => u.Email != "admin@example.com");
-            var usersList = users.ToList();
-
-            if (usersList.Any())
-            {
-                userIds = usersList.Select(u => int.Parse(u.Id)).ToList();
-            }
+            userIds = users.Select(u => u.Id).ToList(); // тип string
         }
         catch
         {
-            // Continue with default user IDs
+            Console.ForegroundColor = ConsoleColor.DarkYellow;
+            Console.WriteLine("Не вдалося отримати користувачів. Перевір, чи доступна база.");
+            Console.ResetColor();
+            return;
         }
 
         foreach (var book in booksToOrder)
         {
-            // Select a random user ID
+            if (!userIds.Any()) break;
+
             var userId = userIds[random.Next(userIds.Count)];
 
-            // Create an order
             var order = new Order
             {
                 BookId = book.Id,
@@ -311,7 +304,6 @@ public class SeedDemoData
                 Type = OrderStatusTypes.Approved
             };
 
-            // Update book availability
             var bookEntity = await unitOfWork.books.GetByIdAsync(book.Id);
             if (bookEntity != null)
             {
@@ -319,11 +311,10 @@ public class SeedDemoData
                 unitOfWork.books.Update(bookEntity);
             }
 
-            // Add the order
             await unitOfWork.orders.AddAsync(order);
         }
 
-        // Save all changes
         await unitOfWork.books.SaveAsync();
     }
+
 }
