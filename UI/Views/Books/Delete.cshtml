@@ -1,0 +1,54 @@
+﻿@model UI.Models.DTOs.BookDTO
+@{
+    ViewData["Title"] = "Видалити книгу";
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<div class="alert alert-warning">
+    <h4>Ви впевнені, що хочете видалити цю книгу?</h4>
+</div>
+
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h4>@Model.Title</h4>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-3">@Html.DisplayNameFor(model => model.Author)</dt>
+                    <dd class="col-sm-9">@Html.DisplayFor(model => model.Author)</dd>
+
+                    <dt class="col-sm-3">@Html.DisplayNameFor(model => model.Genre)</dt>
+                    <dd class="col-sm-9">@Html.DisplayFor(model => model.Genre)</dd>
+
+                    <dt class="col-sm-3">@Html.DisplayNameFor(model => model.Type)</dt>
+                    <dd class="col-sm-9">@Html.DisplayFor(model => model.Type)</dd>
+
+                    <dt class="col-sm-3">@Html.DisplayNameFor(model => model.Year)</dt>
+                    <dd class="col-sm-9">@Html.DisplayFor(model => model.Year)</dd>
+
+                    <dt class="col-sm-3">@Html.DisplayNameFor(model => model.IsAvailable)</dt>
+                    <dd class="col-sm-9">
+                        @if (Model.IsAvailable)
+                        {
+                            <span class="badge bg-success">Доступна</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger">Недоступна</span>
+                        }
+                    </dd>
+                </dl>
+            </div>
+            <div class="card-footer">
+                <form asp-action="Delete" method="post">
+                    <input type="hidden" asp-for="Id" />
+                    <button type="submit" class="btn btn-danger">Видалити</button>
+                    <a asp-action="Index" class="btn btn-secondary">Скасувати</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

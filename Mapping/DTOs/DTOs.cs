@@ -1,9 +1,10 @@
-﻿using System;
+﻿using PI_223_1_7.Enums;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using PI_223_1_7.Enums;
 
 namespace Mapping.DTOs
 {
@@ -22,11 +23,11 @@ namespace Mapping.DTOs
     public class OrderDTO
     {
         public int Id { get; set; }
-        public int UserId { get; set; }
+        public string UserId { get; set; }
         public int BookId { get; set; }
         public DateTime OrderDate { get; set; }
         public OrderStatusTypes Type { get; set; }
-        //public BookDTO Book { get; set; }
+        public BookDTO Book { get; set; }
     }
 
     public class UserDTO

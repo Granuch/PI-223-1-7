@@ -1,0 +1,149 @@
+﻿@model IEnumerable<UI.Models.DTOs.BookDTO>
+@{
+    ViewData["Title"] = "Книги";
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<div class="row mb-3">
+    <div class="col-md-12">
+        <form method="get">
+            <div class="row">
+                <div class="col-md-3">
+                    <input type="text" name="searchString" value="@ViewBag.SearchString" placeholder="Пошук книг..." class="form-control" />
+                </div>
+                <div class="col-md-3">
+                    <select name="genre" class="form-control">
+                        <option value="">Всі жанри</option>
+                        <option value="Fiction" selected="@(ViewBag.Genre == "Fiction")">Художня література</option>
+                        <option value="Science" selected="@(ViewBag.Genre == "Science")">Наукова</option>
+                        <option value="History" selected="@(ViewBag.Genre == "History")">Історична</option>
+                        <option value="Biography" selected="@(ViewBag.Genre == "Biography")">Біографія</option>
+                        <option value="Fantasy" selected="@(ViewBag.Genre == "Fantasy")">Фентезі</option>
+                        <option value="Mystery" selected="@(ViewBag.Genre == "Mystery")">Детектив</option>
+                        <option value="Romance" selected="@(ViewBag.Genre == "Romance")">Романтика</option>
+                        <option value="Thriller" selected="@(ViewBag.Genre == "Thriller")">Трилер</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="type" class="form-control">
+                        <option value="">Всі типи</option>
+                        <option value="Physical" selected="@(ViewBag.Type == "Physical")">Фізична</option>
+                        <option value="Digital" selected="@(ViewBag.Type == "Digital")">Цифрова</option>
+                        <option value="Audio" selected="@(ViewBag.Type == "Audio")">Аудіо</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <div class="btn-group w-100" role="group">
+                        <button type="submit" class="btn btn-primary">Пошук</button>
+                        <a asp-action="Index" class="btn btn-secondary">Очистити</a>
+                        @if (ViewBag.IsManager == true || ViewBag.IsAdministrator == true)
+                        {
+                            <a asp-action="Create" class="btn btn-success">Додати</a>
+                        }
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+    @if (Model != null && Model.Any())
+    {
+        @foreach (var book in Model)
+        {
+            <div class="col-md-4 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">@book.Title</h5>
+                        <p class="card-text">
+                            <strong>Автор:</strong> @book.Author<br />
+                            <strong>Жанр:</strong> @book.GetGenreDisplayNameUkrainian()<br />
+                            <strong>Рік:</strong> @book.Year.Year<br />
+                            <strong>Тип:</strong> @book.GetTypeDisplayNameUkrainian()<br />
+                            <strong>Статус:</strong>
+                            @if (book.IsAvailable)
+                            {
+                                <span class="badge bg-success">@book.AvailabilityDisplayName</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger">@book.AvailabilityDisplayName</span>
+                            }
+                        </p>
+                        @if (!string.IsNullOrEmpty(book.Description))
+                        {
+                            <p class="card-text">
+                                <small class="text-muted">@(book.Description.Length > 100 ? book.Description.Substring(0, 100) + "..." : book.Description)</small>
+                            </p>
+                        }
+                        <div class="btn-group" role="group">
+                            <a asp-action="Details" asp-route-id="@book.Id" class="btn btn-primary btn-sm">Деталі</a>
+                            @if (ViewBag.IsManager == true || ViewBag.IsAdministrator == true)
+                            {
+                                <a asp-action="Edit" asp-route-id="@book.Id" class="btn btn-warning btn-sm">Редагувати</a>
+                            }
+                            @if (ViewBag.IsAdministrator == true)
+                            {
+                                <a asp-action="Delete" asp-route-id="@book.Id" class="btn btn-danger btn-sm">Видалити</a>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="col-12">
+            <div class="alert alert-info text-center">
+                <h4>Книги не знайдені</h4>
+                <p>Спробуйте змінити параметри пошуку або додайте нові книги.</p>
+                @if (ViewBag.IsManager == true || ViewBag.IsAdministrator == true)
+                {
+                    <a asp-action="Create" class="btn btn-primary">Додати першу книгу</a>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@if (Model != null && Model.Any())
+{
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title">Статистика</h6>
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="text-primary">
+                                <strong>@Model.Count()</strong><br />
+                                <small>Всього книг</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-success">
+                                <strong>@Model.Count(b => b.IsAvailable)</strong><br />
+                                <small>Доступних</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-danger">
+                                <strong>@Model.Count(b => !b.IsAvailable)</strong><br />
+                                <small>Недоступних</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-info">
+                                <strong>@Model.Select(b => b.Author).Distinct().Count()</strong><br />
+                                <small>Унікальних авторів</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}

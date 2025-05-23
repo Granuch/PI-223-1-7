@@ -1,0 +1,58 @@
+﻿/* Додаткові стилі для кращого вигляду */
+.card {
+    transition: transform 0.2s;
+}
+
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+.badge {
+    font-size: 0.8em;
+}
+
+.btn-group .btn {
+    margin-right: 2px;
+}
+
+.alert {
+    border-radius: 0.5rem;
+}
+
+.navbar-brand {
+    font-weight: bold;
+}
+
+/* Стилі для форм */
+.form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Responsive таблиці */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.9rem;
+    }
+
+    .btn-group .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8rem;
+    }
+}
+
+/* Стилі для карток книг */
+.book-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+    .book-card .card-body {
+        flex: 1;
+    }
+
+    .book-card .btn-group {
+        margin-top: auto;
+    }

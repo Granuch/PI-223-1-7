@@ -44,17 +44,24 @@ namespace PI_223_1_7.DbContext
                 entity.Property(x => x.Year).IsRequired();
 
                 entity.HasMany(b => b.Orders).WithOne(b => b.Book).OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(b => b.Orders)
+                  .WithOne(o => o.Book)
+                  .HasForeignKey(o => o.BookId)
+                  .OnDelete(DeleteBehavior.Restrict);
             });
 
             //Configuration for Order model
             modelBuilder.Entity<Order>(entity =>
             {
-                entity.HasKey(entity => entity.Id);
+                entity.HasKey(o => o.Id);
 
                 entity.Property(o => o.OrderDate).IsRequired();
-
                 entity.Property(o => o.Type).IsRequired();
+
+              
             });
+
 
             //Configuration for ApplicationUser model
             modelBuilder.Entity<ApplicationUserRole>(userRole =>

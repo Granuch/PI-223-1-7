@@ -1,5 +1,4 @@
-﻿
-using BLL.Interfaces;
+﻿using BLL.Interfaces;
 using BLL.Services;
 using Mapping.Mapping;
 using Microsoft.AspNetCore.Identity;
@@ -8,6 +7,7 @@ using PI_223_1_7.DbContext;
 using PI_223_1_7.Models;
 using PI_223_1_7.Patterns.UnitOfWork;
 using PL.Controllers;
+using System.Text;
 
 
 namespace PL
@@ -16,12 +16,18 @@ namespace PL
     {
         public static async Task Main(string[] args)
         {
-            
+            Console.OutputEncoding = Encoding.UTF8;
+            Console.InputEncoding = Encoding.UTF8;
+
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
 
-            builder.Services.AddControllers();
+            builder.Services.AddControllers().AddJsonOptions(options =>
+            {
+               options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+            });
+
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
@@ -58,9 +64,58 @@ namespace PL
                 options.LoginPath = "/Account/Login";
                 options.AccessDeniedPath = "/Account/AccessDenied";
                 options.SlidingExpiration = true;
-                options.ExpireTimeSpan = TimeSpan.FromHours(3);
+                options.ExpireTimeSpan = TimeSpan.FromDays(1); // Збільшуємо термін дії для тестування
+
+                // Критичні налаштування для правильної роботи з API
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SameSite = SameSiteMode.Lax; // Lax дозволяє відправляти куки при переході за посиланням
+
+                // Якщо ви використовуєте HTTPS:
+                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; // Для розробки
+
+                // Встановлюємо власний шлях для cookie, щоб уникнути конфліктів з іншими застосунками
+                options.Cookie.Name = "YourApp.AuthCookie";
+
+                // Важливо для API - дозволяє обробляти статус 401 Unauthorized на стороні клієнта
+                options.Events.OnRedirectToLogin = context => {
+                    if (context.Request.Path.StartsWithSegments("/api") && context.Response.StatusCode == 200)
+                    {
+                        context.Response.StatusCode = 401;
+                        return Task.CompletedTask;
+                    }
+
+                    context.Response.Redirect(context.RedirectUri);
+                    return Task.CompletedTask;
+                };
+
+                options.Events.OnRedirectToAccessDenied = context => {
+                    if (context.Request.Path.StartsWithSegments("/api") && context.Response.StatusCode == 200)
+                    {
+                        context.Response.StatusCode = 403;
+                        return Task.CompletedTask;
+                    }
+
+                    context.Response.Redirect(context.RedirectUri);
+                    return Task.CompletedTask;
+                };
             });
 
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowMvcClient",
+                    builder => builder
+                        .WithOrigins("https://localhost:7280", "http://localhost:5018") // URL MVC проекту
+                        .AllowAnyMethod()
+                        .AllowAnyHeader()
+                        .AllowCredentials());
+            });
+
+            builder.Services.Configure<CookiePolicyOptions>(options =>
+            {
+                options.CheckConsentNeeded = context => false;
+                options.MinimumSameSitePolicy = SameSiteMode.None;
+                options.Secure = CookieSecurePolicy.SameAsRequest;
+            });
 
             var app = builder.Build();
 
@@ -88,21 +143,22 @@ namespace PL
             app.UseStaticFiles();
             app.UseHttpsRedirection();
 
-            app.UseAuthorization();
-
-
-            app.MapControllers();
-
+            // ПРАВИЛЬНИЙ ПОРЯДОК MIDDLEWARE!
             if (!app.Environment.IsDevelopment())
             {
                 app.UseExceptionHandler("/Home/Error");
                 app.UseHsts();
             }
+            app.UseCors("AllowMvcClient");
+            // Спочатку автентифікація, потім авторизація
             app.UseAuthentication();
             app.UseAuthorization();
+
+            app.MapControllers();
             app.MapControllerRoute(
                 name: "default",
                 pattern: "{controller=Home}/{action=Index}/{id?}");
+
             using (var scope = app.Services.CreateScope())
             {
                 var services = scope.ServiceProvider;

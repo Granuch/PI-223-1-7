@@ -179,7 +179,7 @@ namespace BLL.Services
             var order = new Order
             {
                 BookId = bookId,
-                UserId = int.Parse(userId),
+                UserId = userId,
                 OrderDate = DateTime.UtcNow,
                 Type = OrderStatusTypes.Pending,
                 Book = book
@@ -203,7 +203,7 @@ namespace BLL.Services
 
             // Get all orders with details for the specific user
             var orders = await _unitOfWork.orders.GetAllWithDetailsAsync();
-            var userOrders = orders.Where(o => o.UserId == int.Parse(userId));
+            var userOrders = orders.Where(o => o.UserId == userId);
 
             // Extract books from the orders
             var orderedBooks = userOrders.Select(o => o.Book).ToList();
