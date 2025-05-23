@@ -63,10 +63,11 @@ namespace UI.Controllers
         public async Task<IActionResult> Create(BookDTO book)
         {
             _logger.LogInformation("Attempting to create book: {@Book}", book);
-
-            // ДОДАЙТЕ ЦЕ ЛОГУВАННЯ
             _logger.LogInformation("Book details: Title={Title}, Author={Author}, Genre={Genre}, Type={Type}, Description={Description}",
                 book.Title, book.Author, book.Genre, book.Type, book.Description);
+
+            // ВИПРАВЛЕНО: Очищаємо валідацію для OrderId (не потрібен при створенні книги)
+            ModelState.Remove("OrderId");
 
             if (!ModelState.IsValid)
             {
@@ -80,6 +81,9 @@ namespace UI.Controllers
             }
 
             book.IsAvailable = true;
+            // Встановлюємо OrderId в 0 або null для нової книги
+            book.OrderId = 0;
+
             var result = await _apiService.CreateBookAsync(book);
 
             if (result.Success)
