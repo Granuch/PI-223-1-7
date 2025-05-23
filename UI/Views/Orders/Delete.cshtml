@@ -1,0 +1,84 @@
+﻿@model UI.Models.DTOs.OrderDTO
+@{
+    ViewData["Title"] = "Видалити замовлення";
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<div class="alert alert-danger">
+    <h4><i class="fas fa-exclamation-triangle"></i> Увага!</h4>
+    <p>Ви впевнені, що хочете видалити це замовлення? Цю дію неможливо скасувати.</p>
+</div>
+
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">Замовлення #@Model.Id</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-3">ID замовлення:</dt>
+                    <dd class="col-sm-9"><strong>@Model.Id</strong></dd>
+
+                    <dt class="col-sm-3">Користувач:</dt>
+                    <dd class="col-sm-9">
+                        @if (!string.IsNullOrEmpty(Model.UserEmail))
+                        {
+                            <span class="text-primary">@Model.UserEmail</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">ID: @Model.UserId</span>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-3">Книга:</dt>
+                    <dd class="col-sm-9">
+                        @if (Model.Book != null)
+                        {
+                            <strong>@Model.Book.Title</strong>
+                            <span class="text-muted">by @Model.Book.Author</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Книга ID: @Model.BookId</span>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-3">Дата замовлення:</dt>
+                    <dd class="col-sm-9">
+                        <span class="text-info">@Model.OrderDate.ToString("dd MMMM yyyy 'о' HH:mm")</span>
+                    </dd>
+
+                    @if (Model.ReturnDate.HasValue)
+                    {
+                        <dt class="col-sm-3">Дата повернення:</dt>
+                        <dd class="col-sm-9">
+                            <span class="text-success">@Model.ReturnDate.Value.ToString("dd MMMM yyyy 'о' HH:mm")</span>
+                        </dd>
+                    }
+
+                    <dt class="col-sm-3">Статус:</dt>
+                    <dd class="col-sm-9">
+                        <span class="badge @Model.StatusBadgeClass fs-6">@Model.StatusUkrainian</span>
+                    </dd>
+                </dl>
+            </div>
+            <div class="card-footer">
+                <form asp-action="Delete" method="post" class="d-inline">
+                    <input type="hidden" asp-for="Id" />
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Так, видалити замовлення
+                    </button>
+                </form>
+                <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Скасувати
+                </a>
+                <a asp-action="Index" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Назад до списку
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

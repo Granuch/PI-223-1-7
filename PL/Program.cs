@@ -7,6 +7,7 @@ using PI_223_1_7.DbContext;
 using PI_223_1_7.Models;
 using PI_223_1_7.Patterns.UnitOfWork;
 using PL.Controllers;
+using System.Text;
 
 
 namespace PL
@@ -15,6 +16,8 @@ namespace PL
     {
         public static async Task Main(string[] args)
         {
+            Console.OutputEncoding = Encoding.UTF8;
+            Console.InputEncoding = Encoding.UTF8;
 
             var builder = WebApplication.CreateBuilder(args);
 
@@ -97,6 +100,22 @@ namespace PL
                 };
             });
 
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowMvcClient",
+                    builder => builder
+                        .WithOrigins("https://localhost:7280", "http://localhost:5018") // URL MVC проекту
+                        .AllowAnyMethod()
+                        .AllowAnyHeader()
+                        .AllowCredentials());
+            });
+
+            builder.Services.Configure<CookiePolicyOptions>(options =>
+            {
+                options.CheckConsentNeeded = context => false;
+                options.MinimumSameSitePolicy = SameSiteMode.None;
+                options.Secure = CookieSecurePolicy.SameAsRequest;
+            });
 
             var app = builder.Build();
 
@@ -130,7 +149,7 @@ namespace PL
                 app.UseExceptionHandler("/Home/Error");
                 app.UseHsts();
             }
-
+            app.UseCors("AllowMvcClient");
             // Спочатку автентифікація, потім авторизація
             app.UseAuthentication();
             app.UseAuthorization();

@@ -1,0 +1,72 @@
+﻿@model IEnumerable<UI.Models.DTOs.BookDTO>
+@{
+    ViewData["Title"] = "Мої замовлення";
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<div class="row">
+    @if (Model != null && Model.Any())
+    {
+        @foreach (var book in Model)
+        {
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">@book.Title</h5>
+                        <p class="card-text">
+                            <strong>Автор:</strong> @book.Author<br />
+                            <strong>Жанр:</strong> @book.GetGenreDisplayNameUkrainian()<br />
+                            <strong>Рік:</strong> @book.Year.Year<br />
+                            <strong>Тип:</strong> @book.GetTypeDisplayNameUkrainian()
+                        </p>
+                        @if (!string.IsNullOrEmpty(book.Description))
+                        {
+                            <p class="card-text">
+                                <small class="text-muted">@(book.Description.Length > 100 ? book.Description.Substring(0, 100) + "..." : book.Description)</small>
+                            </p>
+                        }
+                        <div class="btn-group" role="group">
+                            <a asp-action="Details" asp-route-id="@book.Id" class="btn btn-primary btn-sm">
+                                <i class="fas fa-eye"></i> Деталі
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="col-12">
+            <div class="alert alert-info text-center">
+                <h4><i class="fas fa-book-open"></i> У вас немає активних замовлень</h4>
+                <p>Перейдіть до каталогу книг, щоб зробити замовлення.</p>
+                <a asp-action="Index" class="btn btn-primary">
+                    <i class="fas fa-book"></i> Переглянути книги
+                </a>
+            </div>
+        </div>
+    }
+</div>
+
+@if (Model != null && Model.Any())
+{
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title"><i class="fas fa-chart-bar"></i> Статистика</h6>
+                    <div class="row text-center">
+                        <div class="col-md-12">
+                            <div class="text-primary">
+                                <strong>@Model.Count()</strong><br />
+                                <small>Активних замовлень</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}

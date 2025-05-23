@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using PI_223_1_7.DbContext;
+using PI_223_1_7.Enums;
 using PI_223_1_7.Models;
 using System.Threading.Tasks;
 
@@ -102,7 +103,6 @@ namespace PL.Controllers
             }
         }
 
-        [Authorize(Roles = "Administrator")]
         [HttpDelete("Delete")]
         public async Task<IActionResult> DeleteOrder(int id)
         {
@@ -125,5 +125,13 @@ namespace PL.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+    }
+    public class CreateOrderRequest
+    {
+        public string UserId { get; set; }
+        public int BookId { get; set; }
+        public DateTime OrderDate { get; set; }
+        public OrderStatusTypes Type { get; set; }
     }
 }

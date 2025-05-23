@@ -117,7 +117,6 @@ namespace PL.Controllers
 
             // Явно шукаємо користувача за Email
             var user = await _userManager.FindByEmailAsync(model.Email);
-
             if (user == null)
             {
                 _logger.LogWarning($"Користувач з email {model.Email} не знайдений в базі даних");
@@ -128,7 +127,6 @@ namespace PL.Controllers
 
             // Перевірка паролю без входу
             var isPasswordValid = await _userManager.CheckPasswordAsync(user, model.Password);
-
             if (!isPasswordValid)
             {
                 _logger.LogWarning($"Неправильний пароль для користувача {model.Email}");
@@ -159,6 +157,7 @@ namespace PL.Controllers
                     message = "Вхід виконано успішно",
                     user = new
                     {
+                        userId = user.Id,          // ДОДАНО: дублюємо для сумісності
                         email = user.Email,
                         firstName = user.FirstName,
                         lastName = user.LastName,
@@ -175,7 +174,6 @@ namespace PL.Controllers
 
             // Конкретніше повідомлення про помилку
             string errorMessage = "Невірний логін або пароль";
-
             if (result.IsLockedOut)
                 errorMessage = "Обліковий запис тимчасово заблоковано. Спробуйте пізніше.";
             else if (result.IsNotAllowed)

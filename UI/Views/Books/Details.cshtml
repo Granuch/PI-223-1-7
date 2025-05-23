@@ -1,0 +1,99 @@
+﻿@model UI.Models.DTOs.BookDTO
+@{
+    ViewData["Title"] = "Деталі книги";
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h4>@Model.Title</h4>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-3">@Html.DisplayNameFor(model => model.Author)</dt>
+                    <dd class="col-sm-9">@Html.DisplayFor(model => model.Author)</dd>
+
+                    <dt class="col-sm-3">@Html.DisplayNameFor(model => model.Genre)</dt>
+                    <dd class="col-sm-9">@Model.GetGenreDisplayNameUkrainian()</dd>
+
+                    <dt class="col-sm-3">@Html.DisplayNameFor(model => model.Type)</dt>
+                    <dd class="col-sm-9">@Model.GetTypeDisplayNameUkrainian()</dd>
+
+                    <dt class="col-sm-3">@Html.DisplayNameFor(model => model.Year)</dt>
+                    <dd class="col-sm-9">@Model.Year.Year</dd>
+
+                    <dt class="col-sm-3">@Html.DisplayNameFor(model => model.IsAvailable)</dt>
+                    <dd class="col-sm-9">
+                        @if (Model.IsAvailable)
+                        {
+                            <span class="badge bg-success">Доступна</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger">Недоступна</span>
+                        }
+                    </dd>
+
+                    @if (!string.IsNullOrEmpty(Model.Description))
+                    {
+                        <dt class="col-sm-3">@Html.DisplayNameFor(model => model.Description)</dt>
+                        <dd class="col-sm-9">@Html.DisplayFor(model => model.Description)</dd>
+                    }
+                </dl>
+
+                <!-- Блок для замовлення книги -->
+                @if (ViewBag.IsAuthenticated == true && Model.IsAvailable)
+                {
+                    <div class="alert alert-info mt-3">
+                        <h6><i class="fas fa-book"></i> Замовити цю книгу</h6>
+                        <p class="mb-2">Ви можете замовити цю книгу прямо зараз. Після замовлення книга буде зарезервована для вас.</p>
+                        <form asp-controller="Books" asp-action="OrderBook" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="bookId" value="@Model.Id" />
+                            <button type="submit" class="btn btn-success" onclick="return confirm('Ви впевнені, що хочете замовити цю книгу?')">
+                                <i class="fas fa-shopping-cart"></i> Замовити книгу
+                            </button>
+                        </form>
+                    </div>
+                }
+                else if (ViewBag.IsAuthenticated == true && !Model.IsAvailable)
+                {
+                    <div class="alert alert-warning mt-3">
+                        <h6><i class="fas fa-exclamation-triangle"></i> Книга недоступна</h6>
+                        <p class="mb-0">На жаль, ця книга зараз недоступна для замовлення. Можливо, вона вже зарезервована іншим користувачем.</p>
+                    </div>
+                }
+                else if (ViewBag.IsAuthenticated != true)
+                {
+                    <div class="alert alert-info mt-3">
+                        <h6><i class="fas fa-info-circle"></i> Увійдіть для замовлення</h6>
+                        <p class="mb-2">Щоб замовити цю книгу, вам потрібно увійти в систему.</p>
+                        <a asp-controller="Account" asp-action="Login" asp-route-returnUrl="@Context.Request.Path" class="btn btn-primary">
+                            <i class="fas fa-sign-in-alt"></i> Увійти
+                        </a>
+                    </div>
+                }
+            </div>
+            <div class="card-footer">
+                @if (ViewBag.IsManager == true || ViewBag.IsAdministrator == true)
+                {
+                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">
+                        <i class="fas fa-edit"></i> Редагувати
+                    </a>
+                }
+                @if (ViewBag.IsAdministrator == true)
+                {
+                    <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Видалити
+                    </a>
+                }
+                <a asp-action="Index" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Назад до списку
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

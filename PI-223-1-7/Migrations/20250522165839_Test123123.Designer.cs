@@ -12,8 +12,8 @@ using PI_223_1_7.DbContext;
 namespace PI_223_1_7.Migrations
 {
     [DbContext(typeof(LibraryDbContext))]
-    [Migration("20250520162614_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20250522165839_Test123123")]
+    partial class Test123123
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -289,20 +289,26 @@ namespace PI_223_1_7.Migrations
                     b.Property<int>("BookId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("BookId1")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("OrderDate")
                         .HasColumnType("datetime2");
 
                     b.Property<int>("Type")
                         .HasColumnType("int");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ApplicationUserId");
 
                     b.HasIndex("BookId");
+
+                    b.HasIndex("BookId1");
 
                     b.ToTable("Orders");
                 });
@@ -369,10 +375,14 @@ namespace PI_223_1_7.Migrations
                         .HasForeignKey("ApplicationUserId");
 
                     b.HasOne("PI_223_1_7.Models.Book", "Book")
-                        .WithMany("Orders")
+                        .WithMany()
                         .HasForeignKey("BookId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("PI_223_1_7.Models.Book", null)
+                        .WithMany("Orders")
+                        .HasForeignKey("BookId1");
 
                     b.Navigation("Book");
                 });
