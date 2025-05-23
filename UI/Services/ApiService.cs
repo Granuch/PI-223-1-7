@@ -541,11 +541,16 @@ namespace UI.Services
         {
             try
             {
-                _logger.LogInformation("Updating book {BookId} with data: {@Book}", id, book);
+                _logger.LogInformation("Starting UpdateBookAsync for book {BookId}", id);
+                _logger.LogInformation("Input book data - Title: {Title}, Author: {Author}, Genre: {Genre}, Type: {Type}, Year: {Year}, IsAvailable: {IsAvailable}",
+                    book.Title, book.Author, book.Genre, book.Type, book.Year, book.IsAvailable);
 
-                // Логуємо початкові дані
-                _logger.LogInformation("Original book data - Title: {Title}, Author: {Author}, Genre: {Genre}, Type: {Type}, Year: {Year}",
-                    book.Title, book.Author, book.Genre, book.Type, book.Year);
+                // Конвертуємо Genre та Type
+                int genreValue = ConvertGenreToInt(book.Genre);
+                int typeValue = ConvertBookTypeToInt(book.Type);
+
+                _logger.LogInformation("Converted values - Genre: '{Genre}' -> {GenreValue}, Type: '{Type}' -> {TypeValue}",
+                    book.Genre, genreValue, book.Type, typeValue);
 
                 // Створюємо об'єкт у форматі API
                 var updateData = new
@@ -554,38 +559,69 @@ namespace UI.Services
                     name = book.Title,
                     author = book.Author,
                     description = book.Description ?? "",
-                    genre = ConvertGenreToInt(book.Genre),
-                    type = ConvertBookTypeToInt(book.Type),
+                    genre = genreValue,
+                    type = typeValue,
                     isAvailable = book.IsAvailable,
                     year = book.Year.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
                 };
 
-                var json = JsonConvert.SerializeObject(updateData);
+                var json = JsonConvert.SerializeObject(updateData, Formatting.Indented);
                 _logger.LogInformation("Sending JSON to API: {Json}", json);
 
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await _httpClient.PutAsync($"api/books/Update/{id}", content);
 
-                _logger.LogInformation("API response status: {StatusCode}", response.StatusCode);
+                // Спробуйте різні URL
+                string[] possibleUrls = {
+            $"api/books/Update/{id}",      // Поточний
+            $"api/books/{id}",             // REST стандарт
+            $"Books/Update/{id}",          // Без api prefix
+            $"Books/{id}"                  // REST без prefix
+        };
 
-                // ДОДАЄМО ДЕТАЛЬНЕ ЛОГУВАННЯ ПОМИЛКИ
-                var responseContent = await response.Content.ReadAsStringAsync();
-                _logger.LogInformation("API response content: {Content}", responseContent);
-
-                if (!response.IsSuccessStatusCode)
+                foreach (var url in possibleUrls)
                 {
-                    _logger.LogError("API returned error: {StatusCode} - {Content}", response.StatusCode, responseContent);
-                    return new ApiResponse<object>
+                    try
                     {
-                        Success = false,
-                        Message = $"Помилка API: {response.StatusCode} - {responseContent}"
-                    };
+                        _logger.LogInformation("Trying URL: {Url}", url);
+                        var response = await _httpClient.PutAsync(url, content);
+                        var responseContent = await response.Content.ReadAsStringAsync();
+
+                        _logger.LogInformation("Response for {Url}: Status={StatusCode}, Content={Content}",
+                            url, response.StatusCode, responseContent);
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            _logger.LogInformation("Successfully updated book with URL: {Url}", url);
+                            return new ApiResponse<object>
+                            {
+                                Success = true,
+                                Message = "Книга успішно оновлена"
+                            };
+                        }
+
+                        // Якщо це не 404, то endpoint існує, але є проблема
+                        if (response.StatusCode != System.Net.HttpStatusCode.NotFound)
+                        {
+                            _logger.LogError("API error with URL {Url}: {StatusCode} - {Content}",
+                                url, response.StatusCode, responseContent);
+
+                            return new ApiResponse<object>
+                            {
+                                Success = false,
+                                Message = $"Помилка API ({response.StatusCode}): {responseContent}"
+                            };
+                        }
+                    }
+                    catch (Exception urlEx)
+                    {
+                        _logger.LogWarning(urlEx, "Exception with URL {Url}", url);
+                    }
                 }
 
                 return new ApiResponse<object>
                 {
-                    Success = true,
-                    Message = "Книга успішно оновлена"
+                    Success = false,
+                    Message = "Не вдалося знайти робочий API endpoint для оновлення книги"
                 };
             }
             catch (Exception ex)
