@@ -37,7 +37,8 @@ namespace UI.Models.DTOs
         [Display(Name = "Рік видання")]
         public DateTime Year { get; set; }
 
-        public string OrderId { get; set; }
+        [JsonProperty("orderId")]
+        public int? OrderId { get; set; }
 
         // Властивості для UI (не серіалізуються в JSON)
         [JsonIgnore]

@@ -406,7 +406,7 @@ namespace UI.Services
                 int genreValue = ConvertGenreToNumber(book.Genre);
                 int typeValue = ConvertTypeToNumber(book.Type);
 
-                // API очікує точно такі поля, як у Swagger
+                // API очікує точно такі поля, як у Swagger (БЕЗ OrderId)
                 var apiBookData = new
                 {
                     id = 0,                          // Для нової книги завжди 0
@@ -415,8 +415,9 @@ namespace UI.Services
                     description = book.Description ?? "", // Маленька літера!
                     genre = genreValue,              // Число
                     type = typeValue,                // Число
-                    isAvailable = book.IsAvailable,  // Правильна назва (не isAvaliable)
+                    isAvailable = book.IsAvailable,  // Правильна назва
                     year = book.Year                 // DateTime
+                                                     // OrderId НЕ включаємо - він не потрібен при створенні
                 };
 
                 var settings = new JsonSerializerSettings
@@ -438,7 +439,21 @@ namespace UI.Services
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var createdBook = JsonConvert.DeserializeObject<BookDTO>(responseContent);
+                    // Створюємо BookDTO вручну з відповіді API
+                    var apiResponse = JsonConvert.DeserializeObject<dynamic>(responseContent);
+                    var createdBook = new BookDTO
+                    {
+                        Id = apiResponse.id,
+                        Title = apiResponse.name,
+                        Author = apiResponse.author,
+                        Description = apiResponse.description,
+                        GenreId = apiResponse.genre,
+                        TypeId = apiResponse.type,
+                        IsAvailable = apiResponse.isAvailable,
+                        Year = apiResponse.year,
+                        OrderId = null // Для нової книги OrderId порожній
+                    };
+
                     return new ApiResponse<BookDTO>
                     {
                         Success = true,
