@@ -1,12 +1,14 @@
 ﻿using Mapping.DTOs;
 using PI_223_1_7.Enums;
 using PI_223_1_7.Models;
-
+using System;
+using System.Collections.Generic;
 
 namespace Tests.TestHelpers
 {
     public static class TestDataFactory
     {
+        // Методи для створення Book
         public static Book CreateBook(int id = 1, bool isAvailable = true)
         {
             return new Book
@@ -37,6 +39,7 @@ namespace Tests.TestHelpers
             };
         }
 
+        // Методи для створення Order
         public static Order CreateOrder(int id = 1, int bookId = 1, string userId = "user1")
         {
             return new Order
@@ -63,6 +66,7 @@ namespace Tests.TestHelpers
             };
         }
 
+        // Методи для створення списків
         public static List<Book> CreateBookList(int count = 5)
         {
             var books = new List<Book>();
@@ -81,6 +85,47 @@ namespace Tests.TestHelpers
                 orders.Add(CreateOrder(i, i));
             }
             return orders;
+        }
+
+        // Методи для створення User
+        public static ApplicationUser CreateUser(string id = "user1", string email = "user1@example.com")
+        {
+            return new ApplicationUser
+            {
+                Id = id,
+                UserName = email,
+                Email = email,
+                FirstName = $"User {id}",
+                LastName = "Test",
+                PhoneNumber = "1234567890",
+                CreatedAt = DateTime.UtcNow
+            };
+        }
+
+        // Методи для CreateUserRequest
+        public static CreateUserRequest CreateUserRequest(string email = "newuser@example.com")
+        {
+            return new CreateUserRequest
+            {
+                Email = email,
+                Password = "Password123!",
+                FirstName = "New",
+                LastName = "User",
+                PhoneNumber = "1234567890",
+                Role = "RegisteredUser"
+            };
+        }
+
+        // Методи для UpdateUserRequest
+        public static UpdateUserRequest CreateUpdateUserRequest()
+        {
+            return new UpdateUserRequest
+            {
+                FirstName = "Updated",
+                LastName = "User",
+                Email = "updated@example.com",
+                PhoneNumber = "0987654321"
+            };
         }
     }
 }
