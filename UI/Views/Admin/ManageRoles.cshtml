@@ -1,0 +1,225 @@
+﻿@model UI.Models.ViewModels.ManageRolesViewModel
+@{
+    ViewData["Title"] = "Управління ролями";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-user-tag"></i> Управління ролями
+                </h2>
+                <div>
+                    <a href="@Url.Action("UserDetails", "Admin", new { id = Model.UserId })" class="btn btn-info">
+                        <i class="fas fa-user"></i> Деталі користувача
+                    </a>
+                    <a href="@Url.Action("Users", "Admin")" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Назад до списку
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Інформація про користувача -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-primary">
+                <h5 class="alert-heading">
+                    <i class="fas fa-user"></i> Користувач: @Model.UserEmail
+                </h5>
+                <p class="mb-0">
+                    <strong>ID:</strong> <code>@Model.UserId</code>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Поточні ролі -->
+        <div class="col-md-6">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-check-circle"></i> Поточні ролі (@Model.UserRoles.Count)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.UserRoles.Any())
+                    {
+                        @foreach (var userRole in Model.UserRoles)
+                        {
+                            var roleInfo = Model.AllRoles.FirstOrDefault(r => r.Name == userRole);
+                            var (badgeClass, icon) = userRole switch
+                            {
+                                "Administrator" => ("bg-danger", "fas fa-user-shield"),
+                                "Manager" => ("bg-warning text-dark", "fas fa-user-tie"),
+                                "RegisteredUser" => ("bg-info", "fas fa-user"),
+                                _ => ("bg-secondary", "fas fa-question")
+                            };
+
+                            <div class="border rounded p-3 mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center">
+                                        <i class="@icon fa-2x me-3 text-primary"></i>
+                                        <div>
+                                            <span class="badge @badgeClass mb-1">@userRole</span>
+                                            <br>
+                                            <small class="text-muted">
+                                                @(roleInfo?.Description ?? "Опис недоступний")
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <form asp-action="RemoveRole" method="post" class="d-inline"
+                                          onsubmit="return confirm('Ви впевнені, що хочете видалити роль @userRole?')">
+                                        <input type="hidden" name="userId" value="@Model.UserId" />
+                                        <input type="hidden" name="roleName" value="@userRole" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Видалити роль">
+                                            <i class="fas fa-minus-circle"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center py-4">
+                            <i class="fas fa-user-slash fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">Ролі не призначені</h5>
+                            <p class="text-muted">Цьому користувачу не призначено жодної ролі.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Доступні ролі -->
+        <div class="col-md-6">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-plus-circle"></i> Доступні ролі
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.AllRoles.Any())
+                    {
+                        @foreach (var role in Model.AllRoles)
+                        {
+                            var hasRole = Model.HasRole(role.Name);
+                            var (badgeClass, icon) = role.Name switch
+                            {
+                                "Administrator" => ("bg-danger", "fas fa-user-shield"),
+                                "Manager" => ("bg-warning text-dark", "fas fa-user-tie"),
+                                "RegisteredUser" => ("bg-info", "fas fa-user"),
+                                _ => ("bg-secondary", "fas fa-question")
+                            };
+
+                            <div class="border rounded p-3 mb-3 @(hasRole ? "bg-light" : "")">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center">
+                                        <i class="@icon fa-2x me-3 @(hasRole ? "text-muted" : "text-primary")"></i>
+                                        <div>
+                                            <span class="badge @badgeClass mb-1">@role.Name</span>
+                                            <br>
+                                            <small class="text-muted">@role.Description</small>
+                                        </div>
+                                    </div>
+                                    @if (hasRole)
+                                    {
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check"></i> Призначена
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <form asp-action="AssignRole" method="post" class="d-inline"
+                                              onsubmit="return confirm('Ви впевнені, що хочете призначити роль @role.Name?')">
+                                            <input type="hidden" name="userId" value="@Model.UserId" />
+                                            <input type="hidden" name="roleName" value="@role.Name" />
+                                            <button type="submit" class="btn btn-sm btn-outline-success" title="Призначити роль">
+                                                <i class="fas fa-plus-circle"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center py-4">
+                            <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                            <h5 class="text-warning">Ролі недоступні</h5>
+                            <p class="text-muted">Не вдалося завантажити список доступних ролей.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Інформація про ролі -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle"></i> Опис ролей та їх можливостей
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="text-center p-3 border rounded">
+                                <i class="fas fa-user fa-3x text-info mb-3"></i>
+                                <h6>RegisteredUser</h6>
+                                <ul class="list-unstyled small text-muted">
+                                    <li>• Перегляд каталогу книг</li>
+                                    <li>• Створення замовлень</li>
+                                    <li>• Перегляд власних замовлень</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3 border rounded">
+                                <i class="fas fa-user-tie fa-3x text-warning mb-3"></i>
+                                <h6>Manager</h6>
+                                <ul class="list-unstyled small text-muted">
+                                    <li>• Усі права RegisteredUser</li>
+                                    <li>• Управління каталогом книг</li>
+                                    <li>• Перегляд всіх замовлень</li>
+                                    <li>• Редагування замовлень</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3 border rounded">
+                                <i class="fas fa-user-shield fa-3x text-danger mb-3"></i>
+                                <h6>Administrator</h6>
+                                <ul class="list-unstyled small text-muted">
+                                    <li>• Усі права Manager</li>
+                                    <li>• Управління користувачами</li>
+                                    <li>• Призначення ролей</li>
+                                    <li>• Повний доступ до системи</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <h4>ТЕСТОВА ФОРМА:</h4>
+    <form method="post" action="/Admin/AssignRole">
+        @Html.AntiForgeryToken()
+        <input type="text" name="userId" value="@Model.UserId" placeholder="UserId" />
+        <input type="text" name="roleName" value="Administrator" placeholder="RoleName" />
+        <button type="submit" class="btn btn-warning">ТЕСТ - Призначити роль</button>
+    </form>
+</div>

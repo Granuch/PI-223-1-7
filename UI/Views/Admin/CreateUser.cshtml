@@ -1,0 +1,192 @@
+﻿@model UI.Models.ViewModels.CreateUserViewModel
+@{
+    ViewData["Title"] = "Створити користувача";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-user-plus"></i> Створити користувача
+                </h2>
+                <a href="@Url.Action("Users", "Admin")" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Назад до списку
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-plus"></i> Дані нового користувача
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form asp-action="CreateUser" method="post">
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="FirstName" class="form-label">
+                                    <i class="fas fa-user"></i> @Html.DisplayNameFor(m => m.FirstName)
+                                </label>
+                                <input asp-for="FirstName" class="form-control" placeholder="Введіть ім'я" />
+                                <span asp-validation-for="FirstName" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="LastName" class="form-label">
+                                    <i class="fas fa-user"></i> @Html.DisplayNameFor(m => m.LastName)
+                                </label>
+                                <input asp-for="LastName" class="form-control" placeholder="Введіть прізвище" />
+                                <span asp-validation-for="LastName" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Email" class="form-label">
+                                <i class="fas fa-envelope"></i> @Html.DisplayNameFor(m => m.Email)
+                            </label>
+                            <input asp-for="Email" class="form-control" placeholder="user@example.com" />
+                            <span asp-validation-for="Email" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="PhoneNumber" class="form-label">
+                                <i class="fas fa-phone"></i> @Html.DisplayNameFor(m => m.PhoneNumber)
+                            </label>
+                            <input asp-for="PhoneNumber" class="form-control" placeholder="+380501234567" />
+                            <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                            <div class="form-text">Необов'язкове поле</div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Password" class="form-label">
+                                    <i class="fas fa-lock"></i> @Html.DisplayNameFor(m => m.Password)
+                                </label>
+                                <input asp-for="Password" class="form-control" placeholder="Введіть пароль" />
+                                <span asp-validation-for="Password" class="text-danger"></span>
+                                <div class="form-text">Мінімум 6 символів</div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="ConfirmPassword" class="form-label">
+                                    <i class="fas fa-lock"></i> @Html.DisplayNameFor(m => m.ConfirmPassword)
+                                </label>
+                                <input asp-for="ConfirmPassword" class="form-control" placeholder="Повторіть пароль" />
+                                <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="UserType" class="form-label">
+                                <i class="fas fa-user-tag"></i> @Html.DisplayNameFor(m => m.UserType)
+                            </label>
+                            <select asp-for="UserType" class="form-select">
+                                <option value="">Оберіть тип користувача</option>
+                                @foreach (var option in Model.UserTypeOptions)
+                                {
+                                    <option value="@option.Value">@option.Text</option>
+                                }
+                            </select>
+                            <span asp-validation-for="UserType" class="text-danger"></span>
+                            <div class="form-text">
+                                <small>
+                                    <strong>Звичайний користувач</strong> - базові права доступу<br>
+                                    <strong>Менеджер</strong> - може керувати книгами та замовленнями<br>
+                                    <strong>Адміністратор</strong> - повний доступ до системи
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="@Url.Action("Users", "Admin")" class="btn btn-secondary me-md-2">
+                                <i class="fas fa-times"></i> Скасувати
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-user-plus"></i> Створити користувача
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Інформаційна картка -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle"></i> Інформація про ролі
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 text-center mb-3">
+                            <div class="border rounded p-3">
+                                <i class="fas fa-user fa-2x text-info mb-2"></i>
+                                <h6>Звичайний користувач</h6>
+                                <p class="small text-muted mb-0">
+                                    Може переглядати книги та створювати замовлення
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center mb-3">
+                            <div class="border rounded p-3">
+                                <i class="fas fa-user-tie fa-2x text-warning mb-2"></i>
+                                <h6>Менеджер</h6>
+                                <p class="small text-muted mb-0">
+                                    Може керувати книгами та переглядати всі замовлення
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center mb-3">
+                            <div class="border rounded p-3">
+                                <i class="fas fa-user-shield fa-2x text-danger mb-2"></i>
+                                <h6>Адміністратор</h6>
+                                <p class="small text-muted mb-0">
+                                    Повний доступ до всіх функцій системи
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        $(document).ready(function() {
+            // Динамічна зміна кольору в залежності від обраної ролі
+            $('#UserType').on('change', function() {
+                var selectedValue = $(this).val();
+                var $formCard = $('.card');
+
+                // Видаляємо всі існуючі класи кольорів
+                $formCard.removeClass('border-info border-warning border-danger');
+
+                // Додаємо відповідний клас
+                switch(selectedValue) {
+                    case 'RegisteredUser':
+                        $formCard.addClass('border-info');
+                        break;
+                    case 'Manager':
+                        $formCard.addClass('border-warning');
+                        break;
+                    case 'Administrator':
+                        $formCard.addClass('border-danger');
+                        break;
+                }
+            });
+        });
+    </script>
+}

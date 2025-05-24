@@ -116,7 +116,8 @@ namespace UI.Controllers
         public async Task<IActionResult> Edit(int id, BookDTO book)
         {
             _logger.LogInformation("Attempting to edit book with ID: {BookId}", id);
-            _logger.LogInformation("Book data received: {@Book}", book);
+            _logger.LogInformation("Book data received: Title={Title}, Author={Author}, Genre={Genre}, Type={Type}, Year={Year}, IsAvailable={IsAvailable}, Description={Description}",
+                book.Title, book.Author, book.Genre, book.Type, book.Year, book.IsAvailable, book.Description);
 
             if (id != book.Id)
             {
@@ -124,6 +125,9 @@ namespace UI.Controllers
                 ModelState.AddModelError("", "ID не співпадає");
                 return View(book);
             }
+
+            // Очищаємо валідацію для OrderId (якщо воно є)
+            ModelState.Remove("OrderId");
 
             if (!ModelState.IsValid)
             {
@@ -136,7 +140,9 @@ namespace UI.Controllers
                 return View(book);
             }
 
+            _logger.LogInformation("Calling UpdateBookAsync for book {BookId}", id);
             var result = await _apiService.UpdateBookAsync(id, book);
+            _logger.LogInformation("UpdateBookAsync result: Success={Success}, Message={Message}", result.Success, result.Message);
 
             if (result.Success)
             {
@@ -146,11 +152,8 @@ namespace UI.Controllers
             }
 
             _logger.LogError("Failed to update book {BookId}: {Message}", id, result.Message);
-
-            // Додаємо повідомлення про помилку до ModelState та TempData
             ModelState.AddModelError("", result.Message);
             TempData["ErrorMessage"] = $"Помилка оновлення книги: {result.Message}";
-
             return View(book);
         }
 

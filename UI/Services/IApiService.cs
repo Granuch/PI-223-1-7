@@ -29,6 +29,20 @@ namespace UI.Services
         Task<ApiResponse<object>> UpdateOrderAsync(int id, OrderDTO order);
         Task<ApiResponse<object>> DeleteOrderAsync(int id);
         Task<ApiResponse<string>> GetUserEmailByIdAsync(string userId);
+
+        // Admin
+        Task<ApiResponse<IEnumerable<UserDTO>>> GetAllUsersAsync();
+        Task<ApiResponse<UserDTO>> GetUserByIdAsync(string id);
+        Task<ApiResponse<object>> CreateUserAsync(CreateUserRequest request);
+        Task<ApiResponse<object>> CreateAdminAsync(CreateUserRequest request);
+        Task<ApiResponse<object>> CreateManagerAsync(CreateUserRequest request);
+        Task<ApiResponse<object>> UpdateUserAsync(string id, UpdateUserRequest request);
+        Task<ApiResponse<object>> DeleteUserAsync(string id);
+        Task<ApiResponse<object>> ChangeUserPasswordAsync(string id, ChangePasswordRequest request);
+        Task<ApiResponse<object>> AssignRoleToUserAsync(string id, AssignRoleRequest request);
+        Task<ApiResponse<object>> RemoveRoleFromUserAsync(string id, AssignRoleRequest request);
+        Task<ApiResponse<IEnumerable<string>>> GetUserRolesAsync(string id);
+        Task<ApiResponse<IEnumerable<RoleDTO>>> GetAllRolesAsync();
     }
 
 }

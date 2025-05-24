@@ -1,0 +1,150 @@
+﻿@{
+    ViewData["Title"] = "Адміністрування";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="fas fa-cog"></i> Панель адміністрування
+            </h1>
+
+            <div class="alert alert-info">
+                <h4 class="alert-heading">Ласкаво просимо до панелі адміністрування!</h4>
+                <p>Тут ви можете управляти користувачами системи, їх ролями та правами доступу.</p>
+                <hr>
+                <p class="mb-0">Оберіть потрібну функцію з меню нижче.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle"></i> Швидка інформація
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 text-center">
+                            <div class="border-end">
+                                <h4 class="text-primary">
+                                    <i class="fas fa-users"></i>
+                                </h4>
+                                <p class="mb-0">Користувачі</p>
+                                <small class="text-muted">Загальна кількість</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <div class="border-end">
+                                <h4 class="text-success">
+                                    <i class="fas fa-book"></i>
+                                </h4>
+                                <p class="mb-0">Книги</p>
+                                <small class="text-muted">В каталозі</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <div class="border-end">
+                                <h4 class="text-warning">
+                                    <i class="fas fa-shopping-cart"></i>
+                                </h4>
+                                <p class="mb-0">Замовлення</p>
+                                <small class="text-muted">Активні</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <h4 class="text-info">
+                                <i class="fas fa-user-shield"></i>
+                            </h4>
+                            <p class="mb-0">Адміністратори</p>
+                            <small class="text-muted">В системі</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 border-primary">
+            <div class="card-body text-center">
+                <i class="fas fa-users fa-3x text-primary mb-3"></i>
+                <h5 class="card-title">Управління користувачами</h5>
+                <p class="card-text">Переглядайте, створюйте, редагуйте та видаляйте користувачів системи.</p>
+                <a href="@Url.Action("Users", "Admin")" class="btn btn-primary">
+                    <i class="fas fa-users"></i> Користувачі
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 border-success">
+            <div class="card-body text-center">
+                <i class="fas fa-user-plus fa-3x text-success mb-3"></i>
+                <h5 class="card-title">Створити користувача</h5>
+                <p class="card-text">Додайте нового користувача з відповідними правами доступу.</p>
+                <a href="@Url.Action("CreateUser", "Admin")" class="btn btn-success">
+                    <i class="fas fa-user-plus"></i> Створити
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 border-warning">
+            <div class="card-body text-center">
+                <i class="fas fa-books fa-3x text-warning mb-3"></i>
+                <h5 class="card-title">Управління контентом</h5>
+                <p class="card-text">Керуйте книгами та замовленнями в системі.</p>
+                <a href="@Url.Action("Index", "Books")" class="btn btn-warning">
+                    <i class="fas fa-books"></i> Книги
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 border-info">
+            <div class="card-body text-center">
+                <i class="fas fa-clipboard-list fa-3x text-info mb-3"></i>
+                <h5 class="card-title">Замовлення</h5>
+                <p class="card-text">Переглядайте та управляйте всіма замовленнями в системі.</p>
+                <a href="@Url.Action("Index", "Orders")" class="btn btn-info">
+                    <i class="fas fa-clipboard-list"></i> Замовлення
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 border-secondary">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-bar fa-3x text-secondary mb-3"></i>
+                <h5 class="card-title">Статистика</h5>
+                <p class="card-text">Переглядайте статистику використання системи.</p>
+                <button class="btn btn-secondary" disabled>
+                    <i class="fas fa-chart-bar"></i> Скоро...
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 border-dark">
+            <div class="card-body text-center">
+                <i class="fas fa-cogs fa-3x text-dark mb-3"></i>
+                <h5 class="card-title">Налаштування</h5>
+                <p class="card-text">Налаштування системи та конфігурація.</p>
+                <button class="btn btn-dark" disabled>
+                    <i class="fas fa-cogs"></i> Скоро...
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using PI_223_1_7.Models;
 using PL.ViewModels;
 using System.Security.Claims;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Text;
 
 namespace PL.Controllers
 {
@@ -13,17 +16,20 @@ namespace PL.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly RoleManager<ApplicationRole> _roleManager;
+        private readonly IConfiguration _configuration;
         private readonly ILogger<AccountController> _logger;
 
         public AccountController(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             RoleManager<ApplicationRole> roleManager,
+            IConfiguration configuration,
             ILogger<AccountController> logger)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _roleManager = roleManager;
+            _configuration = configuration;
             _logger = logger;
         }
 
@@ -52,7 +58,8 @@ namespace PL.Controllers
                     Email = model.Email,
                     FirstName = model.FirstName,
                     LastName = model.LastName,
-                    EmailConfirmed = true // Підтверджуємо email автоматично для тестування
+                    EmailConfirmed = true,
+                    CreatedAt = DateTime.UtcNow
                 };
 
                 var result = await _userManager.CreateAsync(user, model.Password);
@@ -64,8 +71,12 @@ namespace PL.Controllers
                     // Додаємо роль
                     await _userManager.AddToRoleAsync(user, "RegisteredUser");
 
-                    // Виконуємо вхід
+                    // ДОДАНО: Виконуємо Cookie вхід для MVC частини
                     await _signInManager.SignInAsync(user, isPersistent: false);
+
+                    // ДОДАНО: Генеруємо JWT токен для API
+                    var token = await GenerateJwtToken(user);
+                    var roles = await _userManager.GetRolesAsync(user);
 
                     _logger.LogInformation($"Автоматичний вхід для {user.Email} після реєстрації");
 
@@ -73,12 +84,15 @@ namespace PL.Controllers
                     {
                         success = true,
                         message = "Реєстрація пройшла успішно",
+                        token = token, // ДОДАНО: JWT токен
                         user = new
                         {
+                            id = user.Id,
+                            userId = user.Id,
                             email = user.Email,
                             firstName = user.FirstName,
                             lastName = user.LastName,
-                            roles = new[] { "RegisteredUser" }
+                            roles = roles
                         }
                     });
                 }
@@ -99,7 +113,6 @@ namespace PL.Controllers
             });
         }
 
-        // Авторизація користувача з детальною діагностикою
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginViewModel model)
         {
@@ -125,7 +138,7 @@ namespace PL.Controllers
 
             _logger.LogInformation($"Знайдено користувача: ID={user.Id}, UserName={user.UserName}");
 
-            // Перевірка паролю без входу
+            // Перевірка паролю
             var isPasswordValid = await _userManager.CheckPasswordAsync(user, model.Password);
             if (!isPasswordValid)
             {
@@ -135,29 +148,30 @@ namespace PL.Controllers
 
             _logger.LogInformation($"Пароль підтверджено для {model.Email}, виконується вхід");
 
-            // Якщо дані правильні, виконуємо вхід
-            var result = await _signInManager.PasswordSignInAsync(
-                user.UserName, // ВАЖЛИВО: використовуємо UserName (не Email)
+            // ОНОВЛЕНО: Виконуємо Cookie вхід для MVC частини
+            var signInResult = await _signInManager.PasswordSignInAsync(
+                user.UserName,
                 model.Password,
                 model.RememberMe,
                 lockoutOnFailure: false);
 
-            if (result.Succeeded)
+            if (signInResult.Succeeded)
             {
                 var roles = await _userManager.GetRolesAsync(user);
                 _logger.LogInformation($"Користувач {model.Email} успішно увійшов. Ролі: {string.Join(", ", roles)}");
 
-                // Перевіряємо, чи дійсно користувач автентифікований після входу
-                var isAuthenticated = User.Identity?.IsAuthenticated ?? false;
-                _logger.LogInformation($"Перевірка автентифікації після входу: {isAuthenticated}");
+                // ДОДАНО: Генеруємо JWT токен для API запитів
+                var token = await GenerateJwtToken(user);
 
                 return Ok(new
                 {
                     success = true,
                     message = "Вхід виконано успішно",
+                    token = token, // ДОДАНО: JWT токен
                     user = new
                     {
-                        userId = user.Id,          // ДОДАНО: дублюємо для сумісності
+                        id = user.Id,
+                        userId = user.Id,
                         email = user.Email,
                         firstName = user.FirstName,
                         lastName = user.LastName,
@@ -168,23 +182,58 @@ namespace PL.Controllers
 
             // Детальне логування причини невдачі
             _logger.LogWarning($"Невдала спроба входу для {model.Email}. " +
-                $"IsLockedOut: {result.IsLockedOut}, " +
-                $"IsNotAllowed: {result.IsNotAllowed}, " +
-                $"RequiresTwoFactor: {result.RequiresTwoFactor}");
+                $"IsLockedOut: {signInResult.IsLockedOut}, " +
+                $"IsNotAllowed: {signInResult.IsNotAllowed}, " +
+                $"RequiresTwoFactor: {signInResult.RequiresTwoFactor}");
 
-            // Конкретніше повідомлення про помилку
             string errorMessage = "Невірний логін або пароль";
-            if (result.IsLockedOut)
+            if (signInResult.IsLockedOut)
                 errorMessage = "Обліковий запис тимчасово заблоковано. Спробуйте пізніше.";
-            else if (result.IsNotAllowed)
+            else if (signInResult.IsNotAllowed)
                 errorMessage = "Вхід заборонено. Можливо, потрібно підтвердити email.";
-            else if (result.RequiresTwoFactor)
+            else if (signInResult.RequiresTwoFactor)
                 errorMessage = "Потрібна двофакторна автентифікація.";
 
             return BadRequest(new { success = false, message = errorMessage });
         }
 
-        // Перевірка роботи входу через тестовий метод
+        // ДОДАНО: Метод для генерації JWT токенів
+        private async Task<string> GenerateJwtToken(ApplicationUser user)
+        {
+            var roles = await _userManager.GetRolesAsync(user);
+
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.Id),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Name, $"{user.FirstName} {user.LastName}"),
+                new Claim("FirstName", user.FirstName ?? ""),
+                new Claim("LastName", user.LastName ?? "")
+            };
+
+            // Додаємо ролі як claims
+            foreach (var role in roles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
+
+            var secretKey = _configuration["JwtSettings:SecretKey"] ?? "your-super-secret-key-that-is-long-enough-for-jwt-signing-and-should-be-at-least-32-characters";
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(claims),
+                Expires = DateTime.UtcNow.AddDays(7), // Токен дійсний 7 днів
+                SigningCredentials = credentials
+            };
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+
+            return tokenHandler.WriteToken(token);
+        }
+
         [HttpGet("test-auth")]
         public IActionResult TestAuth()
         {
@@ -200,7 +249,6 @@ namespace PL.Controllers
             });
         }
 
-        // Вихід з системи
         [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {
@@ -213,7 +261,6 @@ namespace PL.Controllers
             return Ok(new { success = true, message = "Вихід виконано успішно" });
         }
 
-        // Перевірка статусу автентифікації
         [HttpGet("status")]
         public async Task<IActionResult> CheckAuthStatus()
         {
@@ -238,6 +285,8 @@ namespace PL.Controllers
                     isAuthenticated = true,
                     user = new
                     {
+                        id = user.Id,
+                        userId = user.Id,
                         email = user.Email,
                         firstName = user.FirstName,
                         lastName = user.LastName,
@@ -248,6 +297,48 @@ namespace PL.Controllers
 
             _logger.LogInformation("Перевірка статусу: користувач не автентифікований");
             return Ok(new { isAuthenticated = false });
+        }
+
+        // ДОДАНО: Endpoint для перевірки JWT токену
+        [HttpGet("me")]
+        [Microsoft.AspNetCore.Authorization.Authorize]
+        public async Task<IActionResult> GetCurrentUser()
+        {
+            try
+            {
+                var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+                if (string.IsNullOrEmpty(userEmail))
+                {
+                    return BadRequest(new { success = false, message = "Не вдалося отримати дані користувача" });
+                }
+
+                var user = await _userManager.FindByEmailAsync(userEmail);
+                if (user == null)
+                {
+                    return NotFound(new { success = false, message = "Користувача не знайдено" });
+                }
+
+                var roles = await _userManager.GetRolesAsync(user);
+
+                return Ok(new
+                {
+                    success = true,
+                    user = new
+                    {
+                        id = user.Id,
+                        userId = user.Id,
+                        email = user.Email,
+                        firstName = user.FirstName,
+                        lastName = user.LastName,
+                        roles = roles
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting current user from JWT token");
+                return StatusCode(500, new { success = false, message = "Внутрішня помилка сервера" });
+            }
         }
     }
 }

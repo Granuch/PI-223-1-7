@@ -1,0 +1,155 @@
+﻿@model UI.Models.ViewModels.EditUserViewModel
+@{
+    ViewData["Title"] = "Редагувати користувача";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-user-edit"></i> Редагувати користувача
+                </h2>
+                <div>
+                    <a href="@Url.Action("UserDetails", "Admin", new { id = Model.Id })" class="btn btn-info">
+                        <i class="fas fa-eye"></i> Переглянути
+                    </a>
+                    <a href="@Url.Action("Users", "Admin")" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Назад до списку
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-edit"></i> Редагування даних користувача
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form asp-action="EditUser" method="post">
+                        <input type="hidden" asp-for="Id" />
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                        <!-- Поточні ролі (тільки для відображення) -->
+                        @if (Model.Roles != null && Model.Roles.Any())
+                        {
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading">
+                                    <i class="fas fa-info-circle"></i> Поточні ролі користувача:
+                                </h6>
+                                @foreach (var role in Model.Roles)
+                                {
+                                    var badgeClass = role switch
+                                    {
+                                        "Administrator" => "bg-danger",
+                                        "Manager" => "bg-warning text-dark",
+                                        "RegisteredUser" => "bg-info",
+                                        _ => "bg-secondary"
+                                    };
+                                    <span class="badge @badgeClass me-1">@role</span>
+                                }
+                                <hr class="my-2">
+                                <small class="mb-0">
+                                    Для зміни ролей використовуйте
+                                    <a href="@Url.Action("ManageRoles", "Admin", new { id = Model.Id })" class="alert-link">
+                                        Управління ролями
+                                    </a>
+                                </small>
+                            </div>
+                        }
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="FirstName" class="form-label">
+                                    <i class="fas fa-user"></i> @Html.DisplayNameFor(m => m.FirstName)
+                                </label>
+                                <input asp-for="FirstName" class="form-control" placeholder="Введіть ім'я" />
+                                <span asp-validation-for="FirstName" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="LastName" class="form-label">
+                                    <i class="fas fa-user"></i> @Html.DisplayNameFor(m => m.LastName)
+                                </label>
+                                <input asp-for="LastName" class="form-control" placeholder="Введіть прізвище" />
+                                <span asp-validation-for="LastName" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Email" class="form-label">
+                                <i class="fas fa-envelope"></i> @Html.DisplayNameFor(m => m.Email)
+                            </label>
+                            <input asp-for="Email" class="form-control" placeholder="user@example.com" />
+                            <span asp-validation-for="Email" class="text-danger"></span>
+                            <div class="form-text">
+                                <i class="fas fa-exclamation-triangle text-warning"></i>
+                                Зміна email може вплинути на вхід користувача в систему
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="PhoneNumber" class="form-label">
+                                <i class="fas fa-phone"></i> @Html.DisplayNameFor(m => m.PhoneNumber)
+                            </label>
+                            <input asp-for="PhoneNumber" class="form-control" placeholder="+380501234567" />
+                            <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                            <div class="form-text">Необов'язкове поле</div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="@Url.Action("UserDetails", "Admin", new { id = Model.Id })" class="btn btn-secondary me-md-2">
+                                <i class="fas fa-times"></i> Скасувати
+                            </a>
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-save"></i> Зберегти зміни
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Додаткові дії -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-tools"></i> Додаткові дії
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 text-center mb-3">
+                            <a href="@Url.Action("ChangePassword", "Admin", new { id = Model.Id })" class="btn btn-info w-100">
+                                <i class="fas fa-key fa-2x d-block mb-2"></i>
+                                Змінити пароль
+                            </a>
+                        </div>
+                        <div class="col-md-4 text-center mb-3">
+                            <a href="@Url.Action("ManageRoles", "Admin", new { id = Model.Id })" class="btn btn-primary w-100">
+                                <i class="fas fa-user-tag fa-2x d-block mb-2"></i>
+                                Управляти ролями
+                            </a>
+                        </div>
+                        <div class="col-md-4 text-center mb-3">
+                            <a href="@Url.Action("DeleteUser", "Admin", new { id = Model.Id })" class="btn btn-danger w-100">
+                                <i class="fas fa-trash fa-2x d-block mb-2"></i>
+                                Видалити користувача
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}
