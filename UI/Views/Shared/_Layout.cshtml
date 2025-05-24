@@ -122,5 +122,41 @@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
+    <script>
+        function keepSessionAlive() {
+            fetch('/Account/KeepAlive', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Session refreshed at:', new Date().toLocaleTimeString());
+                } else {
+                    console.log('Session refresh failed:', data.message);
+                    if (data.message === "Session expired") {
+                        window.location.href = '/Account/Login';
+                    }
+                }
+            })
+            .catch(error => {
+                console.log('Keep alive error:', error);
+            });
+        }
+
+        @if (ViewBag.IsAuthenticated == true)
+        {
+                <text>
+                // Оновлюємо сесію кожні 10 сек
+                setInterval(keepSessionAlive, 10 * 1000);
+
+                // Перший раз через 30 сек після завантаження
+                setTimeout(keepSessionAlive, 30000);
+                </text>
+        }
+    </script>
 </body>
 </html>

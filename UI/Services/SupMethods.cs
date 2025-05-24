@@ -2,7 +2,6 @@
 {
     public class SupMethods
     {
-        private static readonly ILogger<SupMethods> _logger;
 
         public static string ConvertIntToGenre(int genreId)
         {
@@ -74,7 +73,6 @@
                 _ => 0
             };
 
-            _logger.LogInformation("Converting genre '{Genre}' to {Result}", genre, result);
             return result;
         }
 
@@ -88,7 +86,6 @@
                 _ => 0
             };
 
-            _logger.LogInformation("Converting type '{Type}' to {Result}", type, result);
             return result;
         }
 

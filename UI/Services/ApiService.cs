@@ -1928,6 +1928,73 @@ namespace UI.Services
                 };
             }
         }
+
+        public async Task<ApiResponse<object>> RefreshSessionAsync()
+        {
+            try
+            {
+                _logger.LogInformation("Refreshing session");
+
+                // Отримуємо email з сесії
+                var userDataJson = _httpContextAccessor.HttpContext?.Session.GetString("UserData");
+                if (string.IsNullOrEmpty(userDataJson))
+                {
+                    _logger.LogWarning("User data not found in session");
+                    return new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Дані користувача не знайдені в сесії"
+                    };
+                }
+
+                var userData = JsonConvert.DeserializeObject<UserInfo>(userDataJson);
+                if (userData == null || string.IsNullOrEmpty(userData.Email))
+                {
+                    _logger.LogWarning("Invalid user data in session");
+                    return new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Невірні дані користувача в сесії"
+                    };
+                }
+
+                var request = new RefreshSessionRequest { Email = userData.Email };
+
+                var json = JsonConvert.SerializeObject(request);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                _logger.LogInformation("Calling CheckAndRefreshSession for email: {Email}", userData.Email);
+
+                var response = await _httpClient.PostAsync("api/Account/CheckAndRefreshSession", content);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                _logger.LogInformation("CheckAndRefreshSession API response: {StatusCode}, Content: {Content}",
+                    response.StatusCode, responseContent);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("Session refreshed successfully for: {Email}", userData.Email);
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                    return apiResponse ?? new ApiResponse<object> { Success = true };
+                }
+
+                _logger.LogWarning("Session refresh failed: {StatusCode} for email: {Email}", response.StatusCode, userData.Email);
+                return new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"Помилка оновлення сесії: {response.StatusCode}"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error refreshing session");
+                return new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Помилка з'єднання з сервером"
+                };
+            }
+        }
     }
     public class ApiResponse<T>
     {
@@ -1942,5 +2009,10 @@ namespace UI.Services
     {
         public bool IsAuthenticated { get; set; }
         public UserInfo User { get; set; }
+    }
+
+    public class RefreshSessionRequest
+    {
+        public string Email { get; set; }
     }
 }
