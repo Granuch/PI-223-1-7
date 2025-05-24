@@ -1,0 +1,214 @@
+﻿@model UI.Models.DTOs.UserDTO
+@{
+    ViewData["Title"] = "Видалити користувача";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="text-danger">
+                    <i class="fas fa-user-times"></i> Видалення користувача
+                </h2>
+                <div>
+                    <a href="@Url.Action("UserDetails", "Admin", new { id = Model.Id })" class="btn btn-info">
+                        <i class="fas fa-user"></i> Деталі користувача
+                    </a>
+                    <a href="@Url.Action("Users", "Admin")" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Назад до списку
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <!-- Попередження -->
+            <div class="alert alert-danger border-danger">
+                <h4 class="alert-heading">
+                    <i class="fas fa-exclamation-triangle"></i> Увага! Небезпечна операція
+                </h4>
+                <p>
+                    Ви збираєтесь видалити користувача з системи. Ця дія є <strong>незворотною</strong>
+                    та може призвести до втрати даних.
+                </p>
+                <hr>
+                <p class="mb-0">
+                    Переконайтесь, що ви дійсно хочете видалити цього користувача, перш ніж продовжити.
+                </p>
+            </div>
+
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-trash"></i> Підтвердження видалення
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Інформація про користувача -->
+                    <div class="row mb-4">
+                        <div class="col-md-3 text-center">
+                            <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center mx-auto"
+                                 style="width: 80px; height: 80px; font-size: 2rem;">
+                                @(Model.FirstName?.Substring(0, 1)?.ToUpper() ?? "U")
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <h4 class="text-danger">@Model.FirstName @Model.LastName</h4>
+                            <dl class="row">
+                                <dt class="col-sm-3">Email:</dt>
+                                <dd class="col-sm-9">@Model.Email</dd>
+
+                                <dt class="col-sm-3">Телефон:</dt>
+                                <dd class="col-sm-9">
+                                    @if (!string.IsNullOrEmpty(Model.PhoneNumber))
+                                    {
+                                        @Model.PhoneNumber
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Не вказано</span>
+                                    }
+                                </dd>
+
+                                <dt class="col-sm-3">Ролі:</dt>
+                                <dd class="col-sm-9">
+                                    @if (Model.Roles != null && Model.Roles.Any())
+                                    {
+                                        @foreach (var role in Model.Roles)
+                                        {
+                                            var badgeClass = role switch
+                                            {
+                                                "Administrator" => "bg-danger",
+                                                "Manager" => "bg-warning text-dark",
+                                                "RegisteredUser" => "bg-info",
+                                                _ => "bg-secondary"
+                                            };
+                                            <span class="badge @badgeClass me-1">@role</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Без ролей</span>
+                                    }
+                                </dd>
+
+                                <dt class="col-sm-3">Дата реєстрації:</dt>
+                                <dd class="col-sm-9">@Model.CreatedAt.ToString("dd MMMM yyyy 'о' HH:mm")</dd>
+                            </dl>
+                        </div>
+                    </div>
+
+                    <!-- Попередження про наслідки -->
+                    <div class="alert alert-warning">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-info-circle"></i> Що станеться після видалення:
+                        </h6>
+                        <ul class="mb-0">
+                            <li>Користувач буде повністю видалений з системи</li>
+                            <li>Всі дані користувача будуть втрачені</li>
+                            <li>Історія замовлень може бути збережена (залежно від налаштувань)</li>
+                            <li>Відновлення користувача буде неможливим</li>
+                        </ul>
+                    </div>
+
+                    <!-- Альтернативи -->
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <i class="fas fa-lightbulb"></i> Альтернативні варіанти:
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="d-grid">
+                                        <a href="@Url.Action("ManageRoles", "Admin", new { id = Model.Id })" class="btn btn-outline-warning">
+                                            <i class="fas fa-user-minus"></i> Видалити всі ролі
+                                        </a>
+                                    </div>
+                                    <small class="text-muted d-block mt-1">
+                                        Користувач залишиться в системі, але втратить доступ
+                                    </small>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="d-grid">
+                                        <a href="@Url.Action("ChangePassword", "Admin", new { id = Model.Id })" class="btn btn-outline-info">
+                                            <i class="fas fa-key"></i> Змінити пароль
+                                        </a>
+                                    </div>
+                                    <small class="text-muted d-block mt-1">
+                                        Заблокувати доступ зміною паролю
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Форма підтвердження -->
+                    <div class="mt-4">
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="confirmDelete" required>
+                            <label class="form-check-label text-danger" for="confirmDelete">
+                                <strong>Я розумію наслідки та хочу видалити цього користувача</strong>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" id="confirmBackup">
+                            <label class="form-check-label" for="confirmBackup">
+                                Я зробив резервну копію важливих даних (необов'язково)
+                            </label>
+                        </div>
+
+                        <form asp-action="DeleteUser" method="post" id="deleteForm">
+                            <input type="hidden" name="id" value="@Model.Id" />
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <a href="@Url.Action("UserDetails", "Admin", new { id = Model.Id })" class="btn btn-success me-md-2">
+                                    <i class="fas fa-times"></i> Скасувати
+                                </a>
+                                <button type="submit" class="btn btn-danger" id="deleteButton" disabled>
+                                    <i class="fas fa-trash"></i> Так, видалити користувача
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Активація кнопки видалення тільки після підтвердження
+            $('#confirmDelete').change(function() {
+                $('#deleteButton').prop('disabled', !this.checked);
+            });
+
+            // Додаткове підтвердження при відправці форми
+            $('#deleteForm').submit(function(e) {
+                if (!$('#confirmDelete').is(':checked')) {
+                    e.preventDefault();
+                    alert('Необхідно підтвердити видалення');
+                    return false;
+                }
+
+                const userEmail = '@Model.Email';
+                const confirmMessage = `Ви дійсно хочете видалити користувача ${userEmail}?\n\nЦя дія є незворотною!`;
+
+                if (!confirm(confirmMessage)) {
+                    e.preventDefault();
+                    return false;
+                }
+
+                // Блокуємо кнопку після натискання
+                $('#deleteButton').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Видалення...');
+            });
+
+            // Анімація для попереджень
+            $('.alert-danger, .alert-warning').hide().fadeIn(1000);
+        });
+    </script>
+}

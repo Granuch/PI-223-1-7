@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using System.Net;
 using System.Text;
 using UI.Controllers;
 using UI.Models.DTOs;
@@ -11,12 +12,14 @@ namespace UI.Services
         private readonly HttpClient _httpClient;
         private readonly ILogger<ApiService> _logger;
         private readonly IConfiguration _configuration;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public ApiService(HttpClient httpClient, ILogger<ApiService> logger, IConfiguration configuration)
+        public ApiService(HttpClient httpClient, ILogger<ApiService> logger, IConfiguration configuration, IHttpContextAccessor httpContextAccessor)
         {
             _httpClient = httpClient;
             _logger = logger;
             _configuration = configuration;
+            _httpContextAccessor = httpContextAccessor;
 
             var baseUrl = _configuration["ApiSettings:BaseUrl"];
 
@@ -29,7 +32,55 @@ namespace UI.Services
             _httpClient.BaseAddress = new Uri(baseUrl);
             _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
 
+            try
+            {
+                var token = _httpContextAccessor.HttpContext?.Session.GetString("AuthToken");
+                if (!string.IsNullOrEmpty(token))
+                {
+                    _httpClient.DefaultRequestHeaders.Authorization =
+                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    _logger.LogInformation("Auth token restored from session");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error restoring token from session");
+            }
+
             _logger.LogInformation("ApiService ініціалізовано з BaseUrl: {BaseUrl}", baseUrl);
+        }
+        private void EnsureAuthToken()
+        {
+            try
+            {
+                var token = _httpContextAccessor.HttpContext?.Session.GetString("AuthToken");
+
+                if (!string.IsNullOrEmpty(token))
+                {
+                    var currentToken = _httpClient.DefaultRequestHeaders.Authorization?.Parameter;
+
+                    // Встановлюємо токен тільки якщо він відрізняється від поточного
+                    if (currentToken != token)
+                    {
+                        _httpClient.DefaultRequestHeaders.Authorization =
+                            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                        _logger.LogDebug("Auth token updated in HTTP client");
+                    }
+                }
+                else
+                {
+                    // Видаляємо токен якщо його немає в сесії
+                    if (_httpClient.DefaultRequestHeaders.Authorization != null)
+                    {
+                        _httpClient.DefaultRequestHeaders.Authorization = null;
+                        _logger.LogDebug("Auth token removed from HTTP client");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error ensuring auth token");
+            }
         }
 
         public async Task<ApiResponse<UserResponse>> RegisterAsync(RegisterViewModel model)
@@ -232,6 +283,8 @@ namespace UI.Services
         {
             try
             {
+                EnsureAuthToken();
+
                 var response = await _httpClient.GetAsync("api/books/GetAll");
                 var responseContent = await response.Content.ReadAsStringAsync();
 
@@ -266,6 +319,8 @@ namespace UI.Services
         {
             try
             {
+                EnsureAuthToken();
+
                 _logger.LogInformation("Filtering books with params: sortOrder={SortOrder}, searchString={SearchString}, genre={Genre}, type={Type}",
                     sortOrder, searchString, genre, type);
 
@@ -366,6 +421,8 @@ namespace UI.Services
         {
             try
             {
+                EnsureAuthToken();
+
                 var response = await _httpClient.GetAsync($"api/books/GetById/{id}");
                 var responseContent = await response.Content.ReadAsStringAsync();
 
@@ -400,6 +457,8 @@ namespace UI.Services
         {
             try
             {
+                EnsureAuthToken();
+
                 _logger.LogInformation("Creating book: {Title} by {Author}", book.Title, book.Author);
 
                 // Конвертуємо Genre та Type в числа (enum values)
@@ -541,6 +600,8 @@ namespace UI.Services
         {
             try
             {
+                EnsureAuthToken();
+
                 _logger.LogInformation("Starting UpdateBookAsync for book {BookId}", id);
                 _logger.LogInformation("Input book data - Title: {Title}, Author: {Author}, Genre: {Genre}, Type: {Type}, Year: {Year}, IsAvailable: {IsAvailable}",
                     book.Title, book.Author, book.Genre, book.Type, book.Year, book.IsAvailable);
@@ -670,6 +731,8 @@ namespace UI.Services
         {
             try
             {
+                EnsureAuthToken();
+
                 var response = await _httpClient.DeleteAsync($"api/books/Delete/{id}");
 
                 return new ApiResponse<object>
@@ -693,6 +756,8 @@ namespace UI.Services
         {
             try
             {
+                EnsureAuthToken();
+
                 var response = await _httpClient.GetAsync("api/books/GetUserOrders");
                 var responseContent = await response.Content.ReadAsStringAsync();
 
@@ -727,6 +792,8 @@ namespace UI.Services
         {
             try
             {
+                EnsureAuthToken();
+
                 var response = await _httpClient.GetAsync($"api/books/CheckAvailability/{id}");
                 var responseContent = await response.Content.ReadAsStringAsync();
 
@@ -761,6 +828,8 @@ namespace UI.Services
         {
             try
             {
+                EnsureAuthToken();
+
                 // ВИПРАВЛЕНО: Orders з великої літери та правильний endpoint
                 var response = await _httpClient.GetAsync("Orders/Getall");
                 var responseContent = await response.Content.ReadAsStringAsync();
@@ -800,6 +869,8 @@ namespace UI.Services
         {
             try
             {
+                EnsureAuthToken();
+
                 var response = await _httpClient.GetAsync($"api/account/user/{userId}");
                 var responseContent = await response.Content.ReadAsStringAsync();
 
@@ -834,6 +905,8 @@ namespace UI.Services
         {
             try
             {
+                EnsureAuthToken();
+
                 // ВИПРАВЛЕНО: Orders з великої літери
                 var response = await _httpClient.GetAsync($"Orders/GetSpecific/{id}");
                 var responseContent = await response.Content.ReadAsStringAsync();
@@ -869,6 +942,8 @@ namespace UI.Services
         {
             try
             {
+                EnsureAuthToken();
+
                 _logger.LogInformation("Creating order for user {UserId} and book {BookId}", order.UserId, order.BookId);
 
                 // Отримуємо дані книги для створення повного об'єкта замовлення
@@ -955,6 +1030,8 @@ namespace UI.Services
         {
             try
             {
+                EnsureAuthToken();
+
                 _logger.LogInformation("Updating book {BookId} availability to {IsAvailable}", bookId, isAvailable);
 
                 // Отримуємо поточні дані книги
@@ -1007,6 +1084,8 @@ namespace UI.Services
         {
             try
             {
+                EnsureAuthToken();
+
                 _logger.LogInformation("Cancelling order {OrderId} for user {UserId}", orderId, userId);
 
                 // Спочатку отримуємо дані замовлення
@@ -1086,6 +1165,8 @@ namespace UI.Services
         {
             try
             {
+                EnsureAuthToken();
+
                 _logger.LogInformation("Updating order {OrderId} with data: {@Order}", id, order);
 
                 // Спочатку отримуємо поточні дані замовлення
@@ -1192,6 +1273,8 @@ namespace UI.Services
         {
             try
             {
+                EnsureAuthToken();
+
                 // ВИПРАВЛЕНО: Orders з великої літери
                 var response = await _httpClient.DeleteAsync($"Orders/Delete?id={id}");
 
@@ -1212,6 +1295,737 @@ namespace UI.Services
             }
         }
 
+
+        public async Task<ApiResponse<IEnumerable<UserDTO>>> GetAllUsersAsync()
+        {
+            try
+            {
+                EnsureAuthToken();
+
+                _logger.LogInformation("Getting all users");
+
+                var response = await _httpClient.GetAsync("api/AdminUsers/GetAllUsers");
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                _logger.LogInformation("API Response Status: {StatusCode}", response.StatusCode);
+                _logger.LogInformation("API Response Content length: {ContentLength}", responseContent.Length);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<IEnumerable<UserDTO>>>(responseContent);
+                    return apiResponse;
+                }
+
+                _logger.LogError("API returned error: {StatusCode} - {Content}", response.StatusCode, responseContent);
+
+                return new ApiResponse<IEnumerable<UserDTO>>
+                {
+                    Success = false,
+                    Message = $"Помилка отримання користувачів: {response.StatusCode}"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all users");
+                return new ApiResponse<IEnumerable<UserDTO>>
+                {
+                    Success = false,
+                    Message = "Помилка з'єднання з сервером"
+                };
+            }
+        }
+
+        public async Task<ApiResponse<UserDTO>> GetUserByIdAsync(string id)
+        {
+            try
+            {
+                EnsureAuthToken();
+
+
+                _logger.LogInformation("Getting user by ID: {UserId}", id);
+
+                var response = await _httpClient.GetAsync($"api/AdminUsers/GetUserById?id={Uri.EscapeDataString(id)}");
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                _logger.LogInformation("API Response Status: {StatusCode}", response.StatusCode);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<UserDTO>>(responseContent);
+                    return apiResponse;
+                }
+
+                _logger.LogError("API returned error: {StatusCode} - {Content}", response.StatusCode, responseContent);
+
+                return new ApiResponse<UserDTO>
+                {
+                    Success = false,
+                    Message = $"Помилка отримання користувача: {response.StatusCode}"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user by ID: {UserId}", id);
+                return new ApiResponse<UserDTO>
+                {
+                    Success = false,
+                    Message = "Помилка з'єднання з сервером"
+                };
+            }
+        }
+
+        public async Task<ApiResponse<object>> CreateUserAsync(CreateUserRequest request)
+        {
+            try
+            {
+                _logger.LogInformation("Creating user: {Email}", request.Email);
+
+                // Переконуємось що роль встановлена
+                if (string.IsNullOrEmpty(request.Role))
+                {
+                    request.Role = "RegisteredUser";
+                }
+
+                // Перевіряємо токен перед запитом
+                EnsureAuthToken();
+
+                var json = JsonConvert.SerializeObject(request);
+                _logger.LogInformation("Sending JSON: {Json}", json);
+
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await _httpClient.PostAsync("api/AdminUsers/CreateUser", content);
+
+                _logger.LogInformation("API Response Status: {StatusCode}", response.StatusCode);
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("API Response Content: {Content}", responseContent);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    try
+                    {
+                        var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                        return apiResponse ?? new ApiResponse<object> { Success = true };
+                    }
+                    catch (JsonSerializationException)
+                    {
+                        // Якщо не можемо десеріалізувати як ApiResponse, повертаємо успіх
+                        return new ApiResponse<object> { Success = true, Message = "Користувач створений успішно" };
+                    }
+                }
+
+                // ВИПРАВЛЕНО: краща обробка помилок валідації
+                try
+                {
+                    // Спробуємо розпарсити як стандартну помилку ASP.NET Core
+                    var errorResponse = JsonConvert.DeserializeObject<dynamic>(responseContent);
+
+                    var apiResponse = new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Помилка створення користувача"
+                    };
+
+                    // Перевіряємо чи є поле errors (помилки валідації)
+                    if (errorResponse.errors != null)
+                    {
+                        var validationErrors = new Dictionary<string, IEnumerable<string>>();
+                        var errorsList = new List<string>();
+
+                        foreach (var error in errorResponse.errors)
+                        {
+                            string fieldName = error.Name;
+                            var messages = new List<string>();
+
+                            foreach (var message in error.Value)
+                            {
+                                string errorMessage = message.ToString();
+                                messages.Add(errorMessage);
+                                errorsList.Add($"{fieldName}: {errorMessage}");
+                            }
+
+                            validationErrors[fieldName] = messages;
+                        }
+
+                        apiResponse.ValidationErrors = validationErrors;
+                        apiResponse.Errors = errorsList;
+                        apiResponse.Message = "Помилки валідації: " + string.Join("; ", errorsList);
+                    }
+                    else if (errorResponse.message != null)
+                    {
+                        apiResponse.Message = errorResponse.message.ToString();
+                    }
+
+                    return apiResponse;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error parsing error response");
+                    return new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = $"Помилка створення користувача: {response.StatusCode}. {responseContent}"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating user: {Email}", request.Email);
+                return new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Помилка з'єднання з сервером"
+                };
+            }
+        }
+
+        public async Task<ApiResponse<object>> CreateAdminAsync(CreateUserRequest request)
+        {
+            try
+            {
+                _logger.LogInformation("Creating admin: {Email}", request.Email);
+
+                // ВИПРАВЛЕНО: встановлюємо правильну роль
+                request.Role = "Administrator";
+
+                EnsureAuthToken();
+
+                var json = JsonConvert.SerializeObject(request);
+                _logger.LogInformation("Sending JSON: {Json}", json);
+
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await _httpClient.PostAsync("api/AdminUsers/CreateAdmin", content);
+
+                return await ProcessCreateUserResponse(response, "адміністратора");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating admin: {Email}", request.Email);
+                return new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Помилка з'єднання з сервером"
+                };
+            }
+        }
+
+        public async Task<ApiResponse<object>> CreateManagerAsync(CreateUserRequest request)
+        {
+            try
+            {
+                _logger.LogInformation("Creating manager: {Email}", request.Email);
+
+                // ВИПРАВЛЕНО: встановлюємо правильну роль
+                request.Role = "Manager";
+
+                EnsureAuthToken();
+
+                var json = JsonConvert.SerializeObject(request);
+                _logger.LogInformation("Sending JSON: {Json}", json);
+
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await _httpClient.PostAsync("api/AdminUsers/CreateManager", content);
+
+                return await ProcessCreateUserResponse(response, "менеджера");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating manager: {Email}", request.Email);
+                return new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Помилка з'єднання з сервером"
+                };
+            }
+        }
+
+        // ДОДАНО: допоміжний метод для обробки відповіді
+        private async Task<ApiResponse<object>> ProcessCreateUserResponse(HttpResponseMessage response, string userType)
+        {
+            var responseContent = await response.Content.ReadAsStringAsync();
+            _logger.LogInformation("API Response Status: {StatusCode}", response.StatusCode);
+            _logger.LogInformation("API Response Content: {Content}", responseContent);
+
+            if (response.IsSuccessStatusCode)
+            {
+                try
+                {
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                    return apiResponse ?? new ApiResponse<object>
+                    {
+                        Success = true,
+                        Message = $"{userType} створений успішно"
+                    };
+                }
+                catch (JsonSerializationException)
+                {
+                    return new ApiResponse<object>
+                    {
+                        Success = true,
+                        Message = $"{userType} створений успішно"
+                    };
+                }
+            }
+
+            // Обробка помилок (аналогічно до CreateUserAsync)
+            try
+            {
+                var errorResponse = JsonConvert.DeserializeObject<dynamic>(responseContent);
+
+                var apiResponse = new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"Помилка створення {userType}"
+                };
+
+                if (errorResponse.errors != null)
+                {
+                    var errorsList = new List<string>();
+                    foreach (var error in errorResponse.errors)
+                    {
+                        foreach (var message in error.Value)
+                        {
+                            errorsList.Add($"{error.Name}: {message}");
+                        }
+                    }
+                    apiResponse.Errors = errorsList;
+                    apiResponse.Message = $"Помилки валідації при створенні {userType}: " + string.Join("; ", errorsList);
+                }
+                else if (errorResponse.message != null)
+                {
+                    apiResponse.Message = errorResponse.message.ToString();
+                }
+
+                return apiResponse;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error parsing error response for {UserType}", userType);
+                return new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"Помилка створення {userType}: {response.StatusCode}"
+                };
+            }
+        }
+
+        public async Task<ApiResponse<object>> UpdateUserAsync(string id, UpdateUserRequest request)
+        {
+            try
+            {
+                EnsureAuthToken();
+
+                _logger.LogInformation("Updating user: {UserId}", id);
+
+                var json = JsonConvert.SerializeObject(request);
+                _logger.LogInformation("Sending JSON: {Json}", json);
+
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await _httpClient.PutAsync($"api/AdminUsers/UpdateUser?id={Uri.EscapeDataString(id)}", content);
+
+                _logger.LogInformation("API Response Status: {StatusCode}", response.StatusCode);
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("API Response Content: {Content}", responseContent);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                    return apiResponse;
+                }
+
+                var errorResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                return errorResponse ?? new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"Помилка оновлення користувача: {response.StatusCode}"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating user: {UserId}", id);
+                return new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Помилка з'єднання з сервером"
+                };
+            }
+        }
+
+        public async Task<ApiResponse<object>> DeleteUserAsync(string id)
+        {
+            try
+            {
+                EnsureAuthToken();
+
+                _logger.LogInformation("Deleting user: {UserId}", id);
+
+                var response = await _httpClient.DeleteAsync($"api/AdminUsers/DeleteUser?id={Uri.EscapeDataString(id)}");
+
+                _logger.LogInformation("API Response Status: {StatusCode}", response.StatusCode);
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("API Response Content: {Content}", responseContent);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                    return apiResponse;
+                }
+
+                var errorResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                return errorResponse ?? new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"Помилка видалення користувача: {response.StatusCode}"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting user: {UserId}", id);
+                return new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Помилка з'єднання з сервером"
+                };
+            }
+        }
+
+        public async Task<ApiResponse<object>> ChangeUserPasswordAsync(string id, ChangePasswordRequest request)
+        {
+            try
+            {
+                EnsureAuthToken();
+
+                _logger.LogInformation("Changing password for user: {UserId}", id);
+
+                var json = JsonConvert.SerializeObject(request);
+                // НЕ логуємо пароль з міркувань безпеки
+                _logger.LogInformation("Sending password change request for user: {UserId}", id);
+
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await _httpClient.PostAsync($"api/AdminUsers/ChangePassword?id={Uri.EscapeDataString(id)}", content);
+
+                _logger.LogInformation("API Response Status: {StatusCode}", response.StatusCode);
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                    return apiResponse;
+                }
+
+                var errorResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                return errorResponse ?? new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"Помилка зміни паролю: {response.StatusCode}"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error changing password for user: {UserId}", id);
+                return new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Помилка з'єднання з сервером"
+                };
+            }
+        }
+
+        public async Task<ApiResponse<object>> AssignRoleToUserAsync(string id, AssignRoleRequest request)
+        {
+            try
+            {
+                EnsureAuthToken();
+
+                // Встановлюємо UserId в request
+                request.UserId = id;
+
+                _logger.LogInformation("Assigning role {RoleName} to user: {UserId}", request.RoleName, id);
+
+                var json = JsonConvert.SerializeObject(request);
+                _logger.LogInformation("Sending JSON: {Json}", json);
+
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                // Передаємо id як параметр URL
+                var response = await _httpClient.PostAsync($"api/AdminUsers/AssignRole?id={Uri.EscapeDataString(id)}", content);
+
+                _logger.LogInformation("API Response Status: {StatusCode}", response.StatusCode);
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("API Response Content: {Content}", responseContent);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    try
+                    {
+                        var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                        return apiResponse ?? new ApiResponse<object> { Success = true, Message = "Роль призначена успішно" };
+                    }
+                    catch (JsonException jsonEx)
+                    {
+                        _logger.LogError(jsonEx, "Failed to deserialize successful response");
+                        return new ApiResponse<object> { Success = true, Message = "Роль призначена успішно" };
+                    }
+                }
+
+                return await HandleErrorResponse(responseContent, response.StatusCode, "Помилка призначення ролі");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error assigning role {RoleName} to user: {UserId}. Exception type: {ExceptionType}, Message: {ExceptionMessage}",
+                    request?.RoleName, id, ex.GetType().Name, ex.Message);
+
+                if (ex.InnerException != null)
+                {
+                    _logger.LogError("Inner exception: {InnerExceptionType} - {InnerExceptionMessage}",
+                        ex.InnerException.GetType().Name, ex.InnerException.Message);
+                }
+
+                return new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"Помилка з'єднання з сервером: {ex.Message}"
+                };
+            }
+        }
+
+        public async Task<ApiResponse<object>> RemoveRoleFromUserAsync(string id, AssignRoleRequest request)
+        {
+            try
+            {
+                EnsureAuthToken();
+
+                // Встановлюємо UserId в request
+                request.UserId = id;
+
+                _logger.LogInformation("Removing role {RoleName} from user: {UserId}", request.RoleName, id);
+
+                var json = JsonConvert.SerializeObject(request);
+                _logger.LogInformation("Sending JSON: {Json}", json);
+
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                // Передаємо id як параметр URL
+                var response = await _httpClient.PostAsync($"api/AdminUsers/RemoveRole?id={Uri.EscapeDataString(id)}", content);
+
+                _logger.LogInformation("API Response Status: {StatusCode}", response.StatusCode);
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("API Response Content: {Content}", responseContent);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    try
+                    {
+                        var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                        return apiResponse ?? new ApiResponse<object> { Success = true, Message = "Роль видалена успішно" };
+                    }
+                    catch (JsonException jsonEx)
+                    {
+                        _logger.LogError(jsonEx, "Failed to deserialize successful response");
+                        return new ApiResponse<object> { Success = true, Message = "Роль видалена успішно" };
+                    }
+                }
+
+                return await HandleErrorResponse(responseContent, response.StatusCode, "Помилка видалення ролі");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error removing role {RoleName} from user: {UserId}. Exception type: {ExceptionType}, Message: {ExceptionMessage}",
+                    request?.RoleName, id, ex.GetType().Name, ex.Message);
+
+                if (ex.InnerException != null)
+                {
+                    _logger.LogError("Inner exception: {InnerExceptionType} - {InnerExceptionMessage}",
+                        ex.InnerException.GetType().Name, ex.InnerException.Message);
+                }
+
+                return new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"Помилка з'єднання з сервером: {ex.Message}"
+                };
+            }
+        }
+
+        private async Task<ApiResponse<object>> HandleErrorResponse(string responseContent, HttpStatusCode statusCode, string defaultErrorMessage)
+        {
+            _logger.LogInformation("HandleErrorResponse called with status: {StatusCode}, content: {Content}", statusCode, responseContent);
+
+            try
+            {
+                // Спробуємо десеріалізувати як стандартну відповідь API
+                var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                if (apiResponse != null)
+                {
+                    _logger.LogInformation("Successfully deserialized as ApiResponse");
+                    return apiResponse;
+                }
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "Failed to deserialize as ApiResponse");
+                // Якщо не вдалося як ApiResponse, спробуємо як ValidationProblemDetails
+                try
+                {
+                    var validationError = JsonConvert.DeserializeObject<ValidationErrorResponse>(responseContent);
+                    if (validationError?.Errors != null)
+                    {
+                        _logger.LogInformation("Successfully deserialized as ValidationErrorResponse");
+                        var errorMessages = validationError.Errors
+                            .SelectMany(kvp => kvp.Value.Select(v => $"{kvp.Key}: {string.Join(", ", v)}"))
+                            .ToList();
+
+                        return new ApiResponse<object>
+                        {
+                            Success = false,
+                            Message = $"Помилки валідації: {string.Join("; ", errorMessages)}"
+                        };
+                    }
+                }
+                catch (JsonException ex2)
+                {
+                    _logger.LogError(ex2, "Failed to deserialize as ValidationErrorResponse");
+                    // Якщо не ValidationProblemDetails, просто поверніть загальну помилку
+                }
+            }
+
+            _logger.LogInformation("Returning default error message");
+            return new ApiResponse<object>
+            {
+                Success = false,
+                Message = $"{defaultErrorMessage}: {statusCode}"
+            };
+        }
+
+        public async Task<ApiResponse<IEnumerable<string>>> GetUserRolesAsync(string id)
+        {
+            try
+            {
+                EnsureAuthToken();
+
+                _logger.LogInformation("Getting roles for user: {UserId}", id);
+
+                var response = await _httpClient.GetAsync($"api/AdminUsers/GetUserRoles?id={Uri.EscapeDataString(id)}");
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                _logger.LogInformation("API Response Status: {StatusCode}", response.StatusCode);
+                _logger.LogInformation("API Response Content: {Content}", responseContent);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    try
+                    {
+                        // Спочатку спробуємо десеріалізувати як успішну відповідь
+                        var apiResponse = JsonConvert.DeserializeObject<ApiResponse<IEnumerable<string>>>(responseContent);
+                        if (apiResponse != null && apiResponse.Success)
+                        {
+                            return apiResponse;
+                        }
+                    }
+                    catch (JsonException jsonEx)
+                    {
+                        _logger.LogError(jsonEx, "Failed to deserialize as ApiResponse<IEnumerable<string>>. Response: {Response}", responseContent);
+                    }
+                }
+
+                // Якщо десеріалізація не вдалася або статус не успішний, обробляємо як помилку
+                try
+                {
+                    // Спробуємо десеріалізувати як помилку
+                    var errorResponse = JsonConvert.DeserializeObject<dynamic>(responseContent);
+
+                    string errorMessage = "Помилка отримання ролей користувача";
+
+                    // Спробуємо витягти повідомлення про помилку
+                    if (errorResponse?.message != null)
+                    {
+                        errorMessage = errorResponse.message.ToString();
+                    }
+                    else if (errorResponse?.errors != null)
+                    {
+                        // Якщо є помилки валідації
+                        var errors = errorResponse.errors;
+                        if (errors.id != null)
+                        {
+                            errorMessage = $"Помилка з ID користувача: {errors.id}";
+                        }
+                        else
+                        {
+                            errorMessage = "Помилки валідації: " + errorResponse.errors.ToString();
+                        }
+                    }
+
+                    return new ApiResponse<IEnumerable<string>>
+                    {
+                        Success = false,
+                        Message = errorMessage
+                    };
+                }
+                catch (JsonException jsonEx)
+                {
+                    _logger.LogError(jsonEx, "Failed to deserialize error response. Raw response: {Response}", responseContent);
+
+                    return new ApiResponse<IEnumerable<string>>
+                    {
+                        Success = false,
+                        Message = $"Неочікуваний формат відповіді від сервера. Статус: {response.StatusCode}"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user roles: {UserId}", id);
+                return new ApiResponse<IEnumerable<string>>
+                {
+                    Success = false,
+                    Message = "Помилка з'єднання з сервером"
+                };
+            }
+        }
+
+        public async Task<ApiResponse<IEnumerable<RoleDTO>>> GetAllRolesAsync()
+        {
+            try
+            {
+                EnsureAuthToken();
+
+                _logger.LogInformation("Getting all roles");
+
+                var response = await _httpClient.GetAsync("api/AdminUsers/GetAllRoles");
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                _logger.LogInformation("API Response Status: {StatusCode}", response.StatusCode);
+                _logger.LogInformation("API Response Content length: {ContentLength}", responseContent.Length);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<IEnumerable<RoleDTO>>>(responseContent);
+                    return apiResponse;
+                }
+
+                _logger.LogError("API returned error: {StatusCode} - {Content}", response.StatusCode, responseContent);
+
+                return new ApiResponse<IEnumerable<RoleDTO>>
+                {
+                    Success = false,
+                    Message = $"Помилка отримання ролей: {response.StatusCode}"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all roles");
+                return new ApiResponse<IEnumerable<RoleDTO>>
+                {
+                    Success = false,
+                    Message = "Помилка з'єднання з сервером"
+                };
+            }
+        }
     }
     public class ApiResponse<T>
     {
@@ -1219,6 +2033,7 @@ namespace UI.Services
         public T Data { get; set; }
         public string Message { get; set; }
         public IEnumerable<string> Errors { get; set; }
+        public Dictionary<string, IEnumerable<string>> ValidationErrors { get; set; } = new Dictionary<string, IEnumerable<string>>();
     }
 
     public class UserResponse
