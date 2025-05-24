@@ -1,0 +1,236 @@
+﻿@model UI.Models.DTOs.UserDTO
+@{
+    ViewData["Title"] = "Деталі користувача";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-user"></i> Деталі користувача
+                </h2>
+                <div>
+                    <a href="@Url.Action("EditUser", "Admin", new { id = Model.Id })" class="btn btn-warning">
+                        <i class="fas fa-edit"></i> Редагувати
+                    </a>
+                    <a href="@Url.Action("Users", "Admin")" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Назад до списку
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Основна інформація -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-id-card"></i> Основна інформація
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Ім'я:</dt>
+                                <dd class="col-sm-8">
+                                    <strong>@Model.FirstName @Model.LastName</strong>
+                                </dd>
+
+                                <dt class="col-sm-4">Email:</dt>
+                                <dd class="col-sm-8">
+                                    <a href="mailto:@Model.Email" class="text-primary">
+                                        <i class="fas fa-envelope"></i> @Model.Email
+                                    </a>
+                                </dd>
+
+                                <dt class="col-sm-4">Телефон:</dt>
+                                <dd class="col-sm-8">
+                                    @if (!string.IsNullOrEmpty(Model.PhoneNumber))
+                                    {
+                                        <a href="tel:@Model.PhoneNumber" class="text-success">
+                                            <i class="fas fa-phone"></i> @Model.PhoneNumber
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Не вказано</span>
+                                    }
+                                </dd>
+
+                                <dt class="col-sm-4">Username:</dt>
+                                <dd class="col-sm-8">
+                                    <code>@Model.UserName</code>
+                                </dd>
+                            </dl>
+                        </div>
+
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">ID:</dt>
+                                <dd class="col-sm-8">
+                                    <code class="text-muted">@Model.Id</code>
+                                </dd>
+
+                                <dt class="col-sm-4">Дата реєстрації:</dt>
+                                <dd class="col-sm-8">
+                                    <span class="text-info">
+                                        <i class="fas fa-calendar-alt"></i>
+                                        @Model.CreatedAt.ToString("dd MMMM yyyy")
+                                    </span>
+                                    <br>
+                                    <small class="text-muted">
+                                        @Model.CreatedAt.ToString("HH:mm:ss")
+                                    </small>
+                                </dd>
+
+                                <dt class="col-sm-4">Статус:</dt>
+                                <dd class="col-sm-8">
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check-circle"></i> Активний
+                                    </span>
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ролі користувача -->
+            <div class="card mt-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-tag"></i> Ролі користувача
+                    </h5>
+                    <a href="@Url.Action("ManageRoles", "Admin", new { id = Model.Id })" class="btn btn-sm btn-primary">
+                        <i class="fas fa-cog"></i> Управляти ролями
+                    </a>
+                </div>
+                <div class="card-body">
+                    @if (Model.Roles != null && Model.Roles.Any())
+                    {
+                        <div class="row">
+                            @foreach (var role in Model.Roles)
+                            {
+                                var (badgeClass, icon, description) = role switch
+                                {
+                                    "Administrator" => ("bg-danger", "fas fa-user-shield", "Повний доступ до системи"),
+                                    "Manager" => ("bg-warning text-dark", "fas fa-user-tie", "Управління книгами та замовленнями"),
+                                    "RegisteredUser" => ("bg-info", "fas fa-user", "Базові права користувача"),
+                                    _ => ("bg-secondary", "fas fa-question", "Невідома роль")
+                                };
+
+                                <div class="col-md-6 mb-3">
+                                    <div class="border rounded p-3">
+                                        <div class="d-flex align-items-center">
+                                            <i class="@icon fa-2x me-3 text-primary"></i>
+                                            <div>
+                                                <span class="badge @badgeClass mb-1">@role</span>
+                                                <br>
+                                                <small class="text-muted">@description</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4">
+                            <i class="fas fa-user-slash fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">Ролі не призначені</h5>
+                            <p class="text-muted">Цьому користувачу не призначено жодної ролі.</p>
+                            <a href="@Url.Action("ManageRoles", "Admin", new { id = Model.Id })" class="btn btn-primary">
+                                <i class="fas fa-user-plus"></i> Призначити роль
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Бічна панель з діями -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cogs"></i> Дії
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="@Url.Action("EditUser", "Admin", new { id = Model.Id })" class="btn btn-warning">
+                            <i class="fas fa-edit"></i> Редагувати дані
+                        </a>
+
+                        <a href="@Url.Action("ChangePassword", "Admin", new { id = Model.Id })" class="btn btn-info">
+                            <i class="fas fa-key"></i> Змінити пароль
+                        </a>
+
+                        <a href="@Url.Action("ManageRoles", "Admin", new { id = Model.Id })" class="btn btn-primary">
+                            <i class="fas fa-user-tag"></i> Управляти ролями
+                        </a>
+
+                        <hr>
+
+                        <a href="@Url.Action("DeleteUser", "Admin", new { id = Model.Id })" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Видалити користувача
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Статистика користувача -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar"></i> Статистика
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="text-center">
+                        <div class="mb-3">
+                            <h4 class="text-primary">0</h4>
+                            <small class="text-muted">Активних замовлень</small>
+                        </div>
+                        <hr>
+                        <div class="mb-3">
+                            <h4 class="text-success">0</h4>
+                            <small class="text-muted">Завершених замовлень</small>
+                        </div>
+                        <hr>
+                        <div class="mb-0">
+                            <h4 class="text-info">
+                                @((DateTime.UtcNow - Model.CreatedAt).Days)
+                            </h4>
+                            <small class="text-muted">Днів у системі</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Швидкі посилання -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-external-link-alt"></i> Швидкі посилання
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="@Url.Action("Index", "Orders")" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-shopping-cart"></i> Замовлення користувача
+                        </a>
+                        <a href="@Url.Action("Index", "Books")" class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-book"></i> Каталог книг
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

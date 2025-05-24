@@ -1,4 +1,5 @@
-﻿using UI.Services;
+﻿using UI.Middleware;
+using UI.Services;
 
 namespace UI
 {
@@ -11,17 +12,21 @@ namespace UI
             // Додавання сервісів
             builder.Services.AddControllersWithViews();
 
+            // ДОДАНО: Це потрібно для роботи IHttpContextAccessor
+            builder.Services.AddHttpContextAccessor();
+
             // Додаємо сесії для збереження стану авторизації
             builder.Services.AddSession(options =>
             {
-                options.IdleTimeout = TimeSpan.FromMinutes(30); // Сесія діє 30 хвилин
+                options.IdleTimeout = TimeSpan.FromHours(8);
                 options.Cookie.HttpOnly = true;
                 options.Cookie.IsEssential = true;
                 options.Cookie.Name = "LibrarySession";
                 options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                options.Cookie.SameSite = SameSiteMode.Lax; // Додано для кращої сумісності
             });
 
-            // Налаштування HttpClient для API (спрощена версія)
+            // Налаштування HttpClient для API
             builder.Services.AddHttpClient<IApiService, ApiService>(client =>
             {
                 var baseUrl = builder.Configuration["ApiSettings:BaseUrl"];
@@ -31,11 +36,12 @@ namespace UI
                     Console.WriteLine($"Warning: ApiSettings:BaseUrl not found. Using default: {baseUrl}");
                 }
                 client.BaseAddress = new Uri(baseUrl);
-                client.Timeout = TimeSpan.FromSeconds(30);
+                client.Timeout = TimeSpan.FromMinutes(5); // Збільшено timeout
+                client.DefaultRequestHeaders.Add("Accept", "application/json");
             });
 
-            // Реєстрація сервісів
-            builder.Services.AddScoped<IApiService, ApiService>();
+            // Реєстрація сервісів (це можна прибрати, бо AddHttpClient вже реєструє)
+            // builder.Services.AddScoped<IApiService, ApiService>(); // Закоментуйте цю лінію
 
             var app = builder.Build();
 
@@ -50,8 +56,10 @@ namespace UI
             app.UseStaticFiles();
             app.UseRouting();
 
-            // ВАЖЛИВО: UseSession має бути перед MapControllerRoute
+            // ВАЖЛИВО: правильний порядок middleware
             app.UseSession();
+            app.UseTokenRefresh();
+            app.UseAuthorization();
 
             app.MapControllerRoute(
                 name: "default",
