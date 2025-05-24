@@ -50,6 +50,8 @@ namespace Mapping.Mapping
                 .ForMember(dest => dest.NormalizedName, opt => opt.Ignore())
                 .ForMember(dest => dest.ConcurrencyStamp, opt => opt.Ignore());
 
+
+
         }
     }
 
