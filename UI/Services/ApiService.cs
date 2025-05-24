@@ -1198,7 +1198,6 @@ namespace UI.Services
             }
         }
 
-
         public async Task<ApiResponse<IEnumerable<UserDTO>>> GetAllUsersAsync()
         {
             try
@@ -1611,18 +1610,39 @@ namespace UI.Services
                 _logger.LogInformation("API Response Status: {StatusCode}", response.StatusCode);
 
                 var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("API Response Content: {Content}", responseContent);
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
-                    return apiResponse;
+                    try
+                    {
+                        var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                        return apiResponse ?? new ApiResponse<object> { Success = true, Message = "Пароль змінений успішно" };
+                    }
+                    catch (JsonException)
+                    {
+                        return new ApiResponse<object> { Success = true, Message = "Пароль змінений успішно" };
+                    }
                 }
 
-                var errorResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
-                return errorResponse ?? new ApiResponse<object>
+                // Обробка помилок
+                try
+                {
+                    var errorResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                    if (errorResponse != null)
+                    {
+                        return errorResponse;
+                    }
+                }
+                catch (JsonException)
+                {
+                    // Якщо не можемо десеріалізувати як ApiResponse, спробуємо як стандартну помилку
+                }
+
+                return new ApiResponse<object>
                 {
                     Success = false,
-                    Message = $"Помилка зміни паролю: {response.StatusCode}"
+                    Message = $"Помилка зміни паролю: {response.StatusCode}. {responseContent}"
                 };
             }
             catch (Exception ex)

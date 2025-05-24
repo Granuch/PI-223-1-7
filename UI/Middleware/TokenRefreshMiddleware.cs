@@ -1,5 +1,4 @@
-﻿// Створіть новий файл Middleware/TokenRefreshMiddleware.cs
-
+﻿
 using System.IdentityModel.Tokens.Jwt;
 
 namespace UI.Middleware
