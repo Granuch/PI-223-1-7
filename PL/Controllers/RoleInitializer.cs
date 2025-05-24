@@ -12,6 +12,9 @@ namespace PL.Controllers
             string adminEmail = "admin@example.com";
             string adminPassword = "Admin123";
 
+            string managerEmail = "manager@example.com";
+            string managerPassword = "Manager123";
+
             string[] roleNames = { "Administrator", "Manager", "RegisteredUser", "Guest" };
 
             foreach (var roleName in roleNames)
@@ -42,6 +45,25 @@ namespace PL.Controllers
                 if (result.Succeeded)
                 {
                     await userManager.AddToRoleAsync(admin, "Administrator");
+                }
+            }
+
+            if (await userManager.FindByNameAsync(managerEmail) == null)
+            {
+                ApplicationUser manager = new ApplicationUser
+                {
+                    Email = managerEmail,
+                    UserName = managerEmail,
+                    FirstName = "Manager",
+                    LastName = "User",
+                    EmailConfirmed = true
+                };
+
+                IdentityResult result = await userManager.CreateAsync(manager, managerPassword);
+
+                if (result.Succeeded)
+                {
+                    await userManager.AddToRoleAsync(manager, "Manager");
                 }
             }
         }

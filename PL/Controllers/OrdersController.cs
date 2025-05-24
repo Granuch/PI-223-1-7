@@ -4,12 +4,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using PI_223_1_7.DbContext;
+using PI_223_1_7.Enums;
 using PI_223_1_7.Models;
 using System.Threading.Tasks;
 
 namespace PL.Controllers
 {
-    //[Authorize]// Базовий доступ для авторизованих 
+    [Authorize]
     [ApiController]
     [Route("[controller]")]
     public class OrdersController : ControllerBase
@@ -25,6 +26,7 @@ namespace PL.Controllers
             _logger = logger;
         }
 
+        [Authorize(Roles = "Manager,Administrator")]
         [HttpGet("GetSpecific/{id}")]
         public async Task<IActionResult> GetOrder(int id)
         {
@@ -40,6 +42,7 @@ namespace PL.Controllers
             }
         }
 
+        [Authorize(Roles = "Manager,Administrator")]
         [HttpGet("Getall")]
         public async Task<IActionResult> GetAllOrders()
         {
@@ -68,6 +71,7 @@ namespace PL.Controllers
             }
         }
 
+        [Authorize(Roles = "Manager,Administrator")]
         [HttpPut("Update")]
         public async Task<IActionResult> UpdateOrder(int orderId, [FromBody]OrderDTO UpdatedOrder)
         {
@@ -121,5 +125,13 @@ namespace PL.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+    }
+    public class CreateOrderRequest
+    {
+        public string UserId { get; set; }
+        public int BookId { get; set; }
+        public DateTime OrderDate { get; set; }
+        public OrderStatusTypes Type { get; set; }
     }
 }

@@ -1,10 +1,11 @@
-﻿using System;
+﻿using PI_223_1_7.Enums;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using PI_223_1_7.Enums;
-using System.ComponentModel.DataAnnotations;
 
 
 namespace PI_223_1_7.Models
@@ -13,7 +14,8 @@ namespace PI_223_1_7.Models
     {
         [Key]
         public int Id { get; set; }
-        public int UserId { get; set; }
+        public string UserId { get; set; }
+
         public int BookId { get; set; }
 
         [Required]

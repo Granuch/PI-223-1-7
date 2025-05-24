@@ -1,0 +1,62 @@
+﻿@model UI.Models.DTOs.OrderDTO
+@{
+    ViewData["Title"] = "Створити замовлення";
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <form asp-action="Create">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="form-group mb-3">
+                <label asp-for="UserId" class="control-label"></label>
+                <input asp-for="UserId" class="form-control" placeholder="Введіть ID користувача" />
+                <span asp-validation-for="UserId" class="text-danger"></span>
+                <small class="form-text text-muted">ID користувача, який робить замовлення</small>
+            </div>
+
+            <div class="form-group mb-3">
+                <label asp-for="BookId" class="control-label"></label>
+                <input asp-for="BookId" class="form-control" type="number" placeholder="Введіть ID книги" />
+                <span asp-validation-for="BookId" class="text-danger"></span>
+                <small class="form-text text-muted">ID книги для замовлення</small>
+            </div>
+
+            <div class="form-group mb-3">
+                <label asp-for="OrderDate" class="control-label"></label>
+                <input asp-for="OrderDate" class="form-control" type="datetime-local" value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" />
+                <span asp-validation-for="OrderDate" class="text-danger"></span>
+            </div>
+
+            <div class="form-group mb-3">
+                <label asp-for="ReturnDate" class="control-label"></label>
+                <input asp-for="ReturnDate" class="form-control" type="datetime-local" />
+                <span asp-validation-for="ReturnDate" class="text-danger"></span>
+                <small class="form-text text-muted">Залишіть порожнім для активного замовлення</small>
+            </div>
+
+            <div class="form-group mb-3">
+                <label asp-for="Type" class="control-label">Статус замовлення</label>
+                <select asp-for="Type" class="form-control">
+                    <option value="1">Активне</option>
+                    <option value="2">Повернено</option>
+                    <option value="3">Прострочено</option>
+                </select>
+                <span asp-validation-for="Type" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <input type="submit" value="Створити замовлення" class="btn btn-success" />
+                <a asp-action="Index" class="btn btn-secondary">Скасувати</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

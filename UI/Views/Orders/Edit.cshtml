@@ -1,0 +1,89 @@
+﻿@model UI.Models.DTOs.EditOrderDTO
+@{
+    ViewData["Title"] = "Редагувати замовлення";
+}
+
+<h2>@ViewData["Title"] #@Model.Id</h2>
+
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <form asp-action="Edit" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="form-group mb-3">
+                <label asp-for="UserId" class="control-label"></label>
+                <input asp-for="UserId" class="form-control" readonly />
+                <span asp-validation-for="UserId" class="text-danger"></span>
+                <small class="form-text text-muted">ID користувача не можна змінити</small>
+            </div>
+
+            <div class="form-group mb-3">
+                <label asp-for="BookId" class="control-label"></label>
+                <input asp-for="BookId" class="form-control" type="number" />
+                <span asp-validation-for="BookId" class="text-danger"></span>
+                @if (Model.Book != null)
+                {
+                    <small class="form-text text-muted">Поточна книга: @Model.Book.Title (@Model.Book.Author)</small>
+                }
+            </div>
+
+            <div class="form-group mb-3">
+                <label asp-for="OrderDate" class="control-label"></label>
+                <input asp-for="OrderDate" class="form-control" type="datetime-local" />
+                <span asp-validation-for="OrderDate" class="text-danger"></span>
+            </div>
+
+            <div class="form-group mb-3">
+                <label asp-for="ReturnDate" class="control-label"></label>
+                <input asp-for="ReturnDate" class="form-control" type="datetime-local" />
+                <span asp-validation-for="ReturnDate" class="text-danger"></span>
+                <small class="form-text text-muted">Залишіть порожнім, якщо книга ще не повернена</small>
+            </div>
+
+            <div class="form-group mb-3">
+                <label asp-for="Type" class="control-label">Статус замовлення</label>
+                <select asp-for="Type" class="form-control">
+                    <option value="1" selected="@(Model.Type == 1)">Активне</option>
+                    <option value="2" selected="@(Model.Type == 2)">Повернено</option>
+                    <option value="3" selected="@(Model.Type == 3)">Прострочено</option>
+                </select>
+                <span asp-validation-for="Type" class="text-danger"></span>
+            </div>
+
+            @if (Model.Book != null)
+            {
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">Інформація про книгу</h6>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Назва:</strong> @Model.Book.Title</p>
+                        <p><strong>Автор:</strong> @Model.Book.Author</p>
+                        <p><strong>Рік:</strong> @Model.Book.Year.Year</p>
+                        <p><strong>Жанр:</strong> @Model.Book.Genre</p>
+                        <p>
+                            <strong>Доступність:</strong>
+                            <span class="badge @(Model.Book.IsAvailable ? "bg-success" : "bg-danger")">
+                                @(Model.Book.IsAvailable ? "Доступна" : "Недоступна")
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            }
+
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary">Зберегти зміни</button>
+                <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">Скасувати</a>
+                <a asp-action="Index" class="btn btn-outline-secondary">Назад до списку</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}
