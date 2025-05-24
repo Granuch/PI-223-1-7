@@ -10,6 +10,7 @@ namespace UI.Services
         Task<ApiResponse<UserResponse>> LoginAsync(LoginViewModel model);
         Task<ApiResponse<object>> LogoutAsync();
         Task<ApiResponse<UserResponse>> CheckAuthStatusAsync();
+        Task<ApiResponse<object>> RefreshSessionAsync();
 
         // Books
         Task<ApiResponse<IEnumerable<BookDTO>>> GetAllBooksAsync();

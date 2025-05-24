@@ -112,5 +112,40 @@ namespace UI.Controllers
             TempData["SuccessMessage"] = "Вихід виконано успішно!";
             return RedirectToAction("Index", "Home");
         }
+
+        [HttpPost]
+        public async Task<IActionResult> KeepAlive()
+        {
+            try
+            {
+                var isAuthenticated = HttpContext.Session.GetString("IsAuthenticated") == "true";
+
+                if (!isAuthenticated)
+                {
+                    return Json(new { success = false, message = "Not authenticated" });
+                }
+
+                // Викликаємо API для оновлення cookie
+                var result = await _apiService.RefreshSessionAsync();
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("KeepAlive: Session refreshed successfully");
+                    return Json(new { success = true, message = "Session refreshed" });
+                }
+                else
+                {
+                    _logger.LogWarning("KeepAlive: Session refresh failed");
+                    // Очищаємо сесію якщо оновлення не вдалося
+                    HttpContext.Session.Clear();
+                    return Json(new { success = false, message = "Session expired" });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in KeepAlive");
+                return Json(new { success = false, message = "Error refreshing session" });
+            }
+        }
     }
 }
