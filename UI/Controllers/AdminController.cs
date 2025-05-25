@@ -304,43 +304,101 @@ namespace UI.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
         {
+            _logger.LogInformation("ChangePassword POST called for user {UserId}", model?.UserId);
+
             if (ViewBag.IsAdministrator != true)
             {
+                _logger.LogWarning("Non-administrator tried to change password");
                 TempData["ErrorMessage"] = "Доступ заборонено.";
                 return RedirectToAction("Index", "Home");
             }
 
             if (!ModelState.IsValid)
             {
+                _logger.LogWarning("ModelState is invalid for password change");
+                foreach (var error in ModelState)
+                {
+                    _logger.LogWarning("ModelState error - Field: {Field}, Errors: {Errors}",
+                        error.Key, string.Join(", ", error.Value.Errors.Select(e => e.ErrorMessage)));
+                }
+
+                // Перезавантажуємо дані користувача для відображення
+                var userResult = await _apiService.GetUserByIdAsync(model.UserId);
+                if (userResult.Success)
+                {
+                    model.UserEmail = userResult.Data.Email;
+                }
+
                 return View(model);
             }
 
-            var request = new ChangePasswordRequest
+            try
             {
-                NewPassword = model.NewPassword
-            };
-
-            var result = await _apiService.ChangeUserPasswordAsync(model.UserId, request);
-
-            if (result.Success)
-            {
-                TempData["SuccessMessage"] = "Пароль змінений успішно!";
-                return RedirectToAction("Users");
-            }
-
-            if (result.Errors?.Any() == true)
-            {
-                foreach (var error in result.Errors)
+                var request = new ChangePasswordRequest
                 {
-                    ModelState.AddModelError("", error);
-                }
-            }
-            else
-            {
-                ModelState.AddModelError("", result.Message);
-            }
+                    UserId = model.UserId,        // ДОДАНО: передаємо UserId
+                    NewPassword = model.NewPassword
+                };
 
-            return View(model);
+                _logger.LogInformation("Calling API to change password for user {UserId}", model.UserId);
+                var result = await _apiService.ChangeUserPasswordAsync(model.UserId, request);
+
+                _logger.LogInformation("API response: Success={Success}, Message={Message}",
+                    result.Success, result.Message);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Password changed successfully for user {UserId}", model.UserId);
+                    TempData["SuccessMessage"] = "Пароль змінений успішно!";
+                    return RedirectToAction("Users");
+                }
+
+                _logger.LogError("Password change failed for user {UserId}: {Message}",
+                    model.UserId, result.Message);
+
+                if (result.Errors?.Any() == true)
+                {
+                    foreach (var error in result.Errors)
+                    {
+                        _logger.LogError("API Error: {Error}", error);
+                        ModelState.AddModelError("", error);
+                    }
+                }
+                else
+                {
+                    ModelState.AddModelError("", result.Message ?? "Невідома помилка");
+                }
+
+                // Перезавантажуємо дані користувача для відображення
+                var userReloadResult = await _apiService.GetUserByIdAsync(model.UserId);
+                if (userReloadResult.Success)
+                {
+                    model.UserEmail = userReloadResult.Data.Email;
+                }
+
+                return View(model);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception in ChangePassword for user {UserId}", model.UserId);
+                ModelState.AddModelError("", "Сталася неочікувана помилка");
+
+                // Перезавантажуємо дані користувача для відображення
+                try
+                {
+                    var userReloadResult = await _apiService.GetUserByIdAsync(model.UserId);
+                    if (userReloadResult.Success)
+                    {
+                        model.UserEmail = userReloadResult.Data.Email;
+                    }
+                }
+                catch
+                {
+                    // Ігноруємо помилки при перезавантаженні даних
+                }
+
+                return View(model);
+            }
         }
 
         // Управління ролями - GET

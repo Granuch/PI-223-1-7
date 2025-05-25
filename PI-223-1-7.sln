@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApiGateway", "ApiGateway\Ap
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdminUserService", "AdminUserService\AdminUserService.csproj", "{4E4EC70D-A0F9-450D-943E-EC4FBED64B81}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{A5090EDC-B711-4FF2-A43A-462E66019426}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -49,6 +51,10 @@ Global
 		{5B286F5E-1DA4-C61D-7861-80C46E44F0B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5B286F5E-1DA4-C61D-7861-80C46E44F0B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5B286F5E-1DA4-C61D-7861-80C46E44F0B3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A5090EDC-B711-4FF2-A43A-462E66019426}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A5090EDC-B711-4FF2-A43A-462E66019426}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A5090EDC-B711-4FF2-A43A-462E66019426}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A5090EDC-B711-4FF2-A43A-462E66019426}.Release|Any CPU.Build.0 = Release|Any CPU
 		{A07BAAC4-A54D-4383-85C9-67880C4E180A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{A07BAAC4-A54D-4383-85C9-67880C4E180A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A07BAAC4-A54D-4383-85C9-67880C4E180A}.Release|Any CPU.ActiveCfg = Release|Any CPU

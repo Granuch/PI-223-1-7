@@ -4,6 +4,7 @@ using System.Text;
 using UI.Controllers;
 using UI.Models.DTOs;
 using UI.Models.ViewModels;
+using static UI.Services.SupMethods;
 
 namespace UI.Services
 {
@@ -390,33 +391,6 @@ namespace UI.Services
             }
         }
 
-        private string ConvertIntToGenre(int genreId)
-        {
-            return genreId switch
-            {
-                1 => "Художня література",
-                2 => "Наукова",
-                3 => "Історична",
-                4 => "Біографія",
-                5 => "Фентезі",
-                6 => "Детектив",
-                7 => "Романтика",
-                8 => "Трилер",
-                _ => "Невідомо"
-            };
-        }
-
-        private string ConvertIntToBookType(int typeId)
-        {
-            return typeId switch
-            {
-                0 => "Фізична",
-                1 => "Цифрова",
-                2 => "Аудіо",
-                _ => "Невідомо"
-            };
-        }
-
         public async Task<ApiResponse<BookDTO>> GetBookByIdAsync(int id)
         {
             try
@@ -569,32 +543,6 @@ namespace UI.Services
                 };
             }
         }
-        private int ConvertGenreToNumber(string genre)
-        {
-            return genre switch
-            {
-                "Fiction" => 0,
-                "Science" => 1,
-                "History" => 2,
-                "Biography" => 3,
-                "Fantasy" => 4,
-                "Mystery" => 5,
-                "Romance" => 6,
-                "Thriller" => 7,
-                "Drama" => 8,
-                _ => 0 // За замовчуванням Fiction
-            };
-        }
-        private int ConvertTypeToNumber(string type)
-        {
-            return type switch
-            {
-                "Physical" => 0,
-                "Digital" => 1,
-                "Audio" => 2,
-                _ => 0 // За замовчуванням Physical
-            };
-        }
 
         public async Task<ApiResponse<object>> UpdateBookAsync(int id, BookDTO book)
         {
@@ -694,37 +642,6 @@ namespace UI.Services
                     Message = "Помилка з'єднання з сервером: " + ex.Message
                 };
             }
-        }
-        private int ConvertGenreToInt(string genre)
-        {
-            var result = genre switch
-            {
-                "Fiction" => 1,
-                "Science" => 2,
-                "History" => 3,
-                "Biography" => 4,
-                "Fantasy" => 5,
-                "Mystery" => 6,
-                "Romance" => 7,
-                "Thriller" => 8,
-                _ => 0
-            };
-
-            _logger.LogInformation("Converting genre '{Genre}' to {Result}", genre, result);
-            return result;
-        }
-        private int ConvertBookTypeToInt(string type)
-        {
-            var result = type switch
-            {
-                "Physical" => 0,
-                "Digital" => 1,
-                "Audio" => 2,
-                _ => 0
-            };
-
-            _logger.LogInformation("Converting type '{Type}' to {Result}", type, result);
-            return result;
         }
 
         public async Task<ApiResponse<object>> DeleteBookAsync(int id)
@@ -1254,20 +1171,6 @@ namespace UI.Services
                 };
             }
         }
-        private int ConvertGenreToInt(object genre)
-        {
-            if (genre is int intGenre) return intGenre;
-            if (genre is string strGenre && int.TryParse(strGenre, out int parsedGenre)) return parsedGenre;
-            if (genre is Enum enumGenre) return Convert.ToInt32(enumGenre);
-            return 0; // default value
-        }
-        private int ConvertTypeToInt(object type)
-        {
-            if (type is int intType) return intType;
-            if (type is string strType && int.TryParse(strType, out int parsedType)) return parsedType;
-            if (type is Enum enumType) return Convert.ToInt32(enumType);
-            return 0; // default value
-        }
 
         public async Task<ApiResponse<object>> DeleteOrderAsync(int id)
         {
@@ -1294,7 +1197,6 @@ namespace UI.Services
                 };
             }
         }
-
 
         public async Task<ApiResponse<IEnumerable<UserDTO>>> GetAllUsersAsync()
         {
@@ -1539,7 +1441,6 @@ namespace UI.Services
             }
         }
 
-        // ДОДАНО: допоміжний метод для обробки відповіді
         private async Task<ApiResponse<object>> ProcessCreateUserResponse(HttpResponseMessage response, string userType)
         {
             var responseContent = await response.Content.ReadAsStringAsync();
@@ -1709,18 +1610,39 @@ namespace UI.Services
                 _logger.LogInformation("API Response Status: {StatusCode}", response.StatusCode);
 
                 var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("API Response Content: {Content}", responseContent);
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
-                    return apiResponse;
+                    try
+                    {
+                        var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                        return apiResponse ?? new ApiResponse<object> { Success = true, Message = "Пароль змінений успішно" };
+                    }
+                    catch (JsonException)
+                    {
+                        return new ApiResponse<object> { Success = true, Message = "Пароль змінений успішно" };
+                    }
                 }
 
-                var errorResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
-                return errorResponse ?? new ApiResponse<object>
+                // Обробка помилок
+                try
+                {
+                    var errorResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                    if (errorResponse != null)
+                    {
+                        return errorResponse;
+                    }
+                }
+                catch (JsonException)
+                {
+                    // Якщо не можемо десеріалізувати як ApiResponse, спробуємо як стандартну помилку
+                }
+
+                return new ApiResponse<object>
                 {
                     Success = false,
-                    Message = $"Помилка зміни паролю: {response.StatusCode}"
+                    Message = $"Помилка зміни паролю: {response.StatusCode}. {responseContent}"
                 };
             }
             catch (Exception ex)
@@ -2026,6 +1948,73 @@ namespace UI.Services
                 };
             }
         }
+
+        public async Task<ApiResponse<object>> RefreshSessionAsync()
+        {
+            try
+            {
+                _logger.LogInformation("Refreshing session");
+
+                // Отримуємо email з сесії
+                var userDataJson = _httpContextAccessor.HttpContext?.Session.GetString("UserData");
+                if (string.IsNullOrEmpty(userDataJson))
+                {
+                    _logger.LogWarning("User data not found in session");
+                    return new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Дані користувача не знайдені в сесії"
+                    };
+                }
+
+                var userData = JsonConvert.DeserializeObject<UserInfo>(userDataJson);
+                if (userData == null || string.IsNullOrEmpty(userData.Email))
+                {
+                    _logger.LogWarning("Invalid user data in session");
+                    return new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Невірні дані користувача в сесії"
+                    };
+                }
+
+                var request = new RefreshSessionRequest { Email = userData.Email };
+
+                var json = JsonConvert.SerializeObject(request);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                _logger.LogInformation("Calling CheckAndRefreshSession for email: {Email}", userData.Email);
+
+                var response = await _httpClient.PostAsync("api/Account/CheckAndRefreshSession", content);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                _logger.LogInformation("CheckAndRefreshSession API response: {StatusCode}, Content: {Content}",
+                    response.StatusCode, responseContent);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("Session refreshed successfully for: {Email}", userData.Email);
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                    return apiResponse ?? new ApiResponse<object> { Success = true };
+                }
+
+                _logger.LogWarning("Session refresh failed: {StatusCode} for email: {Email}", response.StatusCode, userData.Email);
+                return new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"Помилка оновлення сесії: {response.StatusCode}"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error refreshing session");
+                return new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Помилка з'єднання з сервером"
+                };
+            }
+        }
     }
     public class ApiResponse<T>
     {
@@ -2040,5 +2029,10 @@ namespace UI.Services
     {
         public bool IsAuthenticated { get; set; }
         public UserInfo User { get; set; }
+    }
+
+    public class RefreshSessionRequest
+    {
+        public string Email { get; set; }
     }
 }

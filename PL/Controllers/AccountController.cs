@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 using PI_223_1_7.Models;
 using PL.ViewModels;
-using System.Security.Claims;
-using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 
 namespace PL.Controllers
@@ -339,6 +340,113 @@ namespace PL.Controllers
                 _logger.LogError(ex, "Error getting current user from JWT token");
                 return StatusCode(500, new { success = false, message = "Внутрішня помилка сервера" });
             }
+        }
+
+        [HttpPost("RefreshSession")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<object>>> RefreshSession()
+        {
+            try
+            {
+                _logger.LogInformation("RefreshSession called");
+                _logger.LogInformation("User.Identity.IsAuthenticated: {IsAuthenticated}", User.Identity.IsAuthenticated);
+                _logger.LogInformation("User.Identity.Name: {UserName}", User.Identity.Name);
+
+                if (!User.Identity.IsAuthenticated)
+                {
+                    _logger.LogWarning("RefreshSession: User not authenticated");
+                    return Unauthorized(new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Користувач не авторизований"
+                    });
+                }
+
+                var user = await _userManager.GetUserAsync(User);
+                if (user == null)
+                {
+                    _logger.LogWarning("RefreshSession: User not found in database");
+                    return Unauthorized(new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Користувач не знайдений"
+                    });
+                }
+
+                // Оновлюємо cookie авторизації
+                await _signInManager.RefreshSignInAsync(user);
+
+                _logger.LogInformation("Session refreshed for user: {Email}", user.Email);
+
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "Сесія оновлена успішно"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error refreshing session");
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Помилка оновлення сесії"
+                });
+            }
+        }
+
+        [HttpPost("CheckAndRefreshSession")]
+        public async Task<ActionResult<ApiResponse<object>>> CheckAndRefreshSession([FromBody] RefreshSessionRequest request)
+        {
+            try
+            {
+                _logger.LogInformation("CheckAndRefreshSession called with email: {Email}", request.Email);
+
+                if (string.IsNullOrEmpty(request.Email))
+                {
+                    return BadRequest(new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Email обов'язковий"
+                    });
+                }
+
+                var user = await _userManager.FindByEmailAsync(request.Email);
+                if (user == null)
+                {
+                    _logger.LogWarning("User not found: {Email}", request.Email);
+                    return BadRequest(new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Користувач не знайдений"
+                    });
+                }
+
+                // Підписуємо користувача знову з довгим терміном
+                await _signInManager.SignInAsync(user, isPersistent: true);
+
+                _logger.LogInformation("Session refreshed for user: {Email}", user.Email);
+
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "Сесія оновлена успішно"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in CheckAndRefreshSession for email: {Email}", request?.Email);
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Помилка оновлення сесії"
+                });
+            }
+        }
+
+        public class RefreshSessionRequest
+        {
+            public string Email { get; set; }
         }
     }
 }

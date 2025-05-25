@@ -271,7 +271,7 @@ namespace PL.Controllers
                 return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
             }
         }
-        
+
         /// <summary>
         /// Отримує всі книги, замовлені поточним користувачем
         /// </summary>
