@@ -77,13 +77,13 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
             if (context.Principal?.Identity?.IsAuthenticated == true)
             {
-                logger.LogInformation("✅ Cookie validation SUCCESS: User={User}, Claims={ClaimsCount}",
+                logger.LogInformation(" Cookie validation SUCCESS: User={User}, Claims={ClaimsCount}",
                     context.Principal.Identity.Name,
                     context.Principal.Claims.Count());
             }
             else
             {
-                logger.LogWarning("❌ Cookie validation FAILED - User not authenticated");
+                logger.LogWarning(" Cookie validation FAILED - User not authenticated");
             }
 
             return Task.CompletedTask;
@@ -170,7 +170,7 @@ app.Use(async (context, next) =>
     var authCookie = context.Request.Cookies["LibraryApp.AuthCookie"];
     if (!string.IsNullOrEmpty(authCookie))
     {
-        logger.LogInformation("✅ LibraryApp.AuthCookie received (length: {Length})", authCookie.Length);
+        logger.LogInformation("LibraryApp.AuthCookie received (length: {Length})", authCookie.Length);
 
         // Пробуем расшифровать cookie
         try
@@ -182,16 +182,16 @@ app.Use(async (context, next) =>
                 "v2");
 
             var decryptedBytes = protector.Unprotect(authCookie);
-            logger.LogInformation("✅ Cookie decryption SUCCESS - Data Protection working");
+            logger.LogInformation("Cookie decryption SUCCESS - Data Protection working");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "❌ Cookie decryption FAILED - Data Protection issue");
+            logger.LogError(ex, "Cookie decryption FAILED - Data Protection issue");
         }
     }
     else
     {
-        logger.LogWarning("❌ LibraryApp.AuthCookie NOT found");
+        logger.LogWarning("LibraryApp.AuthCookie NOT found");
     }
 
     logger.LogInformation("User.Identity.IsAuthenticated (before): {IsAuth}",
