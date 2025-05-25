@@ -1,22 +1,28 @@
+// Оновлений AdminUsersController.cs
+
 using BLL.Interfaces;
-using BLL.Services;
 using Mapping.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PL.Services;
 
 namespace PL.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    //[Authorize(Roles = "Administrator")] // Тільки адміністратори можуть управляти користувачами
     public class AdminUsersController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly IUserContextService _userContext;
         private readonly ILogger<AdminUsersController> _logger;
 
-        public AdminUsersController(IUserService userService, ILogger<AdminUsersController> logger)
+        public AdminUsersController(
+            IUserService userService,
+            IUserContextService userContext,
+            ILogger<AdminUsersController> logger)
         {
             _userService = userService;
+            _userContext = userContext;
             _logger = logger;
         }
 
@@ -24,10 +30,24 @@ namespace PL.Controllers
         /// Отримати всіх користувачів
         /// </summary>
         [HttpGet("GetAllUsers")]
+        [Authorize] // Базова авторизація
         public async Task<ActionResult<ApiResponse<IEnumerable<UserDTO>>>> GetAllUsers()
         {
             try
             {
+                _logger.LogInformation("GetAllUsers called");
+                _logger.LogInformation("User authenticated: {IsAuth}", _userContext.IsAuthenticated());
+                _logger.LogInformation("User email: {Email}", _userContext.GetCurrentUserEmail());
+                _logger.LogInformation("User roles: {Roles}", string.Join(", ", _userContext.GetCurrentUserRoles()));
+                _logger.LogInformation("Is Administrator: {IsAdmin}", _userContext.IsAdministrator());
+
+                // Перевірка ролі
+                if (!_userContext.IsAdministrator())
+                {
+                    _logger.LogWarning("Access denied - user is not administrator");
+                    return Forbid();
+                }
+
                 var users = await _userService.GetAllUsersAsync();
                 return Ok(new ApiResponse<IEnumerable<UserDTO>>
                 {
@@ -47,14 +67,17 @@ namespace PL.Controllers
             }
         }
 
-        /// <summary>
-        /// Отримати користувача за ID
-        /// </summary>
         [HttpGet("GetUserById")]
+        [Authorize]
         public async Task<ActionResult<ApiResponse<UserDTO>>> GetUserById(string id)
         {
             try
             {
+                if (!_userContext.IsAdministrator())
+                {
+                    return Forbid();
+                }
+
                 var user = await _userService.GetUserByIdAsync(id);
                 if (user == null)
                 {
@@ -83,17 +106,18 @@ namespace PL.Controllers
             }
         }
 
-        /// <summary>
-        /// Створити нового користувача
-        /// </summary>
-        // Оновіть методи в AdminUsersController (API проект)
-
         [HttpPost("CreateUser")]
+        [Authorize]
         public async Task<ActionResult<ApiResponse<object>>> CreateUser([FromBody] CreateUserRequest request)
         {
             try
             {
-                // ДОДАНО: встановлюємо роль за замовчуванням якщо не вказана
+                if (!_userContext.IsAdministrator())
+                {
+                    _logger.LogWarning("Non-administrator tried to create user");
+                    return Forbid();
+                }
+
                 if (string.IsNullOrEmpty(request.Role))
                 {
                     request.Role = "RegisteredUser";
@@ -103,7 +127,8 @@ namespace PL.Controllers
 
                 if (result.Succeeded)
                 {
-                    _logger.LogInformation("User {Email} created successfully with role {Role}", request.Email, request.Role);
+                    _logger.LogInformation("User {Email} created successfully by {Admin}",
+                        request.Email, _userContext.GetCurrentUserEmail());
                     return Ok(new ApiResponse<object>
                     {
                         Success = true,
@@ -129,207 +154,28 @@ namespace PL.Controllers
             }
         }
 
-        [HttpPost("CreateAdmin")]
-        public async Task<ActionResult<ApiResponse<object>>> CreateAdmin([FromBody] CreateUserRequest request)
-        {
-            try
-            {
-                // ДОДАНО: примусово встановлюємо роль адміністратора
-                request.Role = "Administrator";
-
-                var result = await _userService.CreateAdminAsync(request);
-
-                if (result.Succeeded)
-                {
-                    _logger.LogInformation("Admin {Email} created successfully", request.Email);
-                    return Ok(new ApiResponse<object>
-                    {
-                        Success = true,
-                        Message = "Адміністратор створений успішно"
-                    });
-                }
-
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка створення адміністратора",
-                    Errors = result.Errors.Select(e => e.Description)
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating admin {Email}", request.Email);
-                return StatusCode(500, new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Внутрішня помилка сервера"
-                });
-            }
-        }
-
-        [HttpPost("CreateManager")]
-        public async Task<ActionResult<ApiResponse<object>>> CreateManager([FromBody] CreateUserRequest request)
-        {
-            try
-            {
-                // ДОДАНО: примусово встановлюємо роль менеджера
-                request.Role = "Manager";
-
-                var result = await _userService.CreateManagerAsync(request);
-
-                if (result.Succeeded)
-                {
-                    _logger.LogInformation("Manager {Email} created successfully", request.Email);
-                    return Ok(new ApiResponse<object>
-                    {
-                        Success = true,
-                        Message = "Менеджер створений успішно"
-                    });
-                }
-
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка створення менеджера",
-                    Errors = result.Errors.Select(e => e.Description)
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating manager {Email}", request.Email);
-                return StatusCode(500, new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Внутрішня помилка сервера"
-                });
-            }
-        }
-
-        /// <summary>
-        /// Оновити користувача
-        /// </summary>
-        [HttpPut("UpdateUser")]
-        public async Task<ActionResult<ApiResponse<object>>> UpdateUser(string id, [FromBody] UpdateUserRequest request)
-        {
-            try
-            {
-                var result = await _userService.UpdateUserAsync(id, request);
-
-                if (result.Succeeded)
-                {
-                    return Ok(new ApiResponse<object>
-                    {
-                        Success = true,
-                        Message = "Користувач оновлений успішно"
-                    });
-                }
-
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка оновлення користувача",
-                    Errors = result.Errors.Select(e => e.Description)
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating user {UserId}", id);
-                return StatusCode(500, new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Внутрішня помилка сервера"
-                });
-            }
-        }
-
-        /// <summary>
-        /// Видалити користувача
-        /// </summary>
-        [HttpDelete("DeleteUser")]
-        public async Task<ActionResult<ApiResponse<object>>> DeleteUser(string id)
-        {
-            try
-            {
-                var result = await _userService.DeleteUserAsync(id);
-
-                if (result.Succeeded)
-                {
-                    _logger.LogInformation("User {UserId} deleted successfully", id);
-                    return Ok(new ApiResponse<object>
-                    {
-                        Success = true,
-                        Message = "Користувач видалений успішно"
-                    });
-                }
-
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка видалення користувача",
-                    Errors = result.Errors.Select(e => e.Description)
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting user {UserId}", id);
-                return StatusCode(500, new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Внутрішня помилка сервера"
-                });
-            }
-        }
-
-        /// <summary>
-        /// Змінити пароль користувача
-        /// </summary>
-        [HttpPost("ChangePassword")]
-        public async Task<ActionResult<ApiResponse<object>>> ChangePassword(string id, [FromBody] ChangePasswordRequest request)
-        {
-            try
-            {
-                var result = await _userService.ChangeUserPasswordAsync(id, request.NewPassword);
-
-                if (result.Succeeded)
-                {
-                    return Ok(new ApiResponse<object>
-                    {
-                        Success = true,
-                        Message = "Пароль змінений успішно"
-                    });
-                }
-
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка зміни паролю",
-                    Errors = result.Errors.Select(e => e.Description)
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error changing password for user {UserId}", id);
-                return StatusCode(500, new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Внутрішня помилка сервера"
-                });
-            }
-        }
-
-
-        /// <summary>
-        /// Призначити роль користувачу
-        /// </summary>
         [HttpPost("AssignRole")]
+        [Authorize]
         public async Task<ActionResult<ApiResponse<object>>> AssignRole(string id, [FromBody] AssignRoleRequest request)
         {
             try
             {
+                _logger.LogInformation("AssignRole called for user {UserId} with role {RoleName}", id, request.RoleName);
+                _logger.LogInformation("Current user: {Email}, IsAdmin: {IsAdmin}",
+                    _userContext.GetCurrentUserEmail(), _userContext.IsAdministrator());
+
+                if (!_userContext.IsAdministrator())
+                {
+                    _logger.LogWarning("Non-administrator tried to assign role");
+                    return Forbid();
+                }
+
                 var result = await _userService.AssignRoleToUserAsync(id, request.RoleName);
 
                 if (result.Succeeded)
                 {
+                    _logger.LogInformation("Role {RoleName} assigned to user {UserId} by {Admin}",
+                        request.RoleName, id, _userContext.GetCurrentUserEmail());
                     return Ok(new ApiResponse<object>
                     {
                         Success = true,
@@ -355,14 +201,18 @@ namespace PL.Controllers
             }
         }
 
-        /// <summary>
-        /// Видалити роль у користувача
-        /// </summary>
+
         [HttpPost("RemoveRole")]
+        [Authorize]
         public async Task<ActionResult<ApiResponse<object>>> RemoveRole(string id, [FromBody] AssignRoleRequest request)
         {
             try
             {
+                if (!_userContext.IsAdministrator())
+                {
+                    return Forbid();
+                }
+
                 var result = await _userService.RemoveRoleFromUserAsync(id, request.RoleName);
 
                 if (result.Succeeded)
@@ -388,60 +238,6 @@ namespace PL.Controllers
                 {
                     Success = false,
                     Message = "Внутрішня помилка сервера"
-                });
-            }
-        }
-
-        /// <summary>
-        /// Отримати ролі користувача
-        /// </summary>
-        [HttpGet("GetUserRoles")]
-        public async Task<ActionResult<ApiResponse<IEnumerable<string>>>> GetUserRoles(string id)
-        {
-            try
-            {
-                var roles = await _userService.GetUserRolesAsync(id);
-                return Ok(new ApiResponse<IEnumerable<string>>
-                {
-                    Success = true,
-                    Data = roles,
-                    Message = "Ролі користувача отримані"
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting roles for user {UserId}", id);
-                return StatusCode(500, new ApiResponse<IEnumerable<string>>
-                {
-                    Success = false,
-                    Message = "Помилка отримання ролей"
-                });
-            }
-        }
-
-        /// <summary>
-        /// Отримати всі ролі
-        /// </summary>
-        [HttpGet("GetAllRoles")]
-        public async Task<ActionResult<ApiResponse<IEnumerable<RoleDTO>>>> GetAllRoles()
-        {
-            try
-            {
-                var roles = await _userService.GetAllRolesAsync();
-                return Ok(new ApiResponse<IEnumerable<RoleDTO>>
-                {
-                    Success = true,
-                    Data = roles,
-                    Message = "Ролі отримані успішно"
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting all roles");
-                return StatusCode(500, new ApiResponse<IEnumerable<RoleDTO>>
-                {
-                    Success = false,
-                    Message = "Помилка отримання ролей"
                 });
             }
         }

@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc.Filters;
 using Newtonsoft.Json;
 using UI.Services;
+using System.Security.Claims;
 
 namespace UI.Controllers
 {
@@ -16,58 +17,74 @@ namespace UI.Controllers
 
         public override async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
         {
-            // Логування для діагностики
             var logger = HttpContext.RequestServices.GetRequiredService<ILogger<BaseController>>();
-            logger.LogInformation("BaseController: Перевірка сесії для {Controller}/{Action}",
+            logger.LogInformation("BaseController: Перевірка автентифікації для {Controller}/{Action}",
                 context.RouteData.Values["controller"], context.RouteData.Values["action"]);
 
-            // Перевіряємо сесію
-            var isAuthenticated = HttpContext.Session.GetString("IsAuthenticated") == "true";
-            var userDataJson = HttpContext.Session.GetString("UserData");
-
-            logger.LogInformation("BaseController: IsAuthenticated = {IsAuthenticated}, UserDataExists = {UserDataExists}",
-                isAuthenticated, !string.IsNullOrEmpty(userDataJson));
-
+            // Перевіряємо Cookie Authentication
+            var isAuthenticated = User.Identity?.IsAuthenticated ?? false;
             ViewBag.IsAuthenticated = isAuthenticated;
 
-            if (isAuthenticated && !string.IsNullOrEmpty(userDataJson))
+            if (isAuthenticated)
             {
                 try
                 {
-                    var userData = JsonConvert.DeserializeObject<UserInfo>(userDataJson);
-                    ViewBag.User = userData;
+                    // Отримуємо дані з claims
+                    var email = User.FindFirst(ClaimTypes.Email)?.Value;
+                    var firstName = User.FindFirst("FirstName")?.Value;
+                    var lastName = User.FindFirst("LastName")?.Value;
+                    var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-                    var roles = userData.Roles?.ToList() ?? new List<string>();
+                    var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+
+                    // Створюємо UserInfo для сумісності
+                    var userData = new UserInfo
+                    {
+                        Id = userId,
+                        UserId = userId,
+                        Email = email,
+                        FirstName = firstName,
+                        LastName = lastName,
+                        Roles = roles
+                    };
+
+                    ViewBag.User = userData;
                     ViewBag.UserRoles = roles;
                     ViewBag.IsManager = roles.Contains("Manager");
                     ViewBag.IsAdministrator = roles.Contains("Administrator");
 
                     logger.LogInformation("BaseController: User loaded - {Email}, Roles: {Roles}",
-                        userData.Email, string.Join(", ", roles));
+                        email, string.Join(", ", roles));
+
+                    // Також зберігаємо в сесії для сумісності з ApiService
+                    if (HttpContext.Session.GetString("UserData") == null)
+                    {
+                        HttpContext.Session.SetString("IsAuthenticated", "true");
+                        HttpContext.Session.SetString("UserData", JsonConvert.SerializeObject(userData));
+                    }
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "BaseController: Помилка десеріалізації даних користувача");
-                    // Якщо не можемо десеріалізувати, очищаємо сесію
-                    HttpContext.Session.Clear();
-                    ViewBag.IsAuthenticated = false;
-                    ViewBag.User = null;
-                    ViewBag.UserRoles = new List<string>();
-                    ViewBag.IsManager = false;
-                    ViewBag.IsAdministrator = false;
+                    logger.LogError(ex, "BaseController: Помилка обробки claims");
+                    ClearAuthData();
                 }
             }
             else
             {
-                ViewBag.User = null;
-                ViewBag.UserRoles = new List<string>();
-                ViewBag.IsManager = false;
-                ViewBag.IsAdministrator = false;
+                ClearAuthData();
             }
 
             await next();
         }
 
+        private void ClearAuthData()
+        {
+            ViewBag.IsAuthenticated = false;
+            ViewBag.User = null;
+            ViewBag.UserRoles = new List<string>();
+            ViewBag.IsManager = false;
+            ViewBag.IsAdministrator = false;
+        }
     }
 
     public class UserInfo
@@ -90,9 +107,7 @@ namespace UI.Controllers
         [JsonProperty("roles")]
         public IEnumerable<string> Roles { get; set; }
 
-
         [JsonIgnore]
         public string GetUserId => UserId ?? Id;
     }
 }
-

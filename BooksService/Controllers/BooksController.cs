@@ -1,12 +1,14 @@
+// ========== ОНОВЛЕНИЙ BooksController БЕЗ UserManager ==========
+
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using PI_223_1_7.Models;
 using BLL.Interfaces;
 using Mapping.DTOs;
 using PI_223_1_7.Enums;
 using BLL.Exceptions;
 using Microsoft.Extensions.Logging;
+using System.Security.Claims;
+using PL.Services; // Для UserContextService
 
 namespace PL.Controllers
 {
@@ -17,16 +19,19 @@ namespace PL.Controllers
     {
         private readonly IBookService _bookService;
         private readonly ILogger<BooksController> _logger;
+        private readonly IUserContextService _userContext; // ЗАМІНИЛИ UserManager
 
-        public BooksController(IBookService bookService, ILogger<BooksController> logger)
+        public BooksController(
+            IBookService bookService,
+            ILogger<BooksController> logger,
+            IUserContextService userContext) // ОНОВИЛИ КОНСТРУКТОР
         {
             _bookService = bookService ?? throw new ArgumentNullException(nameof(bookService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext)); // ЗАМІНИЛИ
         }
 
         // Отримує всі книги з можливістю пошуку, фільтрації та сортування
-        /// <response code="200">Успішне повернення списку книг</response>
-        /// <response code="500">Помилка на сервері</response>
         [HttpGet("GetAll")]
         [ProducesResponseType(typeof(IEnumerable<BookDTO>), 200)]
         [ProducesResponseType(500)]
@@ -38,9 +43,11 @@ namespace PL.Controllers
         {
             try
             {
+                _logger.LogInformation("GetBooks called with params: sortOrder={SortOrder}, searchString={SearchString}, genre={Genre}, type={Type}",
+                    sortOrder, searchString, genre, type);
+
                 IEnumerable<BookDTO> books;
 
-                // Перевіряємо пошук та фільтри
                 if (!string.IsNullOrEmpty(searchString))
                 {
                     books = await _bookService.SearchBooksAsync(searchString);
@@ -58,7 +65,6 @@ namespace PL.Controllers
                     books = await _bookService.GetAllBooksAsync();
                 }
 
-                // Сортування
                 if (!string.IsNullOrEmpty(sortOrder))
                 {
                     switch (sortOrder.ToLower())
@@ -83,10 +89,108 @@ namespace PL.Controllers
             }
         }
 
-        // Отримує деталі книги за ідентифікатором
-        /// <response code="200">Книга знайдена</response>
-        /// <response code="404">Книга не знайдена</response>
-        /// <response code="500">Помилка на сервері</response>
+        [HttpGet("Filter")]
+        [ProducesResponseType(typeof(IEnumerable<BookDTO>), 200)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult<IEnumerable<BookDTO>>> GetBooksWithFiltering(
+            [FromQuery] string sortOrder = null,
+            [FromQuery] string searchString = null,
+            [FromQuery] GenreTypes? genre = null,
+            [FromQuery] BookTypes? type = null)
+        {
+            try
+            {
+                _logger.LogInformation("GetBooksWithFiltering called. User authenticated: {IsAuth}, User: {User}",
+                    _userContext.IsAuthenticated(), _userContext.GetCurrentUserEmail() ?? "Anonymous");
+
+                IEnumerable<BookDTO> books;
+
+                if (!string.IsNullOrEmpty(searchString))
+                {
+                    books = await _bookService.SearchBooksAsync(searchString);
+                    _logger.LogInformation($"Searching books with query: {searchString}");
+                }
+                else if (genre.HasValue)
+                {
+                    books = await _bookService.GetBooksByGenreAsync(genre.Value);
+                    _logger.LogInformation($"Filtering books by genre: {genre.Value}");
+                }
+                else if (type.HasValue)
+                {
+                    books = await _bookService.GetBooksByTypeAsync(type.Value);
+                    _logger.LogInformation($"Filtering books by type: {type.Value}");
+                }
+                else
+                {
+                    books = await _bookService.GetAllBooksAsync();
+                    _logger.LogInformation("Getting all books (no filters applied)");
+                }
+
+                if (!string.IsNullOrEmpty(sortOrder))
+                {
+                    switch (sortOrder.ToLower())
+                    {
+                        case "author":
+                            books = await _bookService.GetBooksSortedByAuthorAsync();
+                            _logger.LogInformation("Sorting books by author");
+                            break;
+                        case "year":
+                            books = await _bookService.GetBooksSortedByYearAsync();
+                            _logger.LogInformation("Sorting books by year");
+                            break;
+                        case "availability":
+                            books = await _bookService.GetBooksSortedByAvailabilityAsync();
+                            _logger.LogInformation("Sorting books by availability");
+                            break;
+                    }
+                }
+                return Ok(books);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving books with filtering");
+                return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
+            }
+        }
+
+        [HttpGet("GetUserOrders")]
+        [Authorize] // Базова авторизація
+        [ProducesResponseType(typeof(IEnumerable<BookDTO>), 200)]
+        [ProducesResponseType(401)]
+        [ProducesResponseType(403)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult<IEnumerable<BookDTO>>> GetCurrentUserOrders()
+        {
+            try
+            {
+                _logger.LogInformation("GetCurrentUserOrders called");
+                _logger.LogInformation("User authenticated: {IsAuth}, User: {User}",
+                    _userContext.IsAuthenticated(), _userContext.GetCurrentUserEmail() ?? "Anonymous");
+
+                if (!_userContext.IsAuthenticated())
+                {
+                    _logger.LogWarning("User not authenticated when trying to get orders");
+                    return Unauthorized(new { message = "Користувач не авторизований" });
+                }
+
+                var userId = _userContext.GetCurrentUserId();
+                if (string.IsNullOrEmpty(userId))
+                {
+                    _logger.LogWarning("Cannot get UserId from context");
+                    return BadRequest(new { message = "Помилка ідентифікації користувача" });
+                }
+
+                var books = await _bookService.GetUserOrderedBooksAsync(userId);
+                _logger.LogInformation($"Retrieved orders for user: {userId}");
+                return Ok(books);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving user's ordered books");
+                return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
+            }
+        }
+
         [HttpGet("GetById/{id}")]
         [ProducesResponseType(typeof(BookDTO), 200)]
         [ProducesResponseType(404)]
@@ -110,14 +214,8 @@ namespace PL.Controllers
             }
         }
 
-        // Створює нову книгу
-        /// <response code="201">Книга успішно створена</response>
-        /// <response code="400">Неправильні дані у запиті</response>
-        /// <response code="401">Користувач не авторизований</response>
-        /// <response code="403">Доступ заборонено</response>
-        /// <response code="500">Помилка на сервері</response>
         [HttpPost("CreateBook")]
-        //[Authorize(Roles = "Manager,Administrator")]
+        [Authorize] // Базова авторизація
         [ProducesResponseType(typeof(BookDTO), 201)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -125,15 +223,24 @@ namespace PL.Controllers
         [ProducesResponseType(500)]
         public async Task<ActionResult<BookDTO>> CreateBook([FromBody] BookDTO book)
         {
-            if (!ModelState.IsValid)
-            {
-                _logger.LogWarning("Invalid model state when creating book");
-                return BadRequest(ModelState);
-            }
-
             try
             {
-                book.IsAvailable = true; // За замовчуванням нова книга доступна
+                _logger.LogInformation("CreateBook called by user: {User}", _userContext.GetCurrentUserEmail());
+
+                // Перевіряємо права доступу
+                if (!_userContext.IsManager())
+                {
+                    _logger.LogWarning("Non-manager user tried to create book: {User}", _userContext.GetCurrentUserEmail());
+                    return Forbid();
+                }
+
+                if (!ModelState.IsValid)
+                {
+                    _logger.LogWarning("Invalid model state when creating book");
+                    return BadRequest(ModelState);
+                }
+
+                book.IsAvailable = true;
                 var createdBook = await _bookService.AddBookAsync(book);
                 _logger.LogInformation($"Book created successfully: {createdBook.Id}");
                 return CreatedAtAction(nameof(GetBook), new { id = createdBook.Id }, createdBook);
@@ -145,15 +252,8 @@ namespace PL.Controllers
             }
         }
 
-        // Оновлює існуючу книгу
-        /// <response code="204">Книга успішно оновлена</response>
-        /// <response code="400">Неправильні дані у запиті</response>
-        /// <response code="401">Користувач не авторизований</response>
-        /// <response code="403">Доступ заборонено</response>
-        /// <response code="404">Книга не знайдена</response>
-        /// <response code="500">Помилка на сервері</response>
         [HttpPut("UpdateBook/{id:int}")]
-        //[Authorize(Roles = "Manager,Administrator")]
+        [Authorize] // Базова авторизація
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -162,20 +262,29 @@ namespace PL.Controllers
         [ProducesResponseType(500)]
         public async Task<IActionResult> UpdateBook(int id, [FromBody] BookDTO book)
         {
-            if (id != book.Id)
-            {
-                _logger.LogWarning($"Mismatch between URL ID: {id} and body ID: {book.Id}");
-                return BadRequest(new { message = "Ідентифікатор книги в URL повинен співпадати з ідентифікатором в тілі запиту" });
-            }
-
-            if (!ModelState.IsValid)
-            {
-                _logger.LogWarning("Invalid model state when updating book");
-                return BadRequest(ModelState);
-            }
-
             try
             {
+                _logger.LogInformation("UpdateBook called by user: {User}", _userContext.GetCurrentUserEmail());
+
+                // Перевіряємо права доступу
+                if (!_userContext.IsManager())
+                {
+                    _logger.LogWarning("Non-manager user tried to update book: {User}", _userContext.GetCurrentUserEmail());
+                    return Forbid();
+                }
+
+                if (id != book.Id)
+                {
+                    _logger.LogWarning($"Mismatch between URL ID: {id} and body ID: {book.Id}");
+                    return BadRequest(new { message = "Ідентифікатор книги в URL повинен співпадати з ідентифікатором в тілі запиту" });
+                }
+
+                if (!ModelState.IsValid)
+                {
+                    _logger.LogWarning("Invalid model state when updating book");
+                    return BadRequest(ModelState);
+                }
+
                 await _bookService.UpdateBookAsync(book);
                 _logger.LogInformation($"Book successfully updated: {id}");
                 return NoContent();
@@ -192,15 +301,8 @@ namespace PL.Controllers
             }
         }
 
-        // Видаляє книгу за ідентифікатором
-        /// <response code="204">Книга успішно видалена</response>
-        /// <response code="400">Книга не може бути видалена</response>
-        /// <response code="401">Користувач не авторизований</response>
-        /// <response code="403">Доступ заборонено</response>
-        /// <response code="404">Книга не знайдена</response>
-        /// <response code="500">Помилка на сервері</response>
         [HttpDelete("DeleteBook/{id}")]
-        //[Authorize(Roles = "Administrator")]
+        [Authorize] // Базова авторизація
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -211,6 +313,15 @@ namespace PL.Controllers
         {
             try
             {
+                _logger.LogInformation("DeleteBook called by user: {User}", _userContext.GetCurrentUserEmail());
+
+                // Перевіряємо права доступу - тільки адміністратори можуть видаляти
+                if (!_userContext.IsAdministrator())
+                {
+                    _logger.LogWarning("Non-administrator user tried to delete book: {User}", _userContext.GetCurrentUserEmail());
+                    return Forbid();
+                }
+
                 await _bookService.DeleteBookAsync(id);
                 _logger.LogInformation($"Book successfully deleted: {id}");
                 return NoContent();
@@ -232,15 +343,8 @@ namespace PL.Controllers
             }
         }
 
-        // Замовляє книгу для поточного користувача
-        /// <response code="200">Книга успішно замовлена</response>
-        /// <response code="400">Книга недоступна для замовлення</response>
-        /// <response code="401">Користувач не авторизований</response>
-        /// <response code="403">Доступ заборонено</response>
-        /// <response code="404">Книга не знайдена</response>
-        /// <response code="500">Помилка на сервері</response>
         [HttpPost("OrderBook/{id:int}")]
-        //[Authorize(Roles = "RegisteredUser,Manager,Administrator")]
+        [Authorize] // Базова авторизація
         [ProducesResponseType(typeof(OrderDTO), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -251,17 +355,20 @@ namespace PL.Controllers
         {
             try
             {
-                // Для тестування використовуємо фіксований ID користувача
-                string userId = "1"; // Припускаємо, що користувач з ID=1 існує в базі даних
+                _logger.LogInformation("OrderBook called by user: {User}", _userContext.GetCurrentUserEmail());
 
-                // Коментуємо оригінальний код отримання користувача
-                //var user = await _userManager.GetUserAsync(User);
-                //if (user == null)
-                //{
-                //    return Unauthorized(new { message = "Користувач не авторизований" });
-                //}
+                if (!_userContext.IsAuthenticated())
+                {
+                    return Unauthorized(new { message = "Користувач не авторизований" });
+                }
 
-                // Використовуємо фіксований ID замість user.Id
+                var userId = _userContext.GetCurrentUserId();
+                if (string.IsNullOrEmpty(userId))
+                {
+                    _logger.LogWarning("Cannot get UserId from context");
+                    return BadRequest(new { message = "Помилка ідентифікації користувача" });
+                }
+
                 var order = await _bookService.OrderBookAsync(id, userId);
                 _logger.LogInformation($"Book ordered successfully: Book ID: {id}, User ID: {userId}");
                 return Ok(order);
@@ -283,47 +390,6 @@ namespace PL.Controllers
             }
         }
 
-        // Отримує всі книги, замовлені поточним користувачем
-        /// <response code="200">Список успішно отриманий</response>
-        /// <response code="401">Користувач не авторизований</response>
-        /// <response code="403">Доступ заборонено</response>
-        /// <response code="500">Помилка на сервері</response>
-        [HttpGet("MyOrders")]
-        //[Authorize(Roles = "RegisteredUser,Manager,Administrator")]
-        [ProducesResponseType(typeof(IEnumerable<BookDTO>), 200)]
-        [ProducesResponseType(401)]
-        [ProducesResponseType(403)]
-        [ProducesResponseType(500)]
-        public async Task<ActionResult<IEnumerable<BookDTO>>> GetMyOrders()
-        {
-            try
-            {
-                // Для тестування використовуємо фіксований ID користувача
-                string userId = "1"; // Припускаємо, що користувач з ID=1 існує в базі даних
-
-                //var user = await _userManager.GetUserAsync(User);
-                //if (user == null)
-                //{
-                //    return Unauthorized(new { message = "Користувач не авторизований" });
-                //}
-
-                // Використовуємо фіксований userId замість user.Id
-                // Також прибрав параметр id, якого немає в оригінальному методі
-                var books = await _bookService.GetUserOrderedBooksAsync(userId);
-                _logger.LogInformation($"Retrieved orders for user: {userId}");
-                return Ok(books);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving user's ordered books");
-                return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
-            }
-        }
-
-        // Отримує всі книги за автором
-        /// <response code="200">Успішне повернення списку книг</response>
-        /// <response code="400">Неправильний параметр автора</response>
-        /// <response code="500">Помилка на сервері</response>
         [HttpGet("byauthor/{author}")]
         [ProducesResponseType(typeof(IEnumerable<BookDTO>), 200)]
         [ProducesResponseType(400)]
@@ -349,10 +415,6 @@ namespace PL.Controllers
             }
         }
 
-        // Перевіряє доступність книги
-        /// <response code="200">Статус доступності успішно отриманий</response>
-        /// <response code="404">Книга не знайдена</response>
-        /// <response code="500">Помилка на сервері</response>
         [HttpGet("availability/{id}")]
         [ProducesResponseType(typeof(bool), 200)]
         [ProducesResponseType(404)]
@@ -377,15 +439,8 @@ namespace PL.Controllers
             }
         }
 
-        // Встановлює доступність книги
-        /// <response code="204">Статус доступності успішно оновлений</response>
-        /// <response code="400">Неправильні дані у запиті</response>
-        /// <response code="401">Користувач не авторизований</response>
-        /// <response code="403">Доступ заборонено</response>
-        /// <response code="404">Книга не знайдена</response>
-        /// <response code="500">Помилка на сервері</response>
         [HttpPut("SetAvailability/{id}")]
-        //[Authorize(Roles = "Manager,Administrator")]
+        [Authorize] // Базова авторизація
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -396,6 +451,15 @@ namespace PL.Controllers
         {
             try
             {
+                _logger.LogInformation("SetBookAvailability called by user: {User}", _userContext.GetCurrentUserEmail());
+
+                // Перевіряємо права доступу
+                if (!_userContext.IsManager())
+                {
+                    _logger.LogWarning("Non-manager user tried to set book availability: {User}", _userContext.GetCurrentUserEmail());
+                    return Forbid();
+                }
+
                 await _bookService.SetBookAvailabilityAsync(id, isAvailable);
                 _logger.LogInformation($"Book availability updated: {id}, set to: {isAvailable}");
                 return NoContent();
