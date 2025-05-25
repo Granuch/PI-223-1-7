@@ -196,7 +196,7 @@
       "UpstreamHttpMethod": [ "Put" ]
     },
 
-    //AdminUsers
+    //AdminUsers - FIXED ROUTING
     {
       "DownstreamPathTemplate": "/AdminUsers/GetAllUsers",
       "DownstreamScheme": "http",
@@ -207,7 +207,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/users/getall",
-      "UpstreamHttpMethod": [ "Get" ]
+      "UpstreamHttpMethod": [ "Get" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/AdminUsers/GetAllRoles",
@@ -338,9 +342,46 @@
           "Port": 5005
         }
       ],
-      "UpstreamPathTemplate": "/api/users/getuserrole",
+      "UpstreamPathTemplate": "/api/users/getuserroles",
       "UpstreamHttpMethod": [ "Get" ]
     },
+    {
+      "DownstreamPathTemplate": "/AdminUsers/TestAuth",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": 5005
+        }
+      ],
+      "UpstreamPathTemplate": "/api/users/testauth",
+      "UpstreamHttpMethod": [ "Get" ]
+    },
+    {
+      "DownstreamPathTemplate": "/AdminUsers/GetAllUsersDebug",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": 5005
+        }
+      ],
+      "UpstreamPathTemplate": "/api/users/debug",
+      "UpstreamHttpMethod": [ "Get" ]
+    },
+    {
+      "DownstreamPathTemplate": "/AdminUsers/SimpleTest",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": 5005
+        }
+      ],
+      "UpstreamPathTemplate": "/api/users/simpletest",
+      "UpstreamHttpMethod": [ "Get" ]
+    },
+
     //Account
     {
       "DownstreamPathTemplate": "/api/account/test-auth",

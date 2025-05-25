@@ -91,7 +91,7 @@ namespace PL.Controllers
             }
         }
 
-        [HttpDelete("Delete{id:int}")]
+        [HttpDelete("Delete/{id:int}")]
         public async Task<IActionResult> DeleteOrder(int id)
         {
             try

@@ -1363,26 +1363,61 @@ namespace UI.Services
                 LogCookieInfo();
                 EnsureCookiesAreSet();
 
-                var response = await _httpClient.GetAsync($"/api/users/getallroles?id={Uri.EscapeDataString(id)}");
+                _logger.LogInformation("Getting roles for user: {UserId}", id);
+
+                var response = await _httpClient.GetAsync($"/api/users/getuserroles?id={Uri.EscapeDataString(id)}");
                 var responseContent = await response.Content.ReadAsStringAsync();
+
+                _logger.LogInformation("GetUserRoles API response: Status={StatusCode}, Content={Content}",
+                    response.StatusCode, responseContent);
 
                 if (response.IsSuccessStatusCode)
                 {
                     try
                     {
+                        // Сначала пробуем десериализовать как ApiResponse<IEnumerable<string>>
                         var apiResponse = JsonConvert.DeserializeObject<ApiResponse<IEnumerable<string>>>(responseContent);
                         if (apiResponse != null && apiResponse.Success)
                         {
                             return apiResponse;
                         }
+
+                        // Если не получилось, пробуем как прямой список строк
+                        var directRoles = JsonConvert.DeserializeObject<IEnumerable<string>>(responseContent);
+                        if (directRoles != null)
+                        {
+                            return new ApiResponse<IEnumerable<string>>
+                            {
+                                Success = true,
+                                Data = directRoles,
+                                Message = "Роли получены успешно"
+                            };
+                        }
+
+                        // Если и это не сработало, возвращаем пустой список
+                        _logger.LogWarning("Could not deserialize user roles response: {Content}", responseContent);
+                        return new ApiResponse<IEnumerable<string>>
+                        {
+                            Success = true,
+                            Data = new List<string>(),
+                            Message = "Роли не найдены"
+                        };
                     }
                     catch (JsonException ex)
                     {
-                        _logger.LogError(ex, "Failed to deserialize user roles response");
+                        _logger.LogError(ex, "JSON deserialization failed for user roles. Content: {Content}", responseContent);
+
+                        // Возвращаем пустой список вместо ошибки
+                        return new ApiResponse<IEnumerable<string>>
+                        {
+                            Success = true,
+                            Data = new List<string>(),
+                            Message = "Ошибка обработки данных ролей"
+                        };
                     }
                 }
 
-                return HandleAuthError<IEnumerable<string>>(response.StatusCode, "Помилка отримання ролей користувача");
+                return HandleAuthError<IEnumerable<string>>(response.StatusCode, "Ошибка получения ролей пользователя");
             }
             catch (Exception ex)
             {
@@ -1390,7 +1425,8 @@ namespace UI.Services
                 return new ApiResponse<IEnumerable<string>>
                 {
                     Success = false,
-                    Message = "Помилка з'єднання з сервером"
+                    Message = "Ошибка соединения с сервером",
+                    Data = new List<string>()
                 };
             }
         }
@@ -1402,16 +1438,46 @@ namespace UI.Services
                 LogCookieInfo();
                 EnsureCookiesAreSet();
 
+                _logger.LogInformation("Getting all roles");
+
                 var response = await _httpClient.GetAsync("/api/users/getallroles");
                 var responseContent = await response.Content.ReadAsStringAsync();
 
+                _logger.LogInformation("GetAllRoles API response: Status={StatusCode}, Content={Content}",
+                    response.StatusCode, responseContent);
+
                 if (response.IsSuccessStatusCode)
                 {
-                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<IEnumerable<RoleDTO>>>(responseContent);
-                    return apiResponse;
+                    try
+                    {
+                        var apiResponse = JsonConvert.DeserializeObject<ApiResponse<IEnumerable<RoleDTO>>>(responseContent);
+                        if (apiResponse != null)
+                        {
+                            return apiResponse;
+                        }
+
+                        // Fallback: пробуем десериализовать напрямую
+                        var directRoles = JsonConvert.DeserializeObject<IEnumerable<RoleDTO>>(responseContent);
+                        return new ApiResponse<IEnumerable<RoleDTO>>
+                        {
+                            Success = true,
+                            Data = directRoles ?? new List<RoleDTO>(),
+                            Message = "Роли получены успешно"
+                        };
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogError(ex, "JSON deserialization failed for roles. Content: {Content}", responseContent);
+                        return new ApiResponse<IEnumerable<RoleDTO>>
+                        {
+                            Success = false,
+                            Message = "Ошибка обработки данных ролей",
+                            Data = new List<RoleDTO>()
+                        };
+                    }
                 }
 
-                return HandleAuthError<IEnumerable<RoleDTO>>(response.StatusCode, "Помилка отримання ролей");
+                return HandleAuthError<IEnumerable<RoleDTO>>(response.StatusCode, "Ошибка получения ролей");
             }
             catch (Exception ex)
             {
@@ -1419,11 +1485,11 @@ namespace UI.Services
                 return new ApiResponse<IEnumerable<RoleDTO>>
                 {
                     Success = false,
-                    Message = "Помилка з'єднання з сервером"
+                    Message = "Ошибка соединения с сервером",
+                    Data = new List<RoleDTO>()
                 };
             }
         }
-
         // ==================== HELPER METHODS ====================
 
         private async Task<ApiResponse<object>> ProcessCreateUserResponse(HttpResponseMessage response, string userType)
@@ -1458,33 +1524,49 @@ namespace UI.Services
         {
             if (statusCode == HttpStatusCode.Unauthorized || statusCode == HttpStatusCode.Forbidden)
             {
-                return HandleAuthError<object>(statusCode, "Помилка створення користувача");
+                return HandleAuthError<object>(statusCode, "Ошибка создания пользователя");
             }
 
             try
             {
-                var errorResponse = JsonConvert.DeserializeObject<dynamic>(responseContent);
+                // Проверяем, не пустой ли responseContent
+                if (string.IsNullOrEmpty(responseContent))
+                {
+                    return new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = $"Ошибка создания пользователя: {statusCode}"
+                    };
+                }
 
+                var errorResponse = JsonConvert.DeserializeObject<dynamic>(responseContent);
                 var apiResponse = new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Помилка створення користувача"
+                    Message = "Ошибка создания пользователя"
                 };
 
-                if (errorResponse.errors != null)
+                // Безопасная проверка errors
+                if (errorResponse?.errors != null)
                 {
                     var errorsList = new List<string>();
                     foreach (var error in errorResponse.errors)
                     {
-                        foreach (var message in error.Value)
+                        if (error.Value != null)
                         {
-                            errorsList.Add($"{error.Name}: {message}");
+                            foreach (var message in error.Value)
+                            {
+                                errorsList.Add($"{error.Name}: {message}");
+                            }
                         }
                     }
-                    apiResponse.Errors = errorsList;
-                    apiResponse.Message = "Помилки валідації: " + string.Join("; ", errorsList);
+                    if (errorsList.Any())
+                    {
+                        apiResponse.Errors = errorsList;
+                        apiResponse.Message = "Ошибки валидации: " + string.Join("; ", errorsList);
+                    }
                 }
-                else if (errorResponse.message != null)
+                else if (errorResponse?.message != null)
                 {
                     apiResponse.Message = errorResponse.message.ToString();
                 }
@@ -1493,11 +1575,11 @@ namespace UI.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error parsing error response");
+                _logger.LogError(ex, "Error parsing error response: {Content}", responseContent);
                 return new ApiResponse<object>
                 {
                     Success = false,
-                    Message = $"Помилка створення користувача: {statusCode}"
+                    Message = $"Ошибка создания пользователя: {statusCode}"
                 };
             }
         }

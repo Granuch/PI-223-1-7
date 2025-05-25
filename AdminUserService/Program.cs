@@ -1,4 +1,4 @@
-using BLL.Interfaces;
+Ôªøusing BLL.Interfaces;
 using BLL.Services;
 using Mapping.Mapping;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -9,11 +9,10 @@ using PI_223_1_7.DbContext;
 using PI_223_1_7.Models;
 using PI_223_1_7.Patterns.UnitOfWork;
 using PL.Controllers;
-using PL.Services; // ƒÎˇ UserContextService
+using PL.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddControllers();
 
 // DbContext
@@ -23,11 +22,82 @@ builder.Services.AddDbContext<LibraryDbContext>(options =>
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
-// ¬‡¯≥ ÒÂ‚≥ÒË
+// –°–µ—Ä–≤–∏—Å—ã
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IUserService, UserService>();
 
-// Identity («¿À»ÿ¿™ÃŒ ‰Îˇ UserService, ‡ÎÂ Õ≈ ‰Îˇ ‡‚ÚÂÌÚËÙ≥Í‡ˆ≥ø)
+// –ö–†–ò–¢–ò–ß–ù–û: HttpContextAccessor
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IUserContextService, UserContextService>();
+
+// –ö–†–ò–¢–ò–ß–ù–û: Data Protection (–¢–û–ß–ù–û –¢–ê–ö–û–ô –ñ–ï –∫–∞–∫ –≤–µ–∑–¥–µ)
+builder.Services.AddDataProtection()
+    .SetApplicationName("LibraryApp")
+    .PersistKeysToFileSystem(new DirectoryInfo(@"C:\temp\keys"))
+    .SetDefaultKeyLifetime(TimeSpan.FromDays(30));
+
+// –ö–†–ò–¢–ò–ß–ù–û: –¢–û–õ–¨–ö–û Cookie Authentication (–ë–ï–ó Identity –¥–ª—è –∞—É—Ç–µ–Ω—Ç–∏—Ñ–∏–∫–∞—Ü–∏–∏)
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
+    {
+        options.Cookie.Name = "LibraryApp.AuthCookie";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.SlidingExpiration = true;
+        options.LoginPath = "/Account/Login";
+        options.AccessDeniedPath = "/Account/AccessDenied";
+
+        // –ö–†–ò–¢–ò–ß–ù–û: –î–ª—è API endpoints - –ù–ï –¥–µ–ª–∞—Ç—å —Ä–µ–¥–∏—Ä–µ–∫—Ç—ã
+        options.Events.OnRedirectToLogin = context => {
+            if (context.Request.Path.StartsWithSegments("/api") ||
+                context.Request.Path.StartsWithSegments("/AdminUsers"))
+            {
+                context.Response.StatusCode = 401;
+                return Task.CompletedTask;
+            }
+            return Task.CompletedTask;
+        };
+
+        options.Events.OnRedirectToAccessDenied = context => {
+            if (context.Request.Path.StartsWithSegments("/api") ||
+                context.Request.Path.StartsWithSegments("/AdminUsers"))
+            {
+                context.Response.StatusCode = 403;
+                return Task.CompletedTask;
+            }
+            return Task.CompletedTask;
+        };
+
+        // –ö–†–ò–¢–ò–ß–ù–û: –î–µ—Ç–∞–ª—å–Ω–æ–µ –ª–æ–≥–∏—Ä–æ–≤–∞–Ω–∏–µ –¥–ª—è –¥–∏–∞–≥–Ω–æ—Å—Ç–∏–∫–∏
+        options.Events.OnValidatePrincipal = context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+
+            if (context.Principal?.Identity?.IsAuthenticated == true)
+            {
+                logger.LogInformation("‚úÖ Cookie validation SUCCESS: User={User}, Claims={ClaimsCount}",
+                    context.Principal.Identity.Name,
+                    context.Principal.Claims.Count());
+            }
+            else
+            {
+                logger.LogWarning("‚ùå Cookie validation FAILED - User not authenticated");
+            }
+
+            return Task.CompletedTask;
+        };
+
+        options.Events.OnSigningIn = context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            logger.LogInformation("User signing in: {User}", context.Principal?.Identity?.Name);
+            return Task.CompletedTask;
+        };
+    });
+
+// Identity –¢–û–õ–¨–ö–û –¥–ª—è UserService (–ù–ï –¥–ª—è –∞—É—Ç–µ–Ω—Ç–∏—Ñ–∏–∫–∞—Ü–∏–∏)
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
 {
     options.Password.RequireDigit = true;
@@ -41,46 +111,29 @@ builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
 .AddEntityFrameworkStores<LibraryDbContext>()
 .AddDefaultTokenProviders();
 
-//  –»“»◊ÕŒ: HttpContextAccessor Ú‡ UserContextService
-builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<IUserContextService, UserContextService>();
-
-// Data Protection (“Œ◊ÕŒ ŒƒÕ¿ Œ¬»… ƒÀﬂ ¬—≤’ —≈–¬≤—≤¬)
-builder.Services.AddDataProtection()
-    .SetApplicationName("LibraryApp") // “Œ◊ÕŒ “¿ ∆ Õ¿«¬¿
-    .PersistKeysToFileSystem(new DirectoryInfo(@"C:\temp\keys")) // “¿ ∆ œ¿œ ¿
-    .SetDefaultKeyLifetime(TimeSpan.FromDays(30));
-
-// Cookie Authentication (œ≈–≈¬»«Õ¿◊¿™ÃŒ Ô≥ÒÎˇ Identity)
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options =>
+// –ö–†–ò–¢–ò–ß–ù–û: –û—Ç–∫–ª—é—á–∞–µ–º Identity cookie authentication
+builder.Services.Configure<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme, options =>
+{
+    // –û—Ç–∫–ª—é—á–∞–µ–º Identity cookies –ø–æ–ª–Ω–æ—Å—Ç—å—é
+    options.Cookie.Name = "Identity.Application.Disabled";
+    options.LoginPath = "/Account/Login";
+    options.Events.OnRedirectToLogin = context =>
     {
-        options.Cookie.Name = "LibraryApp.AuthCookie"; // “¿ ∆≈ Õ¿«¬¿
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SameSite = SameSiteMode.Lax;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
-        options.SlidingExpiration = true;
+        context.Response.StatusCode = 401;
+        return Task.CompletedTask;
+    };
+});
 
-        options.Events.OnRedirectToLogin = context => {
-            if (context.Request.Path.StartsWithSegments("/api"))
-            {
-                context.Response.StatusCode = 401;
-                return Task.CompletedTask;
-            }
-            return Task.CompletedTask;
-        };
-    });
-// CORS (¬»œ–¿¬À≈ÕŒ)
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowMvcClient", policy =>
     {
         policy.WithOrigins(
-                "https://localhost:7280",  // MVC ÍÎ≥∫ÌÚ HTTPS
-                "http://localhost:5018",   // MVC ÍÎ≥∫ÌÚ HTTP
-                "https://localhost:5003",  // Ocelot Gateway HTTPS
-                "http://localhost:5003"    // Ocelot Gateway HTTP
+                "https://localhost:7280",
+                "http://localhost:5018",
+                "https://localhost:5003",
+                "http://localhost:5003"
             )
             .AllowAnyMethod()
             .AllowAnyHeader()
@@ -90,15 +143,12 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
 }
 
 app.UseHttpsRedirection();
-
-// CORS œ≈–≈ƒ ‡ÛÚÂÌÚËÙ≥Í‡ˆ≥∫˛
 app.UseCors("AllowMvcClient");
 
 // Cookie policy
@@ -109,8 +159,54 @@ app.UseCookiePolicy(new CookiePolicyOptions
     CheckConsentNeeded = context => false
 });
 
-// ¬¿∆À»¬Œ: Ô‡‚ËÎ¸ÌËÈ ÔÓˇ‰ÓÍ middleware
-app.UseAuthentication(); // œ≈–≈ƒ UseAuthorization
+// –ö–†–ò–¢–ò–ß–ù–û: –î–µ—Ç–∞–ª—å–Ω–æ–µ –ª–æ–≥–∏—Ä–æ–≤–∞–Ω–∏–µ –∫–∞–∂–¥–æ–≥–æ –∑–∞–ø—Ä–æ—Å–∞
+app.Use(async (context, next) =>
+{
+    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("=== ADMINUSERS REQUEST START ===");
+    logger.LogInformation("Path: {Path}, Method: {Method}", context.Request.Path, context.Request.Method);
+
+    // –ü—Ä–æ–≤–µ—Ä—è–µ–º cookie
+    var authCookie = context.Request.Cookies["LibraryApp.AuthCookie"];
+    if (!string.IsNullOrEmpty(authCookie))
+    {
+        logger.LogInformation("‚úÖ LibraryApp.AuthCookie received (length: {Length})", authCookie.Length);
+
+        // –ü—Ä–æ–±—É–µ–º —Ä–∞—Å—à–∏—Ñ—Ä–æ–≤–∞—Ç—å cookie
+        try
+        {
+            var dataProtectionProvider = context.RequestServices.GetRequiredService<IDataProtectionProvider>();
+            var protector = dataProtectionProvider.CreateProtector(
+                "Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationMiddleware",
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                "v2");
+
+            var decryptedBytes = protector.Unprotect(authCookie);
+            logger.LogInformation("‚úÖ Cookie decryption SUCCESS - Data Protection working");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "‚ùå Cookie decryption FAILED - Data Protection issue");
+        }
+    }
+    else
+    {
+        logger.LogWarning("‚ùå LibraryApp.AuthCookie NOT found");
+    }
+
+    logger.LogInformation("User.Identity.IsAuthenticated (before): {IsAuth}",
+        context.User?.Identity?.IsAuthenticated ?? false);
+
+    await next();
+
+    logger.LogInformation("User.Identity.IsAuthenticated (after): {IsAuth}",
+        context.User?.Identity?.IsAuthenticated ?? false);
+    logger.LogInformation("Response status: {Status}", context.Response.StatusCode);
+    logger.LogInformation("=== ADMINUSERS REQUEST END ===");
+});
+
+// –í–ê–ñ–õ–ò–í–û: –ø—Ä–∞–≤–∏–ª—å–Ω–∏–π –ø–æ—Ä—è–¥–æ–∫ middleware
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
@@ -128,7 +224,7 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "œÓÏËÎÍ‡ ÔË ≥Ì≥ˆ≥‡Î≥Á‡ˆ≥ø ÓÎÂÈ Ú‡ ÍÓËÒÚÛ‚‡˜≥‚.");
+        logger.LogError(ex, "–ü–æ–º–∏–ª–∫–∞ –ø—Ä–∏ —ñ–Ω—ñ—Ü—ñ–∞–ª—ñ–∑–∞—Ü—ñ—ó —Ä–æ–ª–µ–π —Ç–∞ –∫–æ—Ä–∏—Å—Ç—É–≤–∞—á—ñ–≤.");
     }
 }
 

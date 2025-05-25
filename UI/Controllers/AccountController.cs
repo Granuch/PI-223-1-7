@@ -26,12 +26,100 @@ namespace UI.Controllers
             return View(new LoginViewModel { ReturnUrl = returnUrl });
         }
 
+        // ДОДАНО: GET метод для Register
         [HttpGet]
         public IActionResult Register()
         {
+            _logger.LogInformation("GET Register page requested");
             return View(new RegisterViewModel());
         }
 
+        // ВИПРАВЛЕНО: POST метод для Register
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Register(RegisterViewModel model)
+        {
+            _logger.LogInformation("POST Register attempt for email: {Email}", model?.Email);
+
+            if (!ModelState.IsValid)
+            {
+                _logger.LogWarning("Register model state invalid");
+                return View(model);
+            }
+
+            try
+            {
+                var result = await _apiService.RegisterAsync(model);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("Registration successful for {Email}", model.Email);
+
+                    // Створюємо claims для cookie з УСІМА необхідними даними
+                    var claims = new List<Claim>
+                    {
+                        new Claim(ClaimTypes.NameIdentifier, result.Data.User.UserId ?? result.Data.User.Id ?? result.Data.User.Email),
+                        new Claim(ClaimTypes.Email, result.Data.User.Email),
+                        new Claim(ClaimTypes.Name, result.Data.User.Email),
+                        new Claim("FirstName", result.Data.User.FirstName ?? ""),
+                        new Claim("LastName", result.Data.User.LastName ?? ""),
+                        new Claim("LoginTime", DateTimeOffset.UtcNow.ToString())
+                    };
+
+                    // Додаємо ролі як claims
+                    foreach (var role in result.Data.User.Roles ?? new List<string>())
+                    {
+                        claims.Add(new Claim(ClaimTypes.Role, role));
+                        _logger.LogInformation("Adding role to claims: {Role}", role);
+                    }
+
+                    var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                    var authProperties = new AuthenticationProperties
+                    {
+                        IsPersistent = false, // Для реєстрації не зберігаємо надовго
+                        ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8),
+                        IssuedUtc = DateTimeOffset.UtcNow,
+                        AllowRefresh = true
+                    };
+
+                    // ВСТАНОВЛЮЄМО AUTHENTICATION COOKIE
+                    await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+                        new ClaimsPrincipal(claimsIdentity), authProperties);
+
+                    _logger.LogInformation("Authentication cookie created for new user: {Email}", model.Email);
+
+                    // Зберігаємо дані в сесії для сумісності
+                    HttpContext.Session.SetString("IsAuthenticated", "true");
+                    HttpContext.Session.SetString("UserData", JsonConvert.SerializeObject(result.Data.User));
+                    HttpContext.Session.SetString("LoginTime", DateTimeOffset.UtcNow.ToString());
+
+                    TempData["SuccessMessage"] = "Реєстрацію завершено успішно! Ласкаво просимо!";
+                    return RedirectToAction("Index", "Home");
+                }
+
+                // Обробка помилок від API
+                if (result.Errors?.Any() == true)
+                {
+                    foreach (var error in result.Errors)
+                    {
+                        ModelState.AddModelError("", error);
+                    }
+                }
+                else
+                {
+                    ModelState.AddModelError("", result.Message ?? "Помилка реєстрації");
+                }
+
+                _logger.LogWarning("Registration failed for {Email}: {Message}", model.Email, result.Message);
+                return View(model);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception during registration for {Email}", model?.Email);
+                ModelState.AddModelError("", "Сталася помилка під час реєстрації. Спробуйте пізніше.");
+                return View(model);
+            }
+        }
 
         [HttpPost]
         [ValidateAntiForgeryToken]

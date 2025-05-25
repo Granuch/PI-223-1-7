@@ -1,24 +1,33 @@
 using BLL.Interfaces;
 using BLL.Services;
 using Mapping.Mapping;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using PI_223_1_7.DbContext;
 using PI_223_1_7.Models;
 using PI_223_1_7.Patterns.UnitOfWork;
 using PL.Controllers;
+using PL.Services; // Для UserContextService
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
 builder.Services.AddControllers();
+
+// DbContext
 builder.Services.AddDbContext<LibraryDbContext>(options =>
-                options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=LibratyDb;Trusted_Connection=True;"));
+    options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=LibratyDb;Trusted_Connection=True;"));
+
+// AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
+
+// Ваші сервіси
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IUserService, UserService>();
 
+// Identity (ЗАЛИШАЄМО для UserService, але НЕ для автентифікації)
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
 {
     options.Password.RequireDigit = true;
@@ -26,111 +35,87 @@ builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequireUppercase = true;
     options.Password.RequiredLength = 6;
-
     options.User.RequireUniqueEmail = true;
-
     options.SignIn.RequireConfirmedEmail = false;
 })
-           .AddEntityFrameworkStores<LibraryDbContext>()
-           .AddDefaultTokenProviders();
+.AddEntityFrameworkStores<LibraryDbContext>()
+.AddDefaultTokenProviders();
 
-builder.Services.ConfigureApplicationCookie(options => {
-    options.LoginPath = "/Account/Login";
-    options.AccessDeniedPath = "/Account/AccessDenied";
-    options.SlidingExpiration = true;
-    options.ExpireTimeSpan = TimeSpan.FromDays(1); // Збільшуємо термін дії для тестування
+// КРИТИЧНО: HttpContextAccessor та UserContextService
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IUserContextService, UserContextService>();
 
-    // Критичні налаштування для правильної роботи з API
-    options.Cookie.HttpOnly = true;
-    options.Cookie.SameSite = SameSiteMode.Lax; // Lax дозволяє відправляти куки при переході за посиланням
+// Data Protection (ТОЧНО ОДНАКОВИЙ ДЛЯ ВСІХ СЕРВІСІВ)
+builder.Services.AddDataProtection()
+    .SetApplicationName("LibraryApp") // ТОЧНО ТА Ж НАЗВА
+    .PersistKeysToFileSystem(new DirectoryInfo(@"C:\temp\keys")) // ТА Ж ПАПКА
+    .SetDefaultKeyLifetime(TimeSpan.FromDays(30));
 
-    // Якщо ви використовуєте HTTPS:
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; // Для розробки
+// Cookie Authentication (ПЕРЕВИЗНАЧАЄМО після Identity)
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "LibraryApp.AuthCookie"; // ТА ЖЕ НАЗВА
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.SlidingExpiration = true;
 
-    // Встановлюємо власний шлях для cookie, щоб уникнути конфліктів з іншими застосунками
-    options.Cookie.Name = "YourApp.AuthCookie";
-
-    // Важливо для API - дозволяє обробляти статус 401 Unauthorized на стороні клієнта
-    options.Events.OnRedirectToLogin = context => {
-        if (context.Request.Path.StartsWithSegments("/api") && context.Response.StatusCode == 200)
-        {
-            context.Response.StatusCode = 401;
+        options.Events.OnRedirectToLogin = context => {
+            if (context.Request.Path.StartsWithSegments("/api"))
+            {
+                context.Response.StatusCode = 401;
+                return Task.CompletedTask;
+            }
             return Task.CompletedTask;
-        }
-
-        context.Response.Redirect(context.RedirectUri);
-        return Task.CompletedTask;
-    };
-
-    options.Events.OnRedirectToAccessDenied = context => {
-        if (context.Request.Path.StartsWithSegments("/api") && context.Response.StatusCode == 200)
-        {
-            context.Response.StatusCode = 403;
-            return Task.CompletedTask;
-        }
-
-        context.Response.Redirect(context.RedirectUri);
-        return Task.CompletedTask;
-    };
-});
-
+        };
+    });
+// CORS (ВИПРАВЛЕНО)
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowMvcClient",
-        builder => builder
-            .WithOrigins("https://localhost:7280", "http://localhost:5018") // URL MVC проекту
+    options.AddPolicy("AllowMvcClient", policy =>
+    {
+        policy.WithOrigins(
+                "https://localhost:7280",  // MVC клієнт HTTPS
+                "http://localhost:5018",   // MVC клієнт HTTP
+                "https://localhost:5003",  // Ocelot Gateway HTTPS
+                "http://localhost:5003"    // Ocelot Gateway HTTP
+            )
             .AllowAnyMethod()
             .AllowAnyHeader()
-            .AllowCredentials());
-});
-
-builder.Services.Configure<CookiePolicyOptions>(options =>
-{
-    options.CheckConsentNeeded = context => false;
-    options.MinimumSameSitePolicy = SameSiteMode.None;
-    options.Secure = CookieSecurePolicy.SameAsRequest;
+            .AllowCredentials();
+    });
 });
 
 var app = builder.Build();
-
-await using (var scope = app.Services.CreateAsyncScope())
-{
-    var services = scope.ServiceProvider;
-    try
-    {
-        await SeedDemoData.SeedData(services);
-    }
-    catch (Exception ex)
-    {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Помилка при сидінгу демо-даних.");
-    }
-}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
 }
-app.UseStaticFiles();
+
 app.UseHttpsRedirection();
 
-// ПРАВИЛЬНИЙ ПОРЯДОК MIDDLEWARE!
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Home/Error");
-    app.UseHsts();
-}
+// CORS ПЕРЕД аутентифікацією
 app.UseCors("AllowMvcClient");
-// Спочатку автентифікація, потім авторизація
-app.UseAuthentication();
+
+// Cookie policy
+app.UseCookiePolicy(new CookiePolicyOptions
+{
+    MinimumSameSitePolicy = SameSiteMode.Lax,
+    Secure = CookieSecurePolicy.SameAsRequest,
+    CheckConsentNeeded = context => false
+});
+
+// ВАЖЛИВО: правильний порядок middleware
+app.UseAuthentication(); // ПЕРЕД UseAuthorization
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
 
+// Seed data
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -148,5 +133,3 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
-        
-    
