@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace PL.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     [Authorize(Roles = "Administrator")] // Тільки адміністратори можуть управляти користувачами
     public class AdminUsersController : ControllerBase
     {
