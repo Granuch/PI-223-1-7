@@ -22,11 +22,11 @@ builder.Services.AddDataProtection()
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.Cookie.Name = "YourApp.AuthCookie";
+        options.Cookie.Name = "LibraryApp.AuthCookie"; // ÒÀ ÆÅ ÍÀÇÂÀ
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        options.ExpireTimeSpan = TimeSpan.FromDays(1);
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
 
         options.Events.OnRedirectToLogin = context => {
@@ -38,7 +38,6 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
             return Task.CompletedTask;
         };
     });
-
 // CORS
 builder.Services.AddCors(options =>
 {

@@ -42,37 +42,22 @@ builder.Services.AddDataProtection()
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.Cookie.Name = "YourApp.AuthCookie"; // ТОЧНО ТА Ж НАЗВА
+        options.Cookie.Name = "LibraryApp.AuthCookie"; // ТА ЖЕ НАЗВА
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        options.ExpireTimeSpan = TimeSpan.FromDays(1);
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
-        options.LoginPath = "/Account/Login";
-        options.AccessDeniedPath = "/Account/AccessDenied";
 
-        // Для API endpoints
         options.Events.OnRedirectToLogin = context => {
-            if (context.Request.Path.StartsWithSegments("/api") && context.Response.StatusCode == 200)
+            if (context.Request.Path.StartsWithSegments("/api"))
             {
                 context.Response.StatusCode = 401;
                 return Task.CompletedTask;
             }
-            context.Response.Redirect(context.RedirectUri);
-            return Task.CompletedTask;
-        };
-
-        options.Events.OnRedirectToAccessDenied = context => {
-            if (context.Request.Path.StartsWithSegments("/api") && context.Response.StatusCode == 200)
-            {
-                context.Response.StatusCode = 403;
-                return Task.CompletedTask;
-            }
-            context.Response.Redirect(context.RedirectUri);
             return Task.CompletedTask;
         };
     });
-
 // CORS (ВИПРАВЛЕНО)
 builder.Services.AddCors(options =>
 {

@@ -34,8 +34,13 @@ namespace UI.Controllers
                     var firstName = User.FindFirst("FirstName")?.Value;
                     var lastName = User.FindFirst("LastName")?.Value;
                     var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                    var loginTime = User.FindFirst("LoginTime")?.Value;
 
                     var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+
+                    // Логування для діагностики
+                    logger.LogInformation("BaseController: User authenticated - {Email}, UserId: {UserId}, Roles: {Roles}, LoginTime: {LoginTime}",
+                        email, userId, string.Join(", ", roles), loginTime);
 
                     // Створюємо UserInfo для сумісності
                     var userData = new UserInfo
@@ -53,14 +58,12 @@ namespace UI.Controllers
                     ViewBag.IsManager = roles.Contains("Manager");
                     ViewBag.IsAdministrator = roles.Contains("Administrator");
 
-                    logger.LogInformation("BaseController: User loaded - {Email}, Roles: {Roles}",
-                        email, string.Join(", ", roles));
-
                     // Також зберігаємо в сесії для сумісності з ApiService
                     if (HttpContext.Session.GetString("UserData") == null)
                     {
                         HttpContext.Session.SetString("IsAuthenticated", "true");
                         HttpContext.Session.SetString("UserData", JsonConvert.SerializeObject(userData));
+                        logger.LogInformation("BaseController: Session data updated from claims");
                     }
                 }
                 catch (Exception ex)
@@ -72,6 +75,7 @@ namespace UI.Controllers
             else
             {
                 ClearAuthData();
+                logger.LogInformation("BaseController: User not authenticated");
             }
 
             await next();

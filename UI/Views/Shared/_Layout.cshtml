@@ -8,6 +8,46 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
+<script>
+        // Автоматичне оновлення сесії кожні 30 хвилин
+        setInterval(function() {
+            console.log('Calling KeepAlive...');
+            fetch('/Account/KeepAlive', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('KeepAlive response:', data);
+                if (!data.success) {
+                    console.warn('Session may have expired:', data.message);
+                    // Опціонально: показати повідомлення користувачу
+                    if (data.message === 'Not authenticated') {
+                        alert('Ваша сесія закінчилася. Будь ласка, увійдіть знову.');
+                        window.location.href = '/Account/Login';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('KeepAlive error:', error);
+            });
+        }, 30 * 60 * 1000); // Кожні 30 хвилин
+
+        // Діагностична функція для перевірки статусу
+        function checkAuthStatus() {
+            fetch('/Account/AuthStatus')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Auth Status:', data);
+                });
+        }
+
+        // Викликати через 5 секунд після завантаження сторінки
+        setTimeout(checkAuthStatus, 5000);
+</script>
 <body>
     <header>
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">

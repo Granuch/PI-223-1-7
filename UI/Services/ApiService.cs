@@ -51,18 +51,18 @@ namespace UI.Services
                 var httpContext = _httpContextAccessor.HttpContext;
                 if (httpContext?.Request?.Cookies != null && httpContext.Request.Cookies.Count > 0)
                 {
+                    // Создаем новый HttpClientHandler с CookieContainer для каждого запроса
+                    if (_httpClient.DefaultRequestHeaders.Contains("Cookie"))
+                    {
+                        _httpClient.DefaultRequestHeaders.Remove("Cookie");
+                    }
+
                     var cookieHeader = string.Join("; ",
                         httpContext.Request.Cookies.Select(c => $"{c.Key}={c.Value}"));
 
-                    if (!string.IsNullOrEmpty(cookieHeader))
-                    {
-                        // Видаляємо старий Cookie header якщо є
-                        _httpClient.DefaultRequestHeaders.Remove("Cookie");
-                        // Додаємо новий
-                        _httpClient.DefaultRequestHeaders.Add("Cookie", cookieHeader);
+                    _httpClient.DefaultRequestHeaders.Add("Cookie", cookieHeader);
 
-                        _logger.LogDebug("Cookies set in HTTP client: {CookieCount} cookies", httpContext.Request.Cookies.Count);
-                    }
+                    _logger.LogDebug("Set cookies for API request. Count: {Count}", httpContext.Request.Cookies.Count);
                 }
             }
             catch (Exception ex)

@@ -20,71 +20,18 @@ namespace UI.Controllers
         }
 
         [HttpGet]
-        public IActionResult Register()
+        public IActionResult Login(string returnUrl = null)
         {
-            return View();
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Register(RegisterViewModel model)
-        {
-            if (!ModelState.IsValid)
-            {
-                return View(model);
-            }
-
-            var result = await _apiService.RegisterAsync(model);
-
-            if (result.Success)
-            {
-                // Створюємо claims для cookie
-                var claims = new List<Claim>
-                {
-                    new Claim(ClaimTypes.NameIdentifier, result.Data.User.UserId ?? result.Data.User.Id),
-                    new Claim(ClaimTypes.Email, result.Data.User.Email),
-                    new Claim(ClaimTypes.Name, result.Data.User.Email),
-                    new Claim("FirstName", result.Data.User.FirstName ?? ""),
-                    new Claim("LastName", result.Data.User.LastName ?? "")
-                };
-
-                // Додаємо ролі
-                foreach (var role in result.Data.User.Roles ?? new List<string>())
-                {
-                    claims.Add(new Claim(ClaimTypes.Role, role));
-                }
-
-                var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                var authProperties = new AuthenticationProperties
-                {
-                    IsPersistent = false,
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddDays(1)
-                };
-
-                // ВСТАНОВЛЮЄМО AUTHENTICATION COOKIE
-                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-                    new ClaimsPrincipal(claimsIdentity), authProperties);
-
-                // Зберігаємо дані в сесії для сумісності
-                HttpContext.Session.SetString("IsAuthenticated", "true");
-                HttpContext.Session.SetString("UserData", JsonConvert.SerializeObject(result.Data.User));
-
-                _logger.LogInformation("User registered and signed in: {Email}", model.Email);
-                TempData["SuccessMessage"] = "Реєстрація пройшла успішно!";
-                return RedirectToAction("Index", "Home");
-            }
-
-            ModelState.AddModelError("", result.Message);
-            return View(model);
+            ViewData["ReturnUrl"] = returnUrl;
+            return View(new LoginViewModel { ReturnUrl = returnUrl });
         }
 
         [HttpGet]
-        public IActionResult Login(string? returnUrl = null)
+        public IActionResult Register()
         {
-            ViewData["ReturnUrl"] = returnUrl;
-            var model = new LoginViewModel { ReturnUrl = returnUrl };
-            return View(model);
+            return View(new RegisterViewModel());
         }
+
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -104,40 +51,50 @@ namespace UI.Controllers
 
             if (result.Success)
             {
-                // Створюємо claims для cookie
+                _logger.LogInformation("API login successful for {Email}", model.Email);
+                _logger.LogInformation("User roles from API: {Roles}",
+                    string.Join(", ", result.Data.User.Roles ?? new List<string>()));
+
+                // Створюємо claims для cookie з УСІМА необхідними даними
                 var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.NameIdentifier, result.Data.User.UserId ?? result.Data.User.Id ?? result.Data.User.Email),
                     new Claim(ClaimTypes.Email, result.Data.User.Email),
                     new Claim(ClaimTypes.Name, result.Data.User.Email),
                     new Claim("FirstName", result.Data.User.FirstName ?? ""),
-                    new Claim("LastName", result.Data.User.LastName ?? "")
+                    new Claim("LastName", result.Data.User.LastName ?? ""),
+                    new Claim("LoginTime", DateTimeOffset.UtcNow.ToString()) // Для діагностики
                 };
 
-                // Додаємо ролі
+                // Додаємо ролі як claims
                 foreach (var role in result.Data.User.Roles ?? new List<string>())
                 {
                     claims.Add(new Claim(ClaimTypes.Role, role));
-                    _logger.LogInformation("Adding role to claims: {Role}", role);
+                    _logger.LogInformation("Adding role to MVC claims: {Role}", role);
                 }
 
                 var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
                 var authProperties = new AuthenticationProperties
                 {
                     IsPersistent = model.RememberMe,
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddDays(model.RememberMe ? 30 : 1)
+                    ExpiresUtc = DateTimeOffset.UtcNow.AddHours(model.RememberMe ? 24 * 7 : 8), // 8 годин або 1 тиждень
+                    IssuedUtc = DateTimeOffset.UtcNow,
+                    AllowRefresh = true // ВАЖЛИВО для sliding expiration
                 };
 
                 // ВСТАНОВЛЮЄМО AUTHENTICATION COOKIE
                 await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
                     new ClaimsPrincipal(claimsIdentity), authProperties);
 
+                _logger.LogInformation("MVC authentication cookie created for {Email}. Expires: {Expires}",
+                    model.Email, authProperties.ExpiresUtc);
+
                 // Зберігаємо дані в сесії для сумісності
                 HttpContext.Session.SetString("IsAuthenticated", "true");
                 HttpContext.Session.SetString("UserData", JsonConvert.SerializeObject(result.Data.User));
+                HttpContext.Session.SetString("LoginTime", DateTimeOffset.UtcNow.ToString());
 
-                _logger.LogInformation("User logged in and signed in: {Email}", model.Email);
-                _logger.LogInformation("User roles: {Roles}", string.Join(", ", result.Data.User.Roles ?? new List<string>()));
+                _logger.LogInformation("Session data saved for {Email}", model.Email);
 
                 TempData["SuccessMessage"] = "Вхід виконано успішно!";
 
@@ -156,6 +113,9 @@ namespace UI.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
         {
+            var userEmail = User.Identity?.Name;
+            _logger.LogInformation("User logout: {Email}", userEmail);
+
             // Очищаємо authentication cookie
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
@@ -163,11 +123,41 @@ namespace UI.Controllers
             HttpContext.Session.Clear();
 
             // Викликаємо logout на API (опціонально)
-            await _apiService.LogoutAsync();
+            try
+            {
+                await _apiService.LogoutAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error calling API logout for {Email}", userEmail);
+            }
 
-            _logger.LogInformation("User logged out");
+            _logger.LogInformation("User {Email} successfully logged out", userEmail);
             TempData["SuccessMessage"] = "Вихід виконано успішно!";
             return RedirectToAction("Index", "Home");
+        }
+
+        // НОВИЙ ENDPOINT для діагностики
+        [HttpGet]
+        public IActionResult AuthStatus()
+        {
+            var authTime = User.FindFirst("LoginTime")?.Value;
+            var authTimeUtc = !string.IsNullOrEmpty(authTime) ? DateTimeOffset.Parse(authTime) : (DateTimeOffset?)null;
+            var timeLoggedIn = authTimeUtc.HasValue ? DateTimeOffset.UtcNow - authTimeUtc.Value : (TimeSpan?)null;
+
+            var status = new
+            {
+                IsAuthenticated = User.Identity?.IsAuthenticated ?? false,
+                UserName = User.Identity?.Name,
+                Email = User.FindFirst(ClaimTypes.Email)?.Value,
+                Roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray(),
+                LoginTime = authTime,
+                TimeLoggedIn = timeLoggedIn?.ToString(@"hh\:mm\:ss"),
+                SessionExists = HttpContext.Session.GetString("IsAuthenticated") == "true",
+                Cookies = Request.Cookies.Select(c => new { c.Key, ValueLength = c.Value.Length }).ToArray()
+            };
+
+            return Json(status);
         }
 
         [HttpPost]
@@ -176,25 +166,41 @@ namespace UI.Controllers
             try
             {
                 var isAuthenticated = User.Identity?.IsAuthenticated ?? false;
+                _logger.LogInformation("KeepAlive called. IsAuthenticated: {IsAuth}, User: {User}",
+                    isAuthenticated, User.Identity?.Name ?? "Anonymous");
 
                 if (!isAuthenticated)
                 {
                     return Json(new { success = false, message = "Not authenticated" });
                 }
 
+                // Автоматично оновлюємо authentication cookie
+                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, User,
+                    new AuthenticationProperties
+                    {
+                        IsPersistent = true,
+                        ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8),
+                        IssuedUtc = DateTimeOffset.UtcNow,
+                        AllowRefresh = true
+                    });
+
                 // Викликаємо API для оновлення
                 var result = await _apiService.RefreshSessionAsync();
+                _logger.LogInformation("API session refresh result: {Success}", result.Success);
 
                 if (result.Success)
                 {
-                    return Json(new { success = true, message = "Session refreshed" });
+                    return Json(new
+                    {
+                        success = true,
+                        message = "Session refreshed",
+                        expiresAt = DateTimeOffset.UtcNow.AddHours(8)
+                    });
                 }
                 else
                 {
-                    // Очищаємо authentication якщо оновлення не вдалося
-                    await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                    HttpContext.Session.Clear();
-                    return Json(new { success = false, message = "Session expired" });
+                    _logger.LogWarning("API session refresh failed");
+                    return Json(new { success = false, message = "Session refresh failed" });
                 }
             }
             catch (Exception ex)

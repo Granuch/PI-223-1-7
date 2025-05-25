@@ -15,24 +15,34 @@ builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(@"C:\temp\keys")) // ТА Ж ПАПКА
     .SetDefaultKeyLifetime(TimeSpan.FromDays(30));
 
-// ДОДАЄМО Cookie Authentication в MVC проект
+// Cookie Authentication з ЗБІЛЬШЕНИМ часом життя
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.Cookie.Name = "YourApp.AuthCookie"; // ТОЧНО ТА Ж НАЗВА
+        options.Cookie.Name = "LibraryApp.AuthCookie"; // ЕДИНАЯ СИСТЕМА ИМЕН
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        options.ExpireTimeSpan = TimeSpan.FromDays(1);
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
         options.LoginPath = "/Account/Login";
         options.AccessDeniedPath = "/Account/AccessDenied";
-    });
 
-// Сесії
+        // Автоматическое продление
+        options.Events.OnValidatePrincipal = async context =>
+        {
+            var timeRemaining = context.Properties.ExpiresUtc.Value - DateTimeOffset.UtcNow;
+            if (timeRemaining < TimeSpan.FromHours(2))
+            {
+                context.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8);
+                context.ShouldRenew = true;
+            }
+        };
+    });
+// Сесії з ЗБІЛЬШЕНИМ часом життя
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromHours(8);
+    options.IdleTimeout = TimeSpan.FromHours(8); // ЗБІЛЬШЕНО до 8 годин
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
     options.Cookie.Name = "LibrarySession";
@@ -40,7 +50,7 @@ builder.Services.AddSession(options =>
     options.Cookie.SameSite = SameSiteMode.Lax;
 });
 
-// HttpClient
+// HttpClient з підтримкою cookies
 builder.Services.AddHttpClient<IApiService, ApiService>(client =>
 {
     var baseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:5003";

@@ -4,13 +4,13 @@ namespace PL.Services
 {
     public interface IUserContextService
     {
-        string GetCurrentUserId();
-        string GetCurrentUserEmail();
-        List<string> GetCurrentUserRoles();
         bool IsAuthenticated();
-        bool IsInRole(string role);
         bool IsAdministrator();
         bool IsManager();
+        string GetCurrentUserEmail();
+        List<string> GetCurrentUserRoles();
+        string GetCurrentUserId();
+        void LogCurrentUserInfo();
     }
 
     public class UserContextService : IUserContextService
@@ -24,27 +24,45 @@ namespace PL.Services
             _logger = logger;
         }
 
-        public string GetCurrentUserId()
+        public bool IsAuthenticated()
+        {
+            var isAuth = _httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated ?? false;
+            _logger.LogInformation("AdminUsers Service - IsAuthenticated: {IsAuth}, User: {User}",
+                isAuth, _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Anonymous");
+            return isAuth;
+        }
+
+        public bool IsAdministrator()
+        {
+            var hasRole = _httpContextAccessor.HttpContext?.User?.IsInRole("Administrator") ?? false;
+            _logger.LogInformation("AdminUsers Service - IsAdministrator: {HasRole}", hasRole);
+            return hasRole;
+        }
+
+        public bool IsManager()
         {
             var user = _httpContextAccessor.HttpContext?.User;
-            if (user?.Identity?.IsAuthenticated == true)
-            {
-                return user.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
-                       user.FindFirst("sub")?.Value ??
-                       user.FindFirst("userId")?.Value;
-            }
-            return null;
+            var hasRole = user?.IsInRole("Manager") == true || user?.IsInRole("Administrator") == true;
+            _logger.LogInformation("AdminUsers Service - IsManager: {HasRole}", hasRole);
+            return hasRole;
         }
 
         public string GetCurrentUserEmail()
         {
+            var email = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.Email)?.Value ??
+                       _httpContextAccessor.HttpContext?.User?.Identity?.Name;
+            _logger.LogInformation("AdminUsers Service - GetCurrentUserEmail: {Email}", email ?? "null");
+            return email;
+        }
+
+        public string GetCurrentUserId()
+        {
             var user = _httpContextAccessor.HttpContext?.User;
-            if (user?.Identity?.IsAuthenticated == true)
-            {
-                return user.FindFirst(ClaimTypes.Email)?.Value ??
-                       user.FindFirst(ClaimTypes.Name)?.Value;
-            }
-            return null;
+            var userId = user?.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+                        user?.FindFirst("sub")?.Value ??
+                        user?.FindFirst("userId")?.Value;
+            _logger.LogInformation("AdminUsers Service - GetCurrentUserId: {UserId}", userId ?? "null");
+            return userId;
         }
 
         public List<string> GetCurrentUserRoles()
@@ -52,39 +70,50 @@ namespace PL.Services
             var user = _httpContextAccessor.HttpContext?.User;
             if (user?.Identity?.IsAuthenticated == true)
             {
-                return user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+                var roles = user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+                _logger.LogInformation("AdminUsers Service - User roles: {Roles}", string.Join(", ", roles));
+                return roles;
             }
             return new List<string>();
         }
 
-        public bool IsAuthenticated()
-        {
-            var isAuth = _httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated ?? false;
-            _logger.LogInformation("IsAuthenticated: {IsAuth}, User: {User}",
-                isAuth, _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Anonymous");
-            return isAuth;
-        }
-
-        public bool IsInRole(string role)
+        public void LogCurrentUserInfo()
         {
             var user = _httpContextAccessor.HttpContext?.User;
-            var hasRole = user?.IsInRole(role) ?? false;
-            _logger.LogInformation("User {User} has role {Role}: {HasRole}",
-                GetCurrentUserEmail() ?? "Anonymous", role, hasRole);
-            return hasRole;
-        }
+            var request = _httpContextAccessor.HttpContext?.Request;
 
-        public bool IsAdministrator()
-        {
-            return IsInRole("Administrator");
-        }
+            _logger.LogInformation("=== DIAGNOSTIC INFO START ===");
+            _logger.LogInformation("Service: {ServiceName}", GetType().Assembly.GetName().Name);
+            _logger.LogInformation("Request Path: {Path}", request?.Path ?? "null");
+            _logger.LogInformation("IsAuthenticated: {IsAuth}", user?.Identity?.IsAuthenticated ?? false);
+            _logger.LogInformation("Identity Name: {Name}", user?.Identity?.Name ?? "null");
+            _logger.LogInformation("Identity Type: {Type}", user?.Identity?.GetType().Name ?? "null");
 
-        public bool IsManager()
-        {
-            return IsInRole("Manager") || IsInRole("Administrator");
+            if (user?.Claims != null)
+            {
+                _logger.LogInformation("Claims count: {Count}", user.Claims.Count());
+                foreach (var claim in user.Claims)
+                {
+                    _logger.LogInformation("  Claim: {Type} = {Value}", claim.Type, claim.Value);
+                }
+            }
+
+            if (request?.Cookies != null)
+            {
+                _logger.LogInformation("Cookies count: {Count}", request.Cookies.Count);
+                foreach (var cookie in request.Cookies)
+                {
+                    var value = cookie.Value.Length > 50 ? cookie.Value.Substring(0, 50) + "..." : cookie.Value;
+                    _logger.LogInformation("  Cookie: {Name} = {Value}", cookie.Key, value);
+                }
+            }
+
+            if (request?.Headers != null && request.Headers.ContainsKey("Cookie"))
+            {
+                _logger.LogInformation("Cookie header present: {HasCookieHeader}", true);
+            }
+
+            _logger.LogInformation("=== DIAGNOSTIC INFO END ===");
         }
     }
 }
-
-// Зареєструйте сервіс у Program.cs кожного мікросервіса
-// builder.Services.AddScoped<IUserContextService, UserContextService>();

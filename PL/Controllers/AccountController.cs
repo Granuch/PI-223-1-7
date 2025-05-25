@@ -34,6 +34,7 @@ namespace PL.Controllers
             _logger = logger;
         }
 
+
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterViewModel model)
         {

@@ -61,7 +61,6 @@ builder.Services.AddOcelot(builder.Configuration);
 var app = builder.Build();
 
 app.UseCors("AllowMvcClient");
-app.UseMiddleware<CookieForwardingMiddleware>();
 // Cookie policy
 app.UseCookiePolicy(new CookiePolicyOptions
 {
@@ -70,6 +69,7 @@ app.UseCookiePolicy(new CookiePolicyOptions
 });
 
 app.UseAuthentication();
+app.UseMiddleware<CookieForwardingMiddleware>();
 app.UseAuthorization();
 
 // Додайте middleware для forwarding cookies
@@ -93,13 +93,14 @@ public class CookieForwardingMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        // Логуємо cookies для діагностики
-        _logger.LogInformation("Request to: {Path}", context.Request.Path);
-        _logger.LogInformation("Cookies count: {Count}", context.Request.Cookies.Count);
-
-        foreach (var cookie in context.Request.Cookies)
+        // Копируем все cookies в заголовки для downstream сервисов
+        if (context.Request.Cookies.Count > 0)
         {
-            _logger.LogInformation("Cookie: {Name} = {Value}", cookie.Key, cookie.Value);
+            var cookieHeader = string.Join("; ",
+                context.Request.Cookies.Select(c => $"{c.Key}={c.Value}"));
+
+            context.Request.Headers["Cookie"] = cookieHeader;
+            _logger.LogDebug("Forwarding cookies: {CookieCount}", context.Request.Cookies.Count);
         }
 
         await _next(context);

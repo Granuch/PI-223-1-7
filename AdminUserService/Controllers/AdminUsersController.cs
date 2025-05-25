@@ -1,5 +1,3 @@
-// Оновлений AdminUsersController.cs
-
 using BLL.Interfaces;
 using Mapping.DTOs;
 using Microsoft.AspNetCore.Authorization;
@@ -26,29 +24,40 @@ namespace PL.Controllers
             _logger = logger;
         }
 
-        /// <summary>
-        /// Отримати всіх користувачів
-        /// </summary>
         [HttpGet("GetAllUsers")]
         [Authorize] // Базова авторизація
         public async Task<ActionResult<ApiResponse<IEnumerable<UserDTO>>>> GetAllUsers()
         {
             try
             {
-                _logger.LogInformation("GetAllUsers called");
-                _logger.LogInformation("User authenticated: {IsAuth}", _userContext.IsAuthenticated());
-                _logger.LogInformation("User email: {Email}", _userContext.GetCurrentUserEmail());
-                _logger.LogInformation("User roles: {Roles}", string.Join(", ", _userContext.GetCurrentUserRoles()));
-                _logger.LogInformation("Is Administrator: {IsAdmin}", _userContext.IsAdministrator());
+                _logger.LogInformation("=== GetAllUsers API Called ===");
 
-                // Перевірка ролі
+                // ДІАГНОСТИКА
+                _userContext.LogCurrentUserInfo();
+
+                if (!_userContext.IsAuthenticated())
+                {
+                    _logger.LogWarning("User not authenticated");
+                    return Unauthorized(new ApiResponse<IEnumerable<UserDTO>>
+                    {
+                        Success = false,
+                        Message = "Користувач не авторизований"
+                    });
+                }
+
                 if (!_userContext.IsAdministrator())
                 {
-                    _logger.LogWarning("Access denied - user is not administrator");
+                    _logger.LogWarning("Access denied - user is not administrator. User: {User}, Roles: {Roles}",
+                        _userContext.GetCurrentUserEmail(), string.Join(", ", _userContext.GetCurrentUserRoles()));
                     return Forbid();
                 }
 
+                _logger.LogInformation("Access granted for administrator: {User}", _userContext.GetCurrentUserEmail());
+
                 var users = await _userService.GetAllUsersAsync();
+
+                _logger.LogInformation("Successfully retrieved {Count} users", users?.Count() ?? 0);
+
                 return Ok(new ApiResponse<IEnumerable<UserDTO>>
                 {
                     Success = true,
@@ -73,6 +82,8 @@ namespace PL.Controllers
         {
             try
             {
+                _logger.LogInformation("GetUserById called for: {UserId}", id);
+
                 if (!_userContext.IsAdministrator())
                 {
                     return Forbid();
@@ -106,54 +117,6 @@ namespace PL.Controllers
             }
         }
 
-        [HttpPost("CreateUser")]
-        [Authorize]
-        public async Task<ActionResult<ApiResponse<object>>> CreateUser([FromBody] CreateUserRequest request)
-        {
-            try
-            {
-                if (!_userContext.IsAdministrator())
-                {
-                    _logger.LogWarning("Non-administrator tried to create user");
-                    return Forbid();
-                }
-
-                if (string.IsNullOrEmpty(request.Role))
-                {
-                    request.Role = "RegisteredUser";
-                }
-
-                var result = await _userService.CreateUserAsync(request);
-
-                if (result.Succeeded)
-                {
-                    _logger.LogInformation("User {Email} created successfully by {Admin}",
-                        request.Email, _userContext.GetCurrentUserEmail());
-                    return Ok(new ApiResponse<object>
-                    {
-                        Success = true,
-                        Message = "Користувач створений успішно"
-                    });
-                }
-
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка створення користувача",
-                    Errors = result.Errors.Select(e => e.Description)
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating user {Email}", request.Email);
-                return StatusCode(500, new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Внутрішня помилка сервера"
-                });
-            }
-        }
-
         [HttpPost("AssignRole")]
         [Authorize]
         public async Task<ActionResult<ApiResponse<object>>> AssignRole(string id, [FromBody] AssignRoleRequest request)
@@ -161,13 +124,42 @@ namespace PL.Controllers
             try
             {
                 _logger.LogInformation("AssignRole called for user {UserId} with role {RoleName}", id, request.RoleName);
-                _logger.LogInformation("Current user: {Email}, IsAdmin: {IsAdmin}",
-                    _userContext.GetCurrentUserEmail(), _userContext.IsAdministrator());
+
+                // КРИТИЧНО: Логируем детальную информацию
+                _userContext.LogCurrentUserInfo();
+
+                if (!_userContext.IsAuthenticated())
+                {
+                    _logger.LogWarning("User not authenticated for role assignment");
+                    return Unauthorized(new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Требуется аутентификация"
+                    });
+                }
 
                 if (!_userContext.IsAdministrator())
                 {
-                    _logger.LogWarning("Non-administrator tried to assign role");
-                    return Forbid();
+                    _logger.LogWarning("User {User} is not administrator. Roles: {Roles}",
+                        _userContext.GetCurrentUserEmail(),
+                        string.Join(", ", _userContext.GetCurrentUserRoles()));
+
+                    return StatusCode(403, new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Недостаточно прав. Требуется роль Administrator"
+                    });
+                }
+
+                // Добавьте валидацию роли
+                var validRoles = new[] { "Administrator", "Manager", "RegisteredUser" };
+                if (!validRoles.Contains(request.RoleName))
+                {
+                    return BadRequest(new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = $"Недопустимая роль: {request.RoleName}"
+                    });
                 }
 
                 var result = await _userService.AssignRoleToUserAsync(id, request.RoleName);
@@ -176,35 +168,40 @@ namespace PL.Controllers
                 {
                     _logger.LogInformation("Role {RoleName} assigned to user {UserId} by {Admin}",
                         request.RoleName, id, _userContext.GetCurrentUserEmail());
+
                     return Ok(new ApiResponse<object>
                     {
                         Success = true,
-                        Message = "Роль призначена успішно"
+                        Message = "Роль успешно назначена"
                     });
                 }
+
+                var errorMessage = string.Join("; ", result.Errors.Select(e => e.Description));
+                _logger.LogError("Failed to assign role {RoleName} to user {UserId}: {Errors}",
+                    request.RoleName, id, errorMessage);
 
                 return BadRequest(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Помилка призначення ролі",
-                    Errors = result.Errors.Select(e => e.Description)
+                    Message = "Ошибка назначения роли: " + errorMessage
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error assigning role to user {UserId}", id);
+                _logger.LogError(ex, "Exception in AssignRole for user {UserId}", id);
                 return StatusCode(500, new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Внутрішня помилка сервера"
+                    Message = "Внутренняя ошибка сервера"
                 });
             }
         }
 
+        // Решта методів аналогічно з перевірками _userContext.IsAdministrator()...
 
-        [HttpPost("RemoveRole")]
+        [HttpGet("GetAllRoles")]
         [Authorize]
-        public async Task<ActionResult<ApiResponse<object>>> RemoveRole(string id, [FromBody] AssignRoleRequest request)
+        public async Task<ActionResult<ApiResponse<IEnumerable<RoleDTO>>>> GetAllRoles()
         {
             try
             {
@@ -213,33 +210,41 @@ namespace PL.Controllers
                     return Forbid();
                 }
 
-                var result = await _userService.RemoveRoleFromUserAsync(id, request.RoleName);
-
-                if (result.Succeeded)
+                var roles = await _userService.GetAllRolesAsync();
+                return Ok(new ApiResponse<IEnumerable<RoleDTO>>
                 {
-                    return Ok(new ApiResponse<object>
-                    {
-                        Success = true,
-                        Message = "Роль видалена успішно"
-                    });
-                }
-
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка видалення ролі",
-                    Errors = result.Errors.Select(e => e.Description)
+                    Success = true,
+                    Data = roles,
+                    Message = "Ролі отримані успішно"
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error removing role from user {UserId}", id);
-                return StatusCode(500, new ApiResponse<object>
+                _logger.LogError(ex, "Error getting all roles");
+                return StatusCode(500, new ApiResponse<IEnumerable<RoleDTO>>
                 {
                     Success = false,
-                    Message = "Внутрішня помилка сервера"
+                    Message = "Помилка отримання ролей"
                 });
             }
+        }
+
+        // ДІАГНОСТИЧНИЙ ENDPOINT
+        [HttpGet("TestAuth")]
+        public IActionResult TestAuth()
+        {
+            _logger.LogInformation("=== TestAuth Called ===");
+            _userContext.LogCurrentUserInfo();
+
+            return Ok(new
+            {
+                IsAuthenticated = _userContext.IsAuthenticated(),
+                IsAdministrator = _userContext.IsAdministrator(),
+                Email = _userContext.GetCurrentUserEmail(),
+                UserId = _userContext.GetCurrentUserId(),
+                Roles = _userContext.GetCurrentUserRoles(),
+                Timestamp = DateTime.UtcNow
+            });
         }
     }
 }
