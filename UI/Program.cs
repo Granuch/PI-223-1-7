@@ -9,17 +9,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
 
-// КРИТИЧНО: Data Protection (той самий що в мікросервісах)
 builder.Services.AddDataProtection()
-    .SetApplicationName("LibraryApp") // ТА Ж НАЗВА
-    .PersistKeysToFileSystem(new DirectoryInfo(@"C:\temp\keys")) // ТА Ж ПАПКА
+    .SetApplicationName("LibraryApp")
+    .PersistKeysToFileSystem(new DirectoryInfo(@"C:\temp\keys"))
     .SetDefaultKeyLifetime(TimeSpan.FromDays(30));
 
-// Cookie Authentication з ЗБІЛЬШЕНИМ часом життя
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.Cookie.Name = "LibraryApp.AuthCookie"; // ЕДИНАЯ СИСТЕМА ИМЕН
+        options.Cookie.Name = "LibraryApp.AuthCookie";
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
@@ -28,7 +26,6 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.LoginPath = "/Account/Login";
         options.AccessDeniedPath = "/Account/AccessDenied";
 
-        // Автоматическое продление
         options.Events.OnValidatePrincipal = async context =>
         {
             var timeRemaining = context.Properties.ExpiresUtc.Value - DateTimeOffset.UtcNow;
@@ -39,10 +36,10 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
             }
         };
     });
-// Сесії з ЗБІЛЬШЕНИМ часом життя
+
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromHours(8); // ЗБІЛЬШЕНО до 8 годин
+    options.IdleTimeout = TimeSpan.FromHours(8);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
     options.Cookie.Name = "LibrarySession";
@@ -50,7 +47,6 @@ builder.Services.AddSession(options =>
     options.Cookie.SameSite = SameSiteMode.Lax;
 });
 
-// HttpClient з підтримкою cookies
 builder.Services.AddHttpClient<IApiService, ApiService>(client =>
 {
     var baseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:5003";
@@ -76,9 +72,8 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 
-// ВАЖЛИВО: правильний порядок
 app.UseSession();
-app.UseAuthentication(); // ДОДАНО
+app.UseAuthentication();
 app.UseTokenRefresh();
 app.UseAuthorization();
 
