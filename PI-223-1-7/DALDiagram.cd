@@ -1,0 +1,142 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="PI_223_1_7.DbContext.LibaryDbContextFactory" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="9.25" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAQAAAgAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>DbContext\LibaryDbContextFactory.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="PI_223_1_7.DbContext.LibraryDbContext" Collapsed="true">
+    <Position X="11" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAEAAAAAAAAAAAAAAAAAAAAAkAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>DbContext\LibraryDbContext.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PI_223_1_7.Migrations.LibraryDbContextModelSnapshot" Collapsed="true">
+    <Position X="12.75" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAA=</HashCode>
+      <FileName>Migrations\LibraryDbContextModelSnapshot.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PI_223_1_7.Models.ApplicationRole" Collapsed="true">
+    <Position X="9.25" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAgAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAA=</HashCode>
+      <FileName>Models\ApplicationRole.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PI_223_1_7.Models.ApplicationUser" Collapsed="true">
+    <Position X="11" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAEAAEAAAAAAAAAAACAAAAAAAAAAAAgAAAAAAAAAAAg=</HashCode>
+      <FileName>Models\ApplicationUser.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PI_223_1_7.Models.ApplicationUserRole" Collapsed="true">
+    <Position X="12.75" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAABAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models\ApplicationUserRole.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PI_223_1_7.Models.Book" Collapsed="true">
+    <Position X="14.5" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAECAAAABAAgAAAEgAIAAAQAAAAAAAAAAQAAAAAAAAA=</HashCode>
+      <FileName>Models\Book.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PI_223_1_7.Models.Order" Collapsed="true">
+    <Position X="14.5" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>CAACCAAAAAAAAABAAAAAAAgAAAAAAAAAAQAAAAAAAAA=</HashCode>
+      <FileName>Models\Order.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PI_223_1_7.Patterns.Repository.BookRepository" Collapsed="true">
+    <Position X="5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAEAAEAAEAAAAAAAEAAAAAAAAAAAAAAAAAABAAQA=</HashCode>
+      <FileName>Patterns\Repository\BookRepository.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="PI_223_1_7.Patterns.Repository.OrderRepository" Collapsed="true">
+    <Position X="2.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAQAAAAAAAIAA=</HashCode>
+      <FileName>Patterns\Repository\OrderRepository.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="PI_223_1_7.Patterns.Repository.Repository&lt;T&gt;" Collapsed="true">
+    <Position X="4" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAUAAAAAAAAABAAAAAAAIAEACIEAAAAAAAAAAAAAIAA=</HashCode>
+      <FileName>Patterns\Repository\RepositoryPattern.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="PI_223_1_7.Patterns.UnitOfWork.UnitOfWork" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="6.75" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>IAAAAAABAAAAAIIAAACAAAAAAAAAAAAACAAAAAAAAAA=</HashCode>
+      <FileName>Patterns\UnitOfWork\UnitOfWork.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Interface Name="PI_223_1_7.Patterns.Repository.IBookRepository" Collapsed="true">
+    <Position X="2.75" Y="4" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAEAAEAAAAAAAEAAAAAAAAAAAAAAAAAABAAQA=</HashCode>
+      <FileName>Patterns\Repository\BookRepository.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Interface Name="PI_223_1_7.Patterns.Repository.IOrderRepository" Collapsed="true">
+    <Position X="5" Y="4" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAA=</HashCode>
+      <FileName>Patterns\Repository\OrderRepository.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Interface Name="PI_223_1_7.Patterns.Repository.IRepository&lt;T&gt;" Collapsed="true">
+    <Position X="4" Y="2.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAUAAAAAAAAAAAAAAAAAAAEACIEAAAAAAAAAAAAAIAA=</HashCode>
+      <FileName>Patterns\Repository\RepositoryPattern.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Interface Name="PI_223_1_7.Patterns.UnitOfWork.IUnitOfWork" Collapsed="true">
+    <Position X="9" Y="3" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>IAAAAAABAAAAAAIAAACAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Patterns\UnitOfWork\UnitOfWork.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Enum Name="PI_223_1_7.Enums.BookTypes" Collapsed="true">
+    <Position X="9" Y="4" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAEAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAIAA=</HashCode>
+      <FileName>Enums\BookTypes.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Enum Name="PI_223_1_7.Enums.GenreTypes" Collapsed="true">
+    <Position X="10.75" Y="4" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>hAAAAAABAAAAAIAQAAAAAIIAAAAAAAAAIAAAEAQAAAQ=</HashCode>
+      <FileName>Enums\GenreTypes.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Enum Name="PI_223_1_7.Enums.OrderStatusTypes" Collapsed="true">
+    <Position X="12.5" Y="4" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAACACAAAAIAAAAAAAAAAAAAAAAAAAAAIAAAAAA=</HashCode>
+      <FileName>Enums\OrderStatusTypes.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>

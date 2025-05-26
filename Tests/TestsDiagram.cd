@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="Tests.Mocks.Mocks" Collapsed="true">
+    <Position X="6.75" Y="1.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAIAAAEAAAAAA=</HashCode>
+      <FileName>Mocks\Mocks.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Tests.Services.BookServiceTests" Collapsed="true">
+    <Position X="3.5" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>CADAAAAACAAEIhAAACARARIAAACSwJIQgAAQBAEAAAI=</HashCode>
+      <FileName>Services\BookServiceTests.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Tests.Services.OrderServiceTests" Collapsed="true">
+    <Position X="5.5" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAIAQAACAAIIAgAAAABAACAAACEEAAACCAAAAAAAAA=</HashCode>
+      <FileName>Services\OrderServiceTests.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Tests.Services.UserServiceTests" Collapsed="true">
+    <Position X="7.75" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AggAQBAgCAAYCQAAAAcVAACQACAAAABCFEDEAAYAEAE=</HashCode>
+      <FileName>Services\UserServiceTests.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Tests.TestHelpers.TestDataFactory" Collapsed="true">
+    <Position X="4.75" Y="1.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAIAQAQAAACABAAAAACAAAAAAAAAIAAgAAEAAA=</HashCode>
+      <FileName>TestHelpers\TestDataFactory.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>

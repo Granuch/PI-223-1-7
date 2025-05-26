@@ -1,0 +1,70 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="BLL.Exceptions.BookNotFoundException" Collapsed="true">
+    <Position X="7.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Exeptions\BookExeptions.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="BLL.Exceptions.BookDeleteException" Collapsed="true">
+    <Position X="4" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Exeptions\BookExeptions.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="BLL.Exceptions.BookNotAvailableException" Collapsed="true">
+    <Position X="5.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Exeptions\BookExeptions.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="BLL.Services.BookService" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="4" Y="2.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>IIAAAAQAAIAAAAAiAgAFgAAAAAAAAEAAgIAEAEQAAAE=</HashCode>
+      <FileName>Services\BookService.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="BLL.Services.OrderService" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="5.75" Y="2.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AQAAAQgAAAAYAAAAAIAAAACAAAAAAAAAAAAAAAAAABA=</HashCode>
+      <FileName>Services\OrderService.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="BLL.Services.UserService" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="7.5" Y="2.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAABAAAAAAAAQAAAAADAAAgIAABQBAACCEAAEbEEAE=</HashCode>
+      <FileName>Services\UserService.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Interface Name="BLL.Interfaces.IBookService" Collapsed="true">
+    <Position X="4" Y="4" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>IIAAAAQAAIAAAAAiAAAFgAAAAAAAAEAAgIAEAEQAAAE=</HashCode>
+      <FileName>Interfaces\IBookService.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Interface Name="BLL.Interfaces.IOrderService" Collapsed="true">
+    <Position X="5.75" Y="4" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AQAAAQgAAAAQAAAAAIAAAAAAAAAAAAAAAAAAAAAAABA=</HashCode>
+      <FileName>Interfaces\IOrderService.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Interface Name="BLL.Interfaces.IUserService" Collapsed="true">
+    <Position X="7.5" Y="4" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAQAAAAACAAAAAAABQBAACAAAAEbEEAE=</HashCode>
+      <FileName>Interfaces\IUserService.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>
