@@ -103,7 +103,6 @@ namespace PL.Controllers
                             break;
                     }
                 }
-
                 return Ok(books);
             }
             catch (Exception ex)

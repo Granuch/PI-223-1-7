@@ -505,5 +505,154 @@ namespace UI.Controllers
 
             return RedirectToAction("ManageRoles", new { id = userId });
         }
+
+        [HttpGet]
+        public async Task<IActionResult> DiagnosticAuth()
+        {
+            var logger = HttpContext.RequestServices.GetRequiredService<ILogger<AdminController>>();
+
+            logger.LogInformation("=== DIAGNOSTIC AUTH TEST ===");
+
+            try
+            {
+                using var httpClient = new HttpClient();
+                httpClient.Timeout = TimeSpan.FromSeconds(30);
+
+                // Додаємо cookies вручну
+                var cookieHeader = string.Join("; ", HttpContext.Request.Cookies.Select(c => $"{c.Key}={c.Value}"));
+                httpClient.DefaultRequestHeaders.Add("Cookie", cookieHeader);
+
+                logger.LogInformation("Making direct call to AdminUsers service...");
+                logger.LogInformation("Cookie header length: {Length}", cookieHeader.Length);
+
+                // Test 1: Прямий виклик до AdminUsers сервісу
+                var directResponse = await httpClient.GetAsync("http://localhost:5005/AdminUsers/TestAuth");
+                var directContent = await directResponse.Content.ReadAsStringAsync();
+
+                logger.LogInformation("Direct call result: Status={Status}, Content={Content}",
+                    directResponse.StatusCode, directContent);
+
+                // Test 2: Виклик через Ocelot
+                var ocelotResponse = await httpClient.GetAsync("https://localhost:5003/api/users/testauth");
+                var ocelotContent = await ocelotResponse.Content.ReadAsStringAsync();
+
+                logger.LogInformation("Ocelot call result: Status={Status}, Content={Content}",
+                    ocelotResponse.StatusCode, ocelotContent);
+
+                // Test 3: Виклик GetAllUsers через Ocelot
+                var usersResponse = await httpClient.GetAsync("https://localhost:5003/api/users/getall");
+                var usersContent = await usersResponse.Content.ReadAsStringAsync();
+
+                logger.LogInformation("Users call result: Status={Status}, Content={Content}",
+                    usersResponse.StatusCode, usersContent);
+
+                return Json(new
+                {
+                    Success = true,
+                    Tests = new
+                    {
+                        DirectCall = new
+                        {
+                            Status = directResponse.StatusCode.ToString(),
+                            Content = directContent,
+                            StatusCode = (int)directResponse.StatusCode
+                        },
+                        OcelotTestAuth = new
+                        {
+                            Status = ocelotResponse.StatusCode.ToString(),
+                            Content = ocelotContent,
+                            StatusCode = (int)ocelotResponse.StatusCode
+                        },
+                        OcelotGetUsers = new
+                        {
+                            Status = usersResponse.StatusCode.ToString(),
+                            Content = usersContent,
+                            StatusCode = (int)usersResponse.StatusCode
+                        }
+                    },
+                    CurrentUserInfo = new
+                    {
+                        IsAuthenticated = User.Identity?.IsAuthenticated,
+                        UserName = User.Identity?.Name,
+                        Email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value,
+                        Roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToArray(),
+                        UserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                    },
+                    Cookies = HttpContext.Request.Cookies.Select(c => new {
+                        c.Key,
+                        ValueLength = c.Value.Length,
+                        Value = c.Key == "LibraryApp.AuthCookie" ? c.Value.Substring(0, Math.Min(100, c.Value.Length)) + "..." : "hidden"
+                    }).ToArray(),
+                    CookieHeaderLength = cookieHeader.Length
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error in diagnostic test");
+                return Json(new
+                {
+                    Success = false,
+                    Error = ex.Message,
+                    StackTrace = ex.StackTrace
+                });
+            }
+        }
+
+        [HttpGet]
+        public IActionResult CookieDebug()
+        {
+            var logger = HttpContext.RequestServices.GetRequiredService<ILogger<AdminController>>();
+
+            logger.LogInformation("=== COOKIE DEBUG ===");
+
+            // Детальна інформація про всі cookies
+            var cookieInfo = new Dictionary<string, object>();
+
+            foreach (var cookie in HttpContext.Request.Cookies)
+            {
+                logger.LogInformation("Cookie: {Name} = {Value}", cookie.Key,
+                    cookie.Value.Length > 100 ? cookie.Value.Substring(0, 100) + "..." : cookie.Value);
+
+                cookieInfo[cookie.Key] = new
+                {
+                    Length = cookie.Value.Length,
+                    Value = cookie.Key == "LibraryApp.AuthCookie" ? cookie.Value : "hidden for security"
+                };
+            }
+
+            // Перевіряємо, чи є LibraryApp.AuthCookie
+            var hasAuthCookie = HttpContext.Request.Cookies.ContainsKey("LibraryApp.AuthCookie");
+            var authCookieValue = HttpContext.Request.Cookies["LibraryApp.AuthCookie"];
+
+            logger.LogInformation("Has LibraryApp.AuthCookie: {HasCookie}", hasAuthCookie);
+            if (hasAuthCookie)
+            {
+                logger.LogInformation("LibraryApp.AuthCookie length: {Length}", authCookieValue?.Length ?? 0);
+            }
+
+            // Перевіряємо Claims
+            var claims = User.Claims.Select(c => new { c.Type, c.Value }).ToArray();
+
+            return Json(new
+            {
+                Success = true,
+                HasLibraryAppAuthCookie = hasAuthCookie,
+                LibraryAppAuthCookieLength = authCookieValue?.Length ?? 0,
+                TotalCookies = HttpContext.Request.Cookies.Count,
+                Cookies = cookieInfo,
+                UserInfo = new
+                {
+                    IsAuthenticated = User.Identity?.IsAuthenticated,
+                    Name = User.Identity?.Name,
+                    AuthenticationType = User.Identity?.AuthenticationType,
+                    Claims = claims
+                },
+                Tests = new
+                {
+                    DirectAdminUsersTest = "http://localhost:5005/AdminUsers/SimpleTest",
+                    OcelotDebugTest = "https://localhost:5003/api/users/debug"
+                }
+            });
+        }
     }
 }

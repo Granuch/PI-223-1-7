@@ -1,4 +1,5 @@
-п»їusing Microsoft.AspNetCore.Authorization;
+using Mapping.DTOs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
@@ -34,23 +35,22 @@ namespace PL.Controllers
             _logger = logger;
         }
 
-
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterViewModel model)
         {
-            _logger.LogInformation($"РћС‚СЂРёРјР°РЅРѕ Р·Р°РїРёС‚ РЅР° СЂРµС”СЃС‚СЂР°С†С–СЋ РґР»СЏ {model.Email}");
+            _logger.LogInformation($"Отримано запит на реєстрацію для {model.Email}");
 
             if (ModelState.IsValid)
             {
-                // РџРµСЂРµРІС–СЂСЏС”РјРѕ, С‡Рё РЅРµ С–СЃРЅСѓС” РІР¶Рµ С‚Р°РєРёР№ РєРѕСЂРёСЃС‚СѓРІР°С‡
+                // Перевіряємо, чи не існує вже такий користувач
                 var existingUser = await _userManager.FindByEmailAsync(model.Email);
                 if (existingUser != null)
                 {
-                    _logger.LogWarning($"РљРѕСЂРёСЃС‚СѓРІР°С‡ Р· email {model.Email} РІР¶Рµ С–СЃРЅСѓС”");
+                    _logger.LogWarning($"Користувач з email {model.Email} вже існує");
                     return BadRequest(new
                     {
                         success = false,
-                        message = "РљРѕСЂРёСЃС‚СѓРІР°С‡ Р· С‚Р°РєРёРј email РІР¶Рµ С–СЃРЅСѓС”"
+                        message = "Користувач з таким email вже існує"
                     });
                 }
 
@@ -68,25 +68,25 @@ namespace PL.Controllers
 
                 if (result.Succeeded)
                 {
-                    _logger.LogInformation($"РљРѕСЂРёСЃС‚СѓРІР°С‡ {user.Email} СѓСЃРїС–С€РЅРѕ Р·Р°СЂРµС”СЃС‚СЂРѕРІР°РЅРёР№");
+                    _logger.LogInformation($"Користувач {user.Email} успішно зареєстрований");
 
-                    // Р”РѕРґР°С”РјРѕ СЂРѕР»СЊ
+                    // Додаємо роль
                     await _userManager.AddToRoleAsync(user, "RegisteredUser");
 
-                    // Р”РћР”РђРќРћ: Р’РёРєРѕРЅСѓС”РјРѕ Cookie РІС…С–Рґ РґР»СЏ MVC С‡Р°СЃС‚РёРЅРё
+                    // ДОДАНО: Виконуємо Cookie вхід для MVC частини
                     await _signInManager.SignInAsync(user, isPersistent: false);
 
-                    // Р”РћР”РђРќРћ: Р“РµРЅРµСЂСѓС”РјРѕ JWT С‚РѕРєРµРЅ РґР»СЏ API
+                    // ДОДАНО: Генеруємо JWT токен для API
                     var token = await GenerateJwtToken(user);
                     var roles = await _userManager.GetRolesAsync(user);
 
-                    _logger.LogInformation($"РђРІС‚РѕРјР°С‚РёС‡РЅРёР№ РІС…С–Рґ РґР»СЏ {user.Email} РїС–СЃР»СЏ СЂРµС”СЃС‚СЂР°С†С–С—");
+                    _logger.LogInformation($"Автоматичний вхід для {user.Email} після реєстрації");
 
                     return Ok(new
                     {
                         success = true,
-                        message = "Р РµС”СЃС‚СЂР°С†С–СЏ РїСЂРѕР№С€Р»Р° СѓСЃРїС–С€РЅРѕ",
-                        token = token, // Р”РћР”РђРќРћ: JWT С‚РѕРєРµРЅ
+                        message = "Реєстрація пройшла успішно",
+                        token = token, // ДОДАНО: JWT токен
                         user = new
                         {
                             id = user.Id,
@@ -99,7 +99,7 @@ namespace PL.Controllers
                     });
                 }
 
-                _logger.LogWarning($"РџРѕРјРёР»РєР° РїСЂРё СЂРµС”СЃС‚СЂР°С†С–С— РєРѕСЂРёСЃС‚СѓРІР°С‡Р° {model.Email}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                _logger.LogWarning($"Помилка при реєстрації користувача {model.Email}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
                 return BadRequest(new
                 {
                     success = false,
@@ -107,7 +107,7 @@ namespace PL.Controllers
                 });
             }
 
-            _logger.LogWarning($"РќРµРїСЂР°РІРёР»СЊРЅР° РјРѕРґРµР»СЊ РґР°РЅРёС… РґР»СЏ СЂРµС”СЃС‚СЂР°С†С–С—: {string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage))}");
+            _logger.LogWarning($"Неправильна модель даних для реєстрації: {string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage))}");
             return BadRequest(new
             {
                 success = false,
@@ -118,11 +118,11 @@ namespace PL.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginViewModel model)
         {
-            _logger.LogInformation($"РћС‚СЂРёРјР°РЅРѕ Р·Р°РїРёС‚ РЅР° РІС…С–Рґ РґР»СЏ РєРѕСЂРёСЃС‚СѓРІР°С‡Р°: {model.Email}");
+            _logger.LogInformation($"Отримано запит на вхід для користувача: {model.Email}");
 
             if (!ModelState.IsValid)
             {
-                _logger.LogWarning($"РќРµРїСЂР°РІРёР»СЊРЅР° РјРѕРґРµР»СЊ РґР°РЅРёС… РґР»СЏ РІС…РѕРґСѓ: {string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage))}");
+                _logger.LogWarning($"Неправильна модель даних для входу: {string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage))}");
                 return BadRequest(new
                 {
                     success = false,
@@ -130,27 +130,27 @@ namespace PL.Controllers
                 });
             }
 
-            // РЇРІРЅРѕ С€СѓРєР°С”РјРѕ РєРѕСЂРёСЃС‚СѓРІР°С‡Р° Р·Р° Email
+            // Явно шукаємо користувача за Email
             var user = await _userManager.FindByEmailAsync(model.Email);
             if (user == null)
             {
-                _logger.LogWarning($"РљРѕСЂРёСЃС‚СѓРІР°С‡ Р· email {model.Email} РЅРµ Р·РЅР°Р№РґРµРЅРёР№ РІ Р±Р°Р·С– РґР°РЅРёС…");
-                return BadRequest(new { success = false, message = "РќРµРІС–СЂРЅРёР№ Р»РѕРіС–РЅ Р°Р±Рѕ РїР°СЂРѕР»СЊ" });
+                _logger.LogWarning($"Користувач з email {model.Email} не знайдений в базі даних");
+                return BadRequest(new { success = false, message = "Невірний логін або пароль" });
             }
 
-            _logger.LogInformation($"Р—РЅР°Р№РґРµРЅРѕ РєРѕСЂРёСЃС‚СѓРІР°С‡Р°: ID={user.Id}, UserName={user.UserName}");
+            _logger.LogInformation($"Знайдено користувача: ID={user.Id}, UserName={user.UserName}");
 
-            // РџРµСЂРµРІС–СЂРєР° РїР°СЂРѕР»СЋ
+            // Перевірка паролю
             var isPasswordValid = await _userManager.CheckPasswordAsync(user, model.Password);
             if (!isPasswordValid)
             {
-                _logger.LogWarning($"РќРµРїСЂР°РІРёР»СЊРЅРёР№ РїР°СЂРѕР»СЊ РґР»СЏ РєРѕСЂРёСЃС‚СѓРІР°С‡Р° {model.Email}");
-                return BadRequest(new { success = false, message = "РќРµРІС–СЂРЅРёР№ Р»РѕРіС–РЅ Р°Р±Рѕ РїР°СЂРѕР»СЊ" });
+                _logger.LogWarning($"Неправильний пароль для користувача {model.Email}");
+                return BadRequest(new { success = false, message = "Невірний логін або пароль" });
             }
 
-            _logger.LogInformation($"РџР°СЂРѕР»СЊ РїС–РґС‚РІРµСЂРґР¶РµРЅРѕ РґР»СЏ {model.Email}, РІРёРєРѕРЅСѓС”С‚СЊСЃСЏ РІС…С–Рґ");
+            _logger.LogInformation($"Пароль підтверджено для {model.Email}, виконується вхід");
 
-            // РћРќРћР’Р›Р•РќРћ: Р’РёРєРѕРЅСѓС”РјРѕ Cookie РІС…С–Рґ РґР»СЏ MVC С‡Р°СЃС‚РёРЅРё
+            // ОНОВЛЕНО: Виконуємо Cookie вхід для MVC частини
             var signInResult = await _signInManager.PasswordSignInAsync(
                 user.UserName,
                 model.Password,
@@ -160,16 +160,16 @@ namespace PL.Controllers
             if (signInResult.Succeeded)
             {
                 var roles = await _userManager.GetRolesAsync(user);
-                _logger.LogInformation($"РљРѕСЂРёСЃС‚СѓРІР°С‡ {model.Email} СѓСЃРїС–С€РЅРѕ СѓРІС–Р№С€РѕРІ. Р РѕР»С–: {string.Join(", ", roles)}");
+                _logger.LogInformation($"Користувач {model.Email} успішно увійшов. Ролі: {string.Join(", ", roles)}");
 
-                // Р”РћР”РђРќРћ: Р“РµРЅРµСЂСѓС”РјРѕ JWT С‚РѕРєРµРЅ РґР»СЏ API Р·Р°РїРёС‚С–РІ
+                // ДОДАНО: Генеруємо JWT токен для API запитів
                 var token = await GenerateJwtToken(user);
 
                 return Ok(new
                 {
                     success = true,
-                    message = "Р’С…С–Рґ РІРёРєРѕРЅР°РЅРѕ СѓСЃРїС–С€РЅРѕ",
-                    token = token, // Р”РћР”РђРќРћ: JWT С‚РѕРєРµРЅ
+                    message = "Вхід виконано успішно",
+                    token = token, // ДОДАНО: JWT токен
                     user = new
                     {
                         id = user.Id,
@@ -182,24 +182,24 @@ namespace PL.Controllers
                 });
             }
 
-            // Р”РµС‚Р°Р»СЊРЅРµ Р»РѕРіСѓРІР°РЅРЅСЏ РїСЂРёС‡РёРЅРё РЅРµРІРґР°С‡С–
-            _logger.LogWarning($"РќРµРІРґР°Р»Р° СЃРїСЂРѕР±Р° РІС…РѕРґСѓ РґР»СЏ {model.Email}. " +
+            // Детальне логування причини невдачі
+            _logger.LogWarning($"Невдала спроба входу для {model.Email}. " +
                 $"IsLockedOut: {signInResult.IsLockedOut}, " +
                 $"IsNotAllowed: {signInResult.IsNotAllowed}, " +
                 $"RequiresTwoFactor: {signInResult.RequiresTwoFactor}");
 
-            string errorMessage = "РќРµРІС–СЂРЅРёР№ Р»РѕРіС–РЅ Р°Р±Рѕ РїР°СЂРѕР»СЊ";
+            string errorMessage = "Невірний логін або пароль";
             if (signInResult.IsLockedOut)
-                errorMessage = "РћР±Р»С–РєРѕРІРёР№ Р·Р°РїРёСЃ С‚РёРјС‡Р°СЃРѕРІРѕ Р·Р°Р±Р»РѕРєРѕРІР°РЅРѕ. РЎРїСЂРѕР±СѓР№С‚Рµ РїС–Р·РЅС–С€Рµ.";
+                errorMessage = "Обліковий запис тимчасово заблоковано. Спробуйте пізніше.";
             else if (signInResult.IsNotAllowed)
-                errorMessage = "Р’С…С–Рґ Р·Р°Р±РѕСЂРѕРЅРµРЅРѕ. РњРѕР¶Р»РёРІРѕ, РїРѕС‚СЂС–Р±РЅРѕ РїС–РґС‚РІРµСЂРґРёС‚Рё email.";
+                errorMessage = "Вхід заборонено. Можливо, потрібно підтвердити email.";
             else if (signInResult.RequiresTwoFactor)
-                errorMessage = "РџРѕС‚СЂС–Р±РЅР° РґРІРѕС„Р°РєС‚РѕСЂРЅР° Р°РІС‚РµРЅС‚РёС„С–РєР°С†С–СЏ.";
+                errorMessage = "Потрібна двофакторна автентифікація.";
 
             return BadRequest(new { success = false, message = errorMessage });
         }
 
-        // Р”РћР”РђРќРћ: РњРµС‚РѕРґ РґР»СЏ РіРµРЅРµСЂР°С†С–С— JWT С‚РѕРєРµРЅС–РІ
+        // ДОДАНО: Метод для генерації JWT токенів
         private async Task<string> GenerateJwtToken(ApplicationUser user)
         {
             var roles = await _userManager.GetRolesAsync(user);
@@ -213,7 +213,7 @@ namespace PL.Controllers
                 new Claim("LastName", user.LastName ?? "")
             };
 
-            // Р”РѕРґР°С”РјРѕ СЂРѕР»С– СЏРє claims
+            // Додаємо ролі як claims
             foreach (var role in roles)
             {
                 claims.Add(new Claim(ClaimTypes.Role, role));
@@ -226,7 +226,7 @@ namespace PL.Controllers
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddDays(7), // РўРѕРєРµРЅ РґС–Р№СЃРЅРёР№ 7 РґРЅС–РІ
+                Expires = DateTime.UtcNow.AddDays(7), // Токен дійсний 7 днів
                 SigningCredentials = credentials
             };
 
@@ -240,7 +240,7 @@ namespace PL.Controllers
         public IActionResult TestAuth()
         {
             bool isAuthenticated = User?.Identity?.IsAuthenticated ?? false;
-            string userName = User?.Identity?.Name ?? "РќРµ Р°РІС‚РµРЅС‚РёС„С–РєРѕРІР°РЅРѕ";
+            string userName = User?.Identity?.Name ?? "Не автентифіковано";
             var claims = User?.Claims?.Select(c => new { type = c.Type, value = c.Value }).ToList();
 
             return Ok(new
@@ -254,33 +254,33 @@ namespace PL.Controllers
         [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {
-            string email = User.Identity?.IsAuthenticated == true ? User.Identity.Name : "РђРЅРѕРЅС–РјРЅРёР№ РєРѕСЂРёСЃС‚СѓРІР°С‡";
-            _logger.LogInformation($"РћС‚СЂРёРјР°РЅРѕ Р·Р°РїРёС‚ РЅР° РІРёС…С–Рґ С–Р· СЃРёСЃС‚РµРјРё РґР»СЏ РєРѕСЂРёСЃС‚СѓРІР°С‡Р° {email}");
+            string email = User.Identity?.IsAuthenticated == true ? User.Identity.Name : "Анонімний користувач";
+            _logger.LogInformation($"Отримано запит на вихід із системи для користувача {email}");
 
             await _signInManager.SignOutAsync();
-            _logger.LogInformation($"РљРѕСЂРёСЃС‚СѓРІР°С‡ {email} РІРёР№С€РѕРІ С–Р· СЃРёСЃС‚РµРјРё");
+            _logger.LogInformation($"Користувач {email} вийшов із системи");
 
-            return Ok(new { success = true, message = "Р’РёС…С–Рґ РІРёРєРѕРЅР°РЅРѕ СѓСЃРїС–С€РЅРѕ" });
+            return Ok(new { success = true, message = "Вихід виконано успішно" });
         }
 
         [HttpGet("status")]
         public async Task<IActionResult> CheckAuthStatus()
         {
-            _logger.LogInformation("РћС‚СЂРёРјР°РЅРѕ Р·Р°РїРёС‚ РЅР° РїРµСЂРµРІС–СЂРєСѓ СЃС‚Р°С‚СѓСЃСѓ Р°РІС‚РµРЅС‚РёС„С–РєР°С†С–С—");
+            _logger.LogInformation("Отримано запит на перевірку статусу автентифікації");
 
             if (User.Identity?.IsAuthenticated == true)
             {
-                _logger.LogInformation($"РђРІС‚РµРЅС‚РёС„С–РєРѕРІР°РЅРёР№ РєРѕСЂРёСЃС‚СѓРІР°С‡: {User.Identity.Name}");
+                _logger.LogInformation($"Автентифікований користувач: {User.Identity.Name}");
 
                 var user = await _userManager.GetUserAsync(User);
                 if (user == null)
                 {
-                    _logger.LogWarning($"РљРѕСЂРёСЃС‚СѓРІР°С‡ Р°РІС‚РµРЅС‚РёС„С–РєРѕРІР°РЅРёР№ ({User.Identity.Name}), Р°Р»Рµ РЅРµ Р·РЅР°Р№РґРµРЅРёР№ РІ Р±Р°Р·С– РґР°РЅРёС…");
+                    _logger.LogWarning($"Користувач автентифікований ({User.Identity.Name}), але не знайдений в базі даних");
                     return Ok(new { isAuthenticated = false });
                 }
 
                 var roles = await _userManager.GetRolesAsync(user);
-                _logger.LogInformation($"РЎС‚Р°С‚СѓСЃ Р°РІС‚РµРЅС‚РёС„С–РєР°С†С–С— РґР»СЏ {user.Email}: Р°РІС‚РµРЅС‚РёС„С–РєРѕРІР°РЅРёР№. Р РѕР»С–: {string.Join(", ", roles)}");
+                _logger.LogInformation($"Статус автентифікації для {user.Email}: автентифікований. Ролі: {string.Join(", ", roles)}");
 
                 return Ok(new
                 {
@@ -297,11 +297,11 @@ namespace PL.Controllers
                 });
             }
 
-            _logger.LogInformation("РџРµСЂРµРІС–СЂРєР° СЃС‚Р°С‚СѓСЃСѓ: РєРѕСЂРёСЃС‚СѓРІР°С‡ РЅРµ Р°РІС‚РµРЅС‚РёС„С–РєРѕРІР°РЅРёР№");
+            _logger.LogInformation("Перевірка статусу: користувач не автентифікований");
             return Ok(new { isAuthenticated = false });
         }
 
-        // Р”РћР”РђРќРћ: Endpoint РґР»СЏ РїРµСЂРµРІС–СЂРєРё JWT С‚РѕРєРµРЅСѓ
+        // ДОДАНО: Endpoint для перевірки JWT токену
         [HttpGet("me")]
         [Microsoft.AspNetCore.Authorization.Authorize]
         public async Task<IActionResult> GetCurrentUser()
@@ -311,13 +311,13 @@ namespace PL.Controllers
                 var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
                 if (string.IsNullOrEmpty(userEmail))
                 {
-                    return BadRequest(new { success = false, message = "РќРµ РІРґР°Р»РѕСЃСЏ РѕС‚СЂРёРјР°С‚Рё РґР°РЅС– РєРѕСЂРёСЃС‚СѓРІР°С‡Р°" });
+                    return BadRequest(new { success = false, message = "Не вдалося отримати дані користувача" });
                 }
 
                 var user = await _userManager.FindByEmailAsync(userEmail);
                 if (user == null)
                 {
-                    return NotFound(new { success = false, message = "РљРѕСЂРёСЃС‚СѓРІР°С‡Р° РЅРµ Р·РЅР°Р№РґРµРЅРѕ" });
+                    return NotFound(new { success = false, message = "Користувача не знайдено" });
                 }
 
                 var roles = await _userManager.GetRolesAsync(user);
@@ -339,7 +339,7 @@ namespace PL.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting current user from JWT token");
-                return StatusCode(500, new { success = false, message = "Р’РЅСѓС‚СЂС–С€РЅСЏ РїРѕРјРёР»РєР° СЃРµСЂРІРµСЂР°" });
+                return StatusCode(500, new { success = false, message = "Внутрішня помилка сервера" });
             }
         }
 
@@ -359,7 +359,7 @@ namespace PL.Controllers
                     return Unauthorized(new ApiResponse<object>
                     {
                         Success = false,
-                        Message = "РљРѕСЂРёСЃС‚СѓРІР°С‡ РЅРµ Р°РІС‚РѕСЂРёР·РѕРІР°РЅРёР№"
+                        Message = "Користувач не авторизований"
                     });
                 }
 
@@ -370,11 +370,11 @@ namespace PL.Controllers
                     return Unauthorized(new ApiResponse<object>
                     {
                         Success = false,
-                        Message = "РљРѕСЂРёСЃС‚СѓРІР°С‡ РЅРµ Р·РЅР°Р№РґРµРЅРёР№"
+                        Message = "Користувач не знайдений"
                     });
                 }
 
-                // РћРЅРѕРІР»СЋС”РјРѕ cookie Р°РІС‚РѕСЂРёР·Р°С†С–С—
+                // Оновлюємо cookie авторизації
                 await _signInManager.RefreshSignInAsync(user);
 
                 _logger.LogInformation("Session refreshed for user: {Email}", user.Email);
@@ -382,7 +382,7 @@ namespace PL.Controllers
                 return Ok(new ApiResponse<object>
                 {
                     Success = true,
-                    Message = "РЎРµСЃС–СЏ РѕРЅРѕРІР»РµРЅР° СѓСЃРїС–С€РЅРѕ"
+                    Message = "Сесія оновлена успішно"
                 });
             }
             catch (Exception ex)
@@ -391,7 +391,7 @@ namespace PL.Controllers
                 return StatusCode(500, new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "РџРѕРјРёР»РєР° РѕРЅРѕРІР»РµРЅРЅСЏ СЃРµСЃС–С—"
+                    Message = "Помилка оновлення сесії"
                 });
             }
         }
@@ -408,7 +408,7 @@ namespace PL.Controllers
                     return BadRequest(new ApiResponse<object>
                     {
                         Success = false,
-                        Message = "Email РѕР±РѕРІ'СЏР·РєРѕРІРёР№"
+                        Message = "Email обов'язковий"
                     });
                 }
 
@@ -419,11 +419,11 @@ namespace PL.Controllers
                     return BadRequest(new ApiResponse<object>
                     {
                         Success = false,
-                        Message = "РљРѕСЂРёСЃС‚СѓРІР°С‡ РЅРµ Р·РЅР°Р№РґРµРЅРёР№"
+                        Message = "Користувач не знайдений"
                     });
                 }
 
-                // РџС–РґРїРёСЃСѓС”РјРѕ РєРѕСЂРёСЃС‚СѓРІР°С‡Р° Р·РЅРѕРІСѓ Р· РґРѕРІРіРёРј С‚РµСЂРјС–РЅРѕРј
+                // Підписуємо користувача знову з довгим терміном
                 await _signInManager.SignInAsync(user, isPersistent: true);
 
                 _logger.LogInformation("Session refreshed for user: {Email}", user.Email);
@@ -431,7 +431,7 @@ namespace PL.Controllers
                 return Ok(new ApiResponse<object>
                 {
                     Success = true,
-                    Message = "РЎРµСЃС–СЏ РѕРЅРѕРІР»РµРЅР° СѓСЃРїС–С€РЅРѕ"
+                    Message = "Сесія оновлена успішно"
                 });
             }
             catch (Exception ex)
@@ -440,7 +440,7 @@ namespace PL.Controllers
                 return StatusCode(500, new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "РџРѕРјРёР»РєР° РѕРЅРѕРІР»РµРЅРЅСЏ СЃРµСЃС–С—"
+                    Message = "Помилка оновлення сесії"
                 });
             }
         }

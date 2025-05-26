@@ -1,0 +1,512 @@
+﻿<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест авторизації та реєстрації</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        input[type="text"], input[type="email"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .checkbox-container input {
+            margin-right: 10px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        .tab.active {
+            border-bottom: 2px solid #3498db;
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .status-box {
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .user-info {
+            background-color: #e2f0fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            border: 1px solid #b8daff;
+        }
+        pre {
+            background-color: #f7f7f7;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        #testEndpoints {
+            margin-top: 30px;
+        }
+        .endpoint-result {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f7f7f7;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Тест авторизації та реєстрації</h1>
+        
+        <div class="card">
+            <div class="tabs">
+                <div class="tab active" data-tab="login">Вхід</div>
+                <div class="tab" data-tab="register">Реєстрація</div>
+                <div class="tab" data-tab="status">Статус автентифікації</div>
+            </div>
+            
+            <!-- Форма входу -->
+            <div id="loginTab" class="tab-content active">
+                <h2>Вхід в систему</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="loginEmail">Email:</label>
+                        <input type="email" id="loginEmail" required placeholder="example@email.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="loginPassword">Пароль:</label>
+                        <input type="password" id="loginPassword" required>
+                    </div>
+                    
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="rememberMe">
+                        <label for="rememberMe">Запам'ятати мене</label>
+                    </div>
+                    
+                    <button type="submit">Увійти</button>
+                </form>
+                <div id="loginStatus" class="status-box"></div>
+            </div>
+            
+            <!-- Форма реєстрації -->
+            <div id="registerTab" class="tab-content">
+                <h2>Реєстрація нового користувача</h2>
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="registerEmail">Email:</label>
+                        <input type="email" id="registerEmail" required placeholder="example@email.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="firstName">Ім'я:</label>
+                        <input type="text" id="firstName" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="lastName">Прізвище:</label>
+                        <input type="text" id="lastName" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="registerPassword">Пароль:</label>
+                        <input type="password" id="registerPassword" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="confirmPassword">Підтвердження паролю:</label>
+                        <input type="password" id="confirmPassword" required>
+                    </div>
+                    
+                    <button type="submit">Зареєструватися</button>
+                </form>
+                <div id="registerStatus" class="status-box"></div>
+            </div>
+            
+            <!-- Перевірка статусу -->
+            <div id="statusTab" class="tab-content">
+                <h2>Перевірка статусу автентифікації</h2>
+                <button id="checkStatus">Перевірити статус</button>
+                <div id="authStatus" class="status-box"></div>
+                <div id="userInfo" class="user-info" style="display: none;">
+                    <h3>Інформація про користувача</h3>
+                    <div id="userInfoContent"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card" id="testEndpoints">
+            <h2>Тестування ендпоінтів з авторизацією</h2>
+            <p>Перевірка доступу до захищених ресурсів:</p>
+            
+            <div class="form-group">
+                <button id="testSecureEndpoint">Тест захищеного ресурсу</button>
+                <div id="secureResult" class="endpoint-result"></div>
+            </div>
+            
+            <div class="form-group">
+                <button id="testAdminEndpoint">Тест адміністративного ресурсу</button>
+                <div id="adminResult" class="endpoint-result"></div>
+            </div>
+            
+            <div class="form-group">
+                <button id="logoutButton">Вийти з системи</button>
+                <div id="logoutResult" class="endpoint-result"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Базовий URL API
+        const apiBaseUrl = '/api'; // Змініть на свій URL API, якщо він відрізняється
+        
+        // Переключення вкладок
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Видалення класу active зі всіх вкладок і контенту
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                // Додавання класу active до поточної вкладки і контенту
+                tab.classList.add('active');
+                document.getElementById(`${tab.getAttribute('data-tab')}Tab`).classList.add('active');
+            });
+        });
+        
+        // Обробка форми входу з детальною діагностикою
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const loginData = {
+                Email: document.getElementById('loginEmail').value,
+                Password: document.getElementById('loginPassword').value,
+                RememberMe: document.getElementById('rememberMe').checked,
+                ReturnUrl: "/"
+            };
+
+
+            console.log('Спроба входу з даними:', loginData);
+
+            const statusBox = document.getElementById('loginStatus');
+            statusBox.textContent = 'Виконується запит...';
+            statusBox.className = 'status-box';
+            statusBox.style.display = 'block';
+
+            try {
+                console.log('Відправка запиту на:', `${apiBaseUrl}/account/login`);
+
+                const response = await fetch(`${apiBaseUrl}/account/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(loginData),
+                    credentials: 'include'
+                });
+
+                console.log('Статус відповіді:', response.status, response.statusText);
+
+                // Якщо відповідь не JSON - виведемо текст
+                const contentType = response.headers.get('content-type');
+                let result;
+
+                if (contentType && contentType.includes('application/json')) {
+                    result = await response.json();
+                    console.log('Відповідь JSON:', result);
+                } else {
+                    const textResult = await response.text();
+                    console.log('Відповідь TEXT:', textResult);
+                    result = { message: `Сервер повернув не-JSON відповідь: ${textResult.substring(0, 100)}...` };
+                }
+
+                if (response.ok) {
+                    statusBox.className = 'status-box success';
+                    statusBox.textContent = result.message || 'Вхід виконано успішно';
+                    statusBox.style.display = 'block';
+
+                    // Відображення інформації про користувача
+                    console.log('Інформація про користувача:', result.user);
+                    showUserInfo(result.user);
+                } else {
+                    statusBox.className = 'status-box error';
+                    let errorMessage = 'Помилка входу';
+
+                    if (result.message) {
+                        errorMessage = result.message;
+                    } else if (result.errors) {
+                        const errors = result.errors;
+                        errorMessage = Object.keys(errors)
+                            .map(field => `${field}: ${errors[field].join(', ')}`)
+                            .join('\n');
+                    }
+
+                    statusBox.textContent = errorMessage;
+                    statusBox.style.display = 'block';
+                    console.error('Помилка входу:', errorMessage);
+                }
+            } catch (error) {
+                statusBox.className = 'status-box error';
+                statusBox.textContent = `Помилка: ${error.message}`;
+                statusBox.style.display = 'block';
+                console.error('Виникло виключення:', error);
+            }
+        });
+        
+        // Обробка форми реєстрації
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const password = document.getElementById('registerPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (password !== confirmPassword) {
+                const statusBox = document.getElementById('registerStatus');
+                statusBox.className = 'status-box error';
+                statusBox.textContent = 'Паролі не співпадають';
+                statusBox.style.display = 'block';
+                return;
+            }
+            
+            const registerData = {
+                email: document.getElementById('registerEmail').value,
+                firstName: document.getElementById('firstName').value,
+                lastName: document.getElementById('lastName').value,
+                password: password,
+                confirmPassword: confirmPassword
+            };
+            
+            try {
+                const response = await fetch(`${apiBaseUrl}/account/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(registerData),
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                const statusBox = document.getElementById('registerStatus');
+                
+                if (response.ok) {
+                    statusBox.className = 'status-box success';
+                    statusBox.textContent = result.message || 'Реєстрація пройшла успішно';
+                    statusBox.style.display = 'block';
+                    document.getElementById('registerForm').reset();
+                } else {
+                    statusBox.className = 'status-box error';
+                    let errorMessage = 'Помилка реєстрації';
+                    if (result.errors) {
+                        errorMessage += ': ' + (Array.isArray(result.errors) ? result.errors.join(', ') : result.errors);
+                    }
+                    statusBox.textContent = errorMessage;
+                    statusBox.style.display = 'block';
+                }
+            } catch (error) {
+                const statusBox = document.getElementById('registerStatus');
+                statusBox.className = 'status-box error';
+                statusBox.textContent = `Помилка: ${error.message}`;
+                statusBox.style.display = 'block';
+            }
+        });
+        
+        // Перевірка статусу автентифікації
+        document.getElementById('checkStatus').addEventListener('click', async () => {
+            try {
+                const response = await fetch(`${apiBaseUrl}/account/status`, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                const statusBox = document.getElementById('authStatus');
+                const userInfoBox = document.getElementById('userInfo');
+                const userInfoContent = document.getElementById('userInfoContent');
+                
+                if (result.isAuthenticated) {
+                    statusBox.className = 'status-box success';
+                    statusBox.textContent = 'Ви автентифіковані';
+                    statusBox.style.display = 'block';
+                    
+                    // Відображення інформації про користувача
+                    showUserInfo(result.user);
+                } else {
+                    statusBox.className = 'status-box error';
+                    statusBox.textContent = 'Ви не автентифіковані';
+                    statusBox.style.display = 'block';
+                    userInfoBox.style.display = 'none';
+                }
+            } catch (error) {
+                const statusBox = document.getElementById('authStatus');
+                statusBox.className = 'status-box error';
+                statusBox.textContent = `Помилка: ${error.message}`;
+                statusBox.style.display = 'block';
+            }
+        });
+        
+        // Відображення інформації про користувача
+        function showUserInfo(user) {
+            if (!user) return;
+            
+            const userInfoBox = document.getElementById('userInfo');
+            const userInfoContent = document.getElementById('userInfoContent');
+            
+            const userInfo = `
+                <p><strong>Email:</strong> ${user.email}</p>
+                <p><strong>Ім'я:</strong> ${user.firstName}</p>
+                <p><strong>Прізвище:</strong> ${user.lastName}</p>
+                <p><strong>Ролі:</strong> ${user.roles ? user.roles.join(', ') : 'Не визначено'}</p>
+            `;
+            
+            userInfoContent.innerHTML = userInfo;
+            userInfoBox.style.display = 'block';
+        }
+        
+        // Тест захищеного ресурсу
+        document.getElementById('testSecureEndpoint').addEventListener('click', async () => {
+            try {
+                const response = await fetch(`${apiBaseUrl}/secure`, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                const resultElement = document.getElementById('secureResult');
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    resultElement.textContent = `Успіх: ${result.message}`;
+                    resultElement.className = 'endpoint-result success';
+                } else {
+                    resultElement.textContent = `Помилка: ${response.status} ${response.statusText}`;
+                    resultElement.className = 'endpoint-result error';
+                }
+            } catch (error) {
+                const resultElement = document.getElementById('secureResult');
+                resultElement.textContent = `Помилка: ${error.message}`;
+                resultElement.className = 'endpoint-result error';
+            }
+        });
+        
+        // Тест адміністративного ресурсу
+        document.getElementById('testAdminEndpoint').addEventListener('click', async () => {
+            try {
+                const response = await fetch(`${apiBaseUrl}/admin`, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                const resultElement = document.getElementById('adminResult');
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    resultElement.textContent = `Успіх: ${result.message}`;
+                    resultElement.className = 'endpoint-result success';
+                } else {
+                    resultElement.textContent = `Помилка: ${response.status} ${response.statusText}`;
+                    resultElement.className = 'endpoint-result error';
+                }
+            } catch (error) {
+                const resultElement = document.getElementById('adminResult');
+                resultElement.textContent = `Помилка: ${error.message}`;
+                resultElement.className = 'endpoint-result error';
+            }
+        });
+        
+        // Вихід з системи
+        document.getElementById('logoutButton').addEventListener('click', async () => {
+            try {
+                const response = await fetch(`${apiBaseUrl}/account/logout`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                
+                const resultElement = document.getElementById('logoutResult');
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    resultElement.textContent = `Успіх: ${result.message}`;
+                    resultElement.className = 'endpoint-result success';
+                    
+                    // Оновлення інтерфейсу після виходу
+                    document.getElementById('userInfo').style.display = 'none';
+                } else {
+                    resultElement.textContent = `Помилка: ${response.status} ${response.statusText}`;
+                    resultElement.className = 'endpoint-result error';
+                }
+            } catch (error) {
+                const resultElement = document.getElementById('logoutResult');
+                resultElement.textContent = `Помилка: ${error.message}`;
+                resultElement.className = 'endpoint-result error';
+            }
+        });
+    </script>
+</body>
+</html>
