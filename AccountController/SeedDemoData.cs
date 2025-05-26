@@ -22,10 +22,8 @@ public class SeedDemoData
         {
             Console.WriteLine("Starting database seeding...");
 
-            // Try direct database approach if services aren't working properly
             var unitOfWork = serviceProvider.GetService<IUnitOfWork>();
 
-            // Try to get mapper
             var mapper = serviceProvider.GetService<AutoMapper.IMapper>();
             if (mapper == null)
             {
@@ -33,29 +31,23 @@ public class SeedDemoData
                 return;
             }
 
-            // Create book service
             var bookService = new BookService(unitOfWork, mapper);
 
-            // Try to get Identity services if available
             try
             {
                 var userManager = serviceProvider.GetService<UserManager<ApplicationUser>>();
                 var roleManager = serviceProvider.GetService<RoleManager<ApplicationRole>>();
 
-                // Only seed users and roles if Identity is configured
                 if (userManager != null && roleManager != null)
                 {
                     Console.WriteLine("Seeding users and roles...");
-                    // Initialize roles and admin user
                     await PL.Controllers.RoleInitializer.InitializeAsync(userManager, roleManager);
 
-                    // Create additional demo users
                     await CreateDemoUsers(userManager);
                 }
             }
             catch (Exception ex)
             {
-                // Log the error but continue with book seeding
                 Console.WriteLine($"Identity services not available. Skipping user and role seeding. Error: {ex.Message}");
             }
 
@@ -83,7 +75,7 @@ public class SeedDemoData
             {
                 Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
             }
-            throw; // Re-throw to allow calling code to handle the error
+            throw;
         }
     }
 
@@ -122,7 +114,6 @@ public class SeedDemoData
             }
         }
 
-        // Create regular users
         var regularUsers = new List<(string email, string password, string firstName, string lastName)>
         {
             ("user1@example.com", "User123!", "John", "Doe"),

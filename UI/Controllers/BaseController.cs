@@ -18,10 +18,9 @@ namespace UI.Controllers
         public override async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
         {
             var logger = HttpContext.RequestServices.GetRequiredService<ILogger<BaseController>>();
-            logger.LogInformation("BaseController: Перевірка автентифікації для {Controller}/{Action}",
+            logger.LogInformation("BaseController: Checking authentication for {Controller}/{Action}",
                 context.RouteData.Values["controller"], context.RouteData.Values["action"]);
 
-            // Перевіряємо Cookie Authentication
             var isAuthenticated = User.Identity?.IsAuthenticated ?? false;
             ViewBag.IsAuthenticated = isAuthenticated;
 
@@ -29,7 +28,6 @@ namespace UI.Controllers
             {
                 try
                 {
-                    // Отримуємо дані з claims
                     var email = User.FindFirst(ClaimTypes.Email)?.Value;
                     var firstName = User.FindFirst("FirstName")?.Value;
                     var lastName = User.FindFirst("LastName")?.Value;
@@ -38,11 +36,9 @@ namespace UI.Controllers
 
                     var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
 
-                    // Логування для діагностики
                     logger.LogInformation("BaseController: User authenticated - {Email}, UserId: {UserId}, Roles: {Roles}, LoginTime: {LoginTime}",
                         email, userId, string.Join(", ", roles), loginTime);
 
-                    // Створюємо UserInfo для сумісності
                     var userData = new UserInfo
                     {
                         Id = userId,
@@ -58,7 +54,6 @@ namespace UI.Controllers
                     ViewBag.IsManager = roles.Contains("Manager");
                     ViewBag.IsAdministrator = roles.Contains("Administrator");
 
-                    // Також зберігаємо в сесії для сумісності з ApiService
                     if (HttpContext.Session.GetString("UserData") == null)
                     {
                         HttpContext.Session.SetString("IsAuthenticated", "true");
@@ -68,7 +63,7 @@ namespace UI.Controllers
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "BaseController: Помилка обробки claims");
+                    logger.LogError(ex, "BaseController: Error processing claims");
                     ClearAuthData();
                 }
             }
@@ -80,6 +75,7 @@ namespace UI.Controllers
 
             await next();
         }
+
 
         private void ClearAuthData()
         {

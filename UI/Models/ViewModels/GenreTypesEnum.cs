@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace UI.Models
+namespace UI.Models.ViewModels
 {
     public enum GenreTypes
     {

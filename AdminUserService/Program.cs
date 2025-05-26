@@ -15,28 +15,22 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
-// DbContext
 builder.Services.AddDbContext<LibraryDbContext>(options =>
     options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=LibratyDb;Trusted_Connection=True;"));
 
-// AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
-// Сервисы
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IUserService, UserService>();
 
-// КРИТИЧНО: HttpContextAccessor
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, UserContextService>();
 
-// КРИТИЧНО: Data Protection (ТОЧНО ТАКОЙ ЖЕ как везде)
 builder.Services.AddDataProtection()
     .SetApplicationName("LibraryApp")
     .PersistKeysToFileSystem(new DirectoryInfo(@"C:\temp\keys"))
     .SetDefaultKeyLifetime(TimeSpan.FromDays(30));
 
-// КРИТИЧНО: ТОЛЬКО Cookie Authentication (БЕЗ Identity для аутентификации)
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
     {
@@ -49,7 +43,6 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.LoginPath = "/Account/Login";
         options.AccessDeniedPath = "/Account/AccessDenied";
 
-        // КРИТИЧНО: Для API endpoints - НЕ делать редиректы
         options.Events.OnRedirectToLogin = context => {
             if (context.Request.Path.StartsWithSegments("/api") ||
                 context.Request.Path.StartsWithSegments("/AdminUsers"))
@@ -70,7 +63,6 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
             return Task.CompletedTask;
         };
 
-        // КРИТИЧНО: Детальное логирование для диагностики
         options.Events.OnValidatePrincipal = context =>
         {
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
@@ -97,7 +89,6 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         };
     });
 
-// Identity ТОЛЬКО для UserService (НЕ для аутентификации)
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
 {
     options.Password.RequireDigit = true;
@@ -111,10 +102,8 @@ builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
 .AddEntityFrameworkStores<LibraryDbContext>()
 .AddDefaultTokenProviders();
 
-// КРИТИЧНО: Отключаем Identity cookie authentication
 builder.Services.Configure<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme, options =>
 {
-    // Отключаем Identity cookies полностью
     options.Cookie.Name = "Identity.Application.Disabled";
     options.LoginPath = "/Account/Login";
     options.Events.OnRedirectToLogin = context =>
@@ -124,7 +113,6 @@ builder.Services.Configure<CookieAuthenticationOptions>(IdentityConstants.Applic
     };
 });
 
-// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowMvcClient", policy =>
@@ -151,7 +139,6 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors("AllowMvcClient");
 
-// Cookie policy
 app.UseCookiePolicy(new CookiePolicyOptions
 {
     MinimumSameSitePolicy = SameSiteMode.Lax,
@@ -159,20 +146,17 @@ app.UseCookiePolicy(new CookiePolicyOptions
     CheckConsentNeeded = context => false
 });
 
-// КРИТИЧНО: Детальное логирование каждого запроса
 app.Use(async (context, next) =>
 {
     var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
     logger.LogInformation("=== ADMINUSERS REQUEST START ===");
     logger.LogInformation("Path: {Path}, Method: {Method}", context.Request.Path, context.Request.Method);
 
-    // Проверяем cookie
     var authCookie = context.Request.Cookies["LibraryApp.AuthCookie"];
     if (!string.IsNullOrEmpty(authCookie))
     {
         logger.LogInformation("LibraryApp.AuthCookie received (length: {Length})", authCookie.Length);
 
-        // Пробуем расшифровать cookie
         try
         {
             var dataProtectionProvider = context.RequestServices.GetRequiredService<IDataProtectionProvider>();
@@ -205,13 +189,11 @@ app.Use(async (context, next) =>
     logger.LogInformation("=== ADMINUSERS REQUEST END ===");
 });
 
-// ВАЖЛИВО: правильний порядок middleware
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
-// Seed data
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -224,7 +206,7 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Помилка при ініціалізації ролей та користувачів.");
+        logger.LogError(ex, "Error during roles and users initialization.");
     }
 }
 

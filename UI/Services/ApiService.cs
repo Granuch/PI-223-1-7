@@ -22,7 +22,6 @@ namespace UI.Services
             _configuration = configuration;
             _httpContextAccessor = httpContextAccessor;
 
-            // Налаштування HttpClientHandler для передачі cookies
             var handler = new HttpClientHandler()
             {
                 ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true,
@@ -43,7 +42,6 @@ namespace UI.Services
             _logger.LogInformation("ApiService ініціалізовано з BaseUrl: {BaseUrl}", baseUrl);
         }
 
-        // Метод для копіювання cookies з поточного контексту в HTTP запит
         private void EnsureCookiesAreSet()
         {
             try
@@ -51,7 +49,6 @@ namespace UI.Services
                 var httpContext = _httpContextAccessor.HttpContext;
                 if (httpContext?.Request?.Cookies != null && httpContext.Request.Cookies.Count > 0)
                 {
-                    // Создаем новый HttpClientHandler с CookieContainer для каждого запроса
                     if (_httpClient.DefaultRequestHeaders.Contains("Cookie"))
                     {
                         _httpClient.DefaultRequestHeaders.Remove("Cookie");
@@ -113,8 +110,6 @@ namespace UI.Services
                 Message = $"{defaultMessage}: {statusCode}"
             };
         }
-
-        // ==================== AUTHENTICATION METHODS ====================
 
         public async Task<ApiResponse<UserResponse>> RegisterAsync(RegisterViewModel model)
         {
@@ -338,8 +333,6 @@ namespace UI.Services
                 };
             }
         }
-
-        // ==================== BOOKS METHODS ====================
 
         public async Task<ApiResponse<IEnumerable<BookDTO>>> GetAllBooksAsync()
         {
@@ -668,8 +661,6 @@ namespace UI.Services
                 };
             }
         }
-
-        // ==================== ORDERS METHODS ====================
 
         public async Task<ApiResponse<IEnumerable<OrderDTO>>> GetAllOrdersAsync()
         {
@@ -1005,8 +996,6 @@ namespace UI.Services
                 };
             }
         }
-
-        // ==================== ADMIN/USERS METHODS ====================
 
         public async Task<ApiResponse<IEnumerable<UserDTO>>> GetAllUsersAsync()
         {
@@ -1375,14 +1364,12 @@ namespace UI.Services
                 {
                     try
                     {
-                        // Сначала пробуем десериализовать как ApiResponse<IEnumerable<string>>
                         var apiResponse = JsonConvert.DeserializeObject<ApiResponse<IEnumerable<string>>>(responseContent);
                         if (apiResponse != null && apiResponse.Success)
                         {
                             return apiResponse;
                         }
 
-                        // Если не получилось, пробуем как прямой список строк
                         var directRoles = JsonConvert.DeserializeObject<IEnumerable<string>>(responseContent);
                         if (directRoles != null)
                         {
@@ -1394,7 +1381,6 @@ namespace UI.Services
                             };
                         }
 
-                        // Если и это не сработало, возвращаем пустой список
                         _logger.LogWarning("Could not deserialize user roles response: {Content}", responseContent);
                         return new ApiResponse<IEnumerable<string>>
                         {
@@ -1407,7 +1393,6 @@ namespace UI.Services
                     {
                         _logger.LogError(ex, "JSON deserialization failed for user roles. Content: {Content}", responseContent);
 
-                        // Возвращаем пустой список вместо ошибки
                         return new ApiResponse<IEnumerable<string>>
                         {
                             Success = true,
@@ -1456,7 +1441,6 @@ namespace UI.Services
                             return apiResponse;
                         }
 
-                        // Fallback: пробуем десериализовать напрямую
                         var directRoles = JsonConvert.DeserializeObject<IEnumerable<RoleDTO>>(responseContent);
                         return new ApiResponse<IEnumerable<RoleDTO>>
                         {
@@ -1490,7 +1474,6 @@ namespace UI.Services
                 };
             }
         }
-        // ==================== HELPER METHODS ====================
 
         private async Task<ApiResponse<object>> ProcessCreateUserResponse(HttpResponseMessage response, string userType)
         {
@@ -1529,7 +1512,6 @@ namespace UI.Services
 
             try
             {
-                // Проверяем, не пустой ли responseContent
                 if (string.IsNullOrEmpty(responseContent))
                 {
                     return new ApiResponse<object>
@@ -1546,7 +1528,6 @@ namespace UI.Services
                     Message = "Ошибка создания пользователя"
                 };
 
-                // Безопасная проверка errors
                 if (errorResponse?.errors != null)
                 {
                     var errorsList = new List<string>();
@@ -1617,10 +1598,7 @@ namespace UI.Services
                         };
                     }
                 }
-                catch (JsonException)
-                {
-                    // Ignore
-                }
+                catch (JsonException){}
             }
 
             return new ApiResponse<object>
@@ -1631,7 +1609,6 @@ namespace UI.Services
         }
     }
 
-    // Helper classes
     public class ApiResponse<T>
     {
         public bool Success { get; set; }

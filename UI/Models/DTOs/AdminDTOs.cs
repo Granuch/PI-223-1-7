@@ -22,7 +22,7 @@ namespace UI.Models.DTOs
         public string FirstName { get; set; }
         public string LastName { get; set; }
         public string PhoneNumber { get; set; }
-        public string Role { get; set; } = "RegisteredUser"; // ДОДАНО: поле Role з значенням за замовчуванням
+        public string Role { get; set; } = "RegisteredUser";
     }
 
     public class UpdateUserRequest

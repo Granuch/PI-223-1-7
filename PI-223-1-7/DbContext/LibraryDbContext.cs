@@ -26,7 +26,6 @@ namespace PI_223_1_7.DbContext
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-            //Configuration for Book model
             modelBuilder.Entity<Book>(entity =>
             {
                 entity.HasKey(x => x.Id);
@@ -51,7 +50,6 @@ namespace PI_223_1_7.DbContext
                   .OnDelete(DeleteBehavior.Restrict);
             });
 
-            //Configuration for Order model
             modelBuilder.Entity<Order>(entity =>
             {
                 entity.HasKey(o => o.Id);
@@ -63,7 +61,6 @@ namespace PI_223_1_7.DbContext
             });
 
 
-            //Configuration for ApplicationUser model
             modelBuilder.Entity<ApplicationUserRole>(userRole =>
             {
                 userRole.HasKey(ur => new { ur.UserId, ur.RoleId });

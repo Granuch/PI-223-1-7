@@ -1,4 +1,4 @@
-using BLL.Interfaces;
+п»їusing BLL.Interfaces;
 using Mapping.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
@@ -9,7 +9,7 @@ namespace PL.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    [AllowAnonymous] // ВРЕМЕННО: отключаем авторизацию для всего контроллера
+    [AllowAnonymous]
     public class AdminUsersController : ControllerBase
     {
         private readonly IUserService _userService;
@@ -26,12 +26,10 @@ namespace PL.Controllers
             _logger = logger;
         }
 
-        // ВРЕМЕННАЯ ВЕРСИЯ: проверяем авторизацию вручную через cookie
         private bool IsUserAuthorized()
         {
             try
             {
-                // Проверяем наличие LibraryApp.AuthCookie
                 var authCookie = Request.Cookies["LibraryApp.AuthCookie"];
                 if (string.IsNullOrEmpty(authCookie))
                 {
@@ -39,7 +37,6 @@ namespace PL.Controllers
                     return false;
                 }
 
-                // Проверяем, что cookie может быть расшифрован
                 var dataProtectionProvider = HttpContext.RequestServices.GetRequiredService<IDataProtectionProvider>();
                 var protector = dataProtectionProvider.CreateProtector(
                     "Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationMiddleware",
@@ -64,14 +61,13 @@ namespace PL.Controllers
             {
                 _logger.LogInformation("=== GetAllUsers API Called ===");
 
-                // ВРЕМЕННАЯ ПРОВЕРКА: проверяем cookie вручную
                 if (!IsUserAuthorized())
                 {
                     _logger.LogWarning("User not authorized via cookie check");
                     return Unauthorized(new ApiResponse<IEnumerable<UserDTO>>
                     {
                         Success = false,
-                        Message = "Користувач не авторизований"
+                        Message = "User is not authorized"
                     });
                 }
 
@@ -85,7 +81,7 @@ namespace PL.Controllers
                 {
                     Success = true,
                     Data = users,
-                    Message = "Користувачі отримані успішно"
+                    Message = "Users retrieved successfully"
                 });
             }
             catch (Exception ex)
@@ -94,7 +90,7 @@ namespace PL.Controllers
                 return StatusCode(500, new ApiResponse<IEnumerable<UserDTO>>
                 {
                     Success = false,
-                    Message = "Помилка отримання користувачів"
+                    Message = "Error retrieving users"
                 });
             }
         }
@@ -111,7 +107,7 @@ namespace PL.Controllers
                     return Unauthorized(new ApiResponse<UserDTO>
                     {
                         Success = false,
-                        Message = "Користувач не авторизований"
+                        Message = "User is not authorized"
                     });
                 }
 
@@ -121,7 +117,7 @@ namespace PL.Controllers
                     return NotFound(new ApiResponse<UserDTO>
                     {
                         Success = false,
-                        Message = "Користувача не знайдено"
+                        Message = "User not found"
                     });
                 }
 
@@ -129,7 +125,7 @@ namespace PL.Controllers
                 {
                     Success = true,
                     Data = user,
-                    Message = "Користувач знайдений"
+                    Message = "User found"
                 });
             }
             catch (Exception ex)
@@ -138,7 +134,7 @@ namespace PL.Controllers
                 return StatusCode(500, new ApiResponse<UserDTO>
                 {
                     Success = false,
-                    Message = "Помилка отримання користувача"
+                    Message = "Error retrieving user"
                 });
             }
         }
@@ -155,7 +151,7 @@ namespace PL.Controllers
                     return Unauthorized(new ApiResponse<object>
                     {
                         Success = false,
-                        Message = "Користувач не авторизований"
+                        Message = "User is not authorized"
                     });
                 }
 
@@ -171,14 +167,14 @@ namespace PL.Controllers
                     return Ok(new ApiResponse<object>
                     {
                         Success = true,
-                        Message = "Користувач створений успішно"
+                        Message = "User created successfully"
                     });
                 }
 
                 return BadRequest(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Помилка створення користувача",
+                    Message = "Error creating user",
                     Errors = result.Errors.Select(e => e.Description)
                 });
             }
@@ -188,7 +184,7 @@ namespace PL.Controllers
                 return StatusCode(500, new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Помилка створення користувача"
+                    Message = "Error creating user"
                 });
             }
         }
@@ -211,14 +207,14 @@ namespace PL.Controllers
                     return Ok(new ApiResponse<object>
                     {
                         Success = true,
-                        Message = "Адміністратор створений успішно"
+                        Message = "Administrator created successfully"
                     });
                 }
 
                 return BadRequest(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Помилка створення адміністратора",
+                    Message = "Error creating administrator",
                     Errors = result.Errors.Select(e => e.Description)
                 });
             }
@@ -228,7 +224,7 @@ namespace PL.Controllers
                 return StatusCode(500, new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Помилка створення адміністратора"
+                    Message = "Error creating administrator"
                 });
             }
         }
@@ -251,14 +247,14 @@ namespace PL.Controllers
                     return Ok(new ApiResponse<object>
                     {
                         Success = true,
-                        Message = "Менеджер створений успішно"
+                        Message = "Manager created successfully"
                     });
                 }
 
                 return BadRequest(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Помилка створення менеджера",
+                    Message = "Error creating manager",
                     Errors = result.Errors.Select(e => e.Description)
                 });
             }
@@ -268,7 +264,7 @@ namespace PL.Controllers
                 return StatusCode(500, new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Помилка створення менеджера"
+                    Message = "Error creating manager"
                 });
             }
         }
@@ -290,14 +286,14 @@ namespace PL.Controllers
                     return Ok(new ApiResponse<object>
                     {
                         Success = true,
-                        Message = "Користувач оновлений успішно"
+                        Message = "User updated successfully"
                     });
                 }
 
                 return BadRequest(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Помилка оновлення користувача",
+                    Message = "Error updating user",
                     Errors = result.Errors.Select(e => e.Description)
                 });
             }
@@ -307,7 +303,7 @@ namespace PL.Controllers
                 return StatusCode(500, new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Помилка оновлення користувача"
+                    Message = "Error updating user"
                 });
             }
         }
@@ -329,14 +325,14 @@ namespace PL.Controllers
                     return Ok(new ApiResponse<object>
                     {
                         Success = true,
-                        Message = "Користувач видалений успішно"
+                        Message = "User deleted successfully"
                     });
                 }
 
                 return BadRequest(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Помилка видалення користувача",
+                    Message = "Error deleting user",
                     Errors = result.Errors.Select(e => e.Description)
                 });
             }
@@ -346,7 +342,7 @@ namespace PL.Controllers
                 return StatusCode(500, new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Помилка видалення користувача"
+                    Message = "Error deleting user"
                 });
             }
         }
@@ -368,14 +364,14 @@ namespace PL.Controllers
                     return Ok(new ApiResponse<object>
                     {
                         Success = true,
-                        Message = "Пароль змінений успішно"
+                        Message = "Password changed successfully"
                     });
                 }
 
                 return BadRequest(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Помилка зміни паролю",
+                    Message = "Error changing password",
                     Errors = result.Errors.Select(e => e.Description)
                 });
             }
@@ -385,7 +381,7 @@ namespace PL.Controllers
                 return StatusCode(500, new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Помилка зміни паролю"
+                    Message = "Error changing password"
                 });
             }
         }
@@ -410,14 +406,14 @@ namespace PL.Controllers
                     return Ok(new ApiResponse<object>
                     {
                         Success = true,
-                        Message = "Роль призначена успішно"
+                        Message = "Role assigned successfully"
                     });
                 }
 
                 return BadRequest(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Помилка призначення ролі",
+                    Message = "Error assigning role",
                     Errors = result.Errors.Select(e => e.Description)
                 });
             }
@@ -427,7 +423,7 @@ namespace PL.Controllers
                 return StatusCode(500, new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Внутрішня помилка сервера"
+                    Message = "Internal server error"
                 });
             }
         }
@@ -449,14 +445,14 @@ namespace PL.Controllers
                     return Ok(new ApiResponse<object>
                     {
                         Success = true,
-                        Message = "Роль видалена успішно"
+                        Message = "Role removed successfully"
                     });
                 }
 
                 return BadRequest(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Помилка видалення ролі",
+                    Message = "Error removing role",
                     Errors = result.Errors.Select(e => e.Description)
                 });
             }
@@ -466,7 +462,7 @@ namespace PL.Controllers
                 return StatusCode(500, new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Помилка видалення ролі"
+                    Message = "Error removing role"
                 });
             }
         }
@@ -486,7 +482,7 @@ namespace PL.Controllers
                 {
                     Success = true,
                     Data = roles,
-                    Message = "Ролі отримані успішно"
+                    Message = "Roles retrieved successfully"
                 });
             }
             catch (Exception ex)
@@ -495,7 +491,7 @@ namespace PL.Controllers
                 return StatusCode(500, new ApiResponse<IEnumerable<string>>
                 {
                     Success = false,
-                    Message = "Помилка отримання ролей"
+                    Message = "Error retrieving roles"
                 });
             }
         }
@@ -515,7 +511,7 @@ namespace PL.Controllers
                 {
                     Success = true,
                     Data = roles,
-                    Message = "Ролі отримані успішно"
+                    Message = "Roles retrieved successfully"
                 });
             }
             catch (Exception ex)
@@ -524,12 +520,11 @@ namespace PL.Controllers
                 return StatusCode(500, new ApiResponse<IEnumerable<RoleDTO>>
                 {
                     Success = false,
-                    Message = "Помилка отримання ролей"
+                    Message = "Error retrieving roles"
                 });
             }
         }
 
-        // Debug endpoints залишаємо без змін
         [HttpGet("TestAuth")]
         public IActionResult TestAuth()
         {
@@ -601,11 +596,13 @@ namespace PL.Controllers
                 _logger.LogInformation("DEBUG: Getting all users without auth check");
                 var users = await _userService.GetAllUsersAsync();
 
+                _logger.LogInformation("DEBUG: Retrieved {Count} users without auth check", users?.Count() ?? 0);
+
                 return Ok(new ApiResponse<IEnumerable<UserDTO>>
                 {
                     Success = true,
                     Data = users,
-                    Message = "DEBUG: Користувачі отримані без перевірки авторизації"
+                    Message = "DEBUG: Users retrieved without authorization check"
                 });
             }
             catch (Exception ex)
@@ -614,7 +611,7 @@ namespace PL.Controllers
                 return StatusCode(500, new ApiResponse<IEnumerable<UserDTO>>
                 {
                     Success = false,
-                    Message = "Помилка отримання користувачів: " + ex.Message
+                    Message = "Error retrieving users: " + ex.Message
                 });
             }
         }

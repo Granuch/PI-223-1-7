@@ -40,7 +40,6 @@ namespace UI.Models.DTOs
         [JsonProperty("orderId")]
         public int? OrderId { get; set; }
 
-        // Властивості для UI (не серіалізуються в JSON)
         [JsonIgnore]
         [Required]
         [Display(Name = "Жанр")]
@@ -59,7 +58,6 @@ namespace UI.Models.DTOs
             set => TypeId = ConvertBookTypeToInt(value);
         }
 
-        // Додаткове поле для роботи з роком як числом
         [JsonIgnore]
         [NotMapped]
         [Display(Name = "Рік видання")]
@@ -70,7 +68,6 @@ namespace UI.Models.DTOs
             set => Year = new DateTime(value, 1, 1);
         }
 
-        // Властивості для відображення
         [JsonIgnore]
         public string GenreDisplayName => ConvertIntToGenre(GenreId);
 
@@ -80,7 +77,6 @@ namespace UI.Models.DTOs
         [JsonIgnore]
         public string AvailabilityDisplayName => IsAvailable ? "Доступна" : "Недоступна";
 
-        // Методи конвертації
         private string ConvertIntToGenre(int genreId)
         {
             return genreId switch
@@ -135,7 +131,6 @@ namespace UI.Models.DTOs
             };
         }
 
-        // Методи для відображення українською
         public string GetGenreDisplayNameUkrainian()
         {
             return GenreId switch
@@ -164,7 +159,6 @@ namespace UI.Models.DTOs
         }
     }
 
-    // Кастомний валідатор для року
     public class YearValidationAttribute : ValidationAttribute
     {
         private readonly int _minYear;

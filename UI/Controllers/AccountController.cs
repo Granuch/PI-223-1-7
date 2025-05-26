@@ -26,7 +26,6 @@ namespace UI.Controllers
             return View(new LoginViewModel { ReturnUrl = returnUrl });
         }
 
-        // ДОДАНО: GET метод для Register
         [HttpGet]
         public IActionResult Register()
         {
@@ -34,7 +33,6 @@ namespace UI.Controllers
             return View(new RegisterViewModel());
         }
 
-        // ВИПРАВЛЕНО: POST метод для Register
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Register(RegisterViewModel model)
@@ -55,7 +53,6 @@ namespace UI.Controllers
                 {
                     _logger.LogInformation("Registration successful for {Email}", model.Email);
 
-                    // Створюємо claims для cookie з УСІМА необхідними даними
                     var claims = new List<Claim>
                     {
                         new Claim(ClaimTypes.NameIdentifier, result.Data.User.UserId ?? result.Data.User.Id ?? result.Data.User.Email),
@@ -66,7 +63,6 @@ namespace UI.Controllers
                         new Claim("LoginTime", DateTimeOffset.UtcNow.ToString())
                     };
 
-                    // Додаємо ролі як claims
                     foreach (var role in result.Data.User.Roles ?? new List<string>())
                     {
                         claims.Add(new Claim(ClaimTypes.Role, role));
@@ -76,28 +72,25 @@ namespace UI.Controllers
                     var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
                     var authProperties = new AuthenticationProperties
                     {
-                        IsPersistent = false, // Для реєстрації не зберігаємо надовго
+                        IsPersistent = false,
                         ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8),
                         IssuedUtc = DateTimeOffset.UtcNow,
                         AllowRefresh = true
                     };
 
-                    // ВСТАНОВЛЮЄМО AUTHENTICATION COOKIE
                     await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
                         new ClaimsPrincipal(claimsIdentity), authProperties);
 
                     _logger.LogInformation("Authentication cookie created for new user: {Email}", model.Email);
 
-                    // Зберігаємо дані в сесії для сумісності
                     HttpContext.Session.SetString("IsAuthenticated", "true");
                     HttpContext.Session.SetString("UserData", JsonConvert.SerializeObject(result.Data.User));
                     HttpContext.Session.SetString("LoginTime", DateTimeOffset.UtcNow.ToString());
 
-                    TempData["SuccessMessage"] = "Реєстрацію завершено успішно! Ласкаво просимо!";
+                    TempData["SuccessMessage"] = "Registration completed successfully! Welcome!";
                     return RedirectToAction("Index", "Home");
                 }
 
-                // Обробка помилок від API
                 if (result.Errors?.Any() == true)
                 {
                     foreach (var error in result.Errors)
@@ -107,7 +100,7 @@ namespace UI.Controllers
                 }
                 else
                 {
-                    ModelState.AddModelError("", result.Message ?? "Помилка реєстрації");
+                    ModelState.AddModelError("", result.Message ?? "Registration error");
                 }
 
                 _logger.LogWarning("Registration failed for {Email}: {Message}", model.Email, result.Message);
@@ -116,7 +109,7 @@ namespace UI.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Exception during registration for {Email}", model?.Email);
-                ModelState.AddModelError("", "Сталася помилка під час реєстрації. Спробуйте пізніше.");
+                ModelState.AddModelError("", "An error occurred during registration. Please try again later.");
                 return View(model);
             }
         }
@@ -143,7 +136,6 @@ namespace UI.Controllers
                 _logger.LogInformation("User roles from API: {Roles}",
                     string.Join(", ", result.Data.User.Roles ?? new List<string>()));
 
-                // Створюємо claims для cookie з УСІМА необхідними даними
                 var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.NameIdentifier, result.Data.User.UserId ?? result.Data.User.Id ?? result.Data.User.Email),
@@ -151,10 +143,9 @@ namespace UI.Controllers
                     new Claim(ClaimTypes.Name, result.Data.User.Email),
                     new Claim("FirstName", result.Data.User.FirstName ?? ""),
                     new Claim("LastName", result.Data.User.LastName ?? ""),
-                    new Claim("LoginTime", DateTimeOffset.UtcNow.ToString()) // Для діагностики
+                    new Claim("LoginTime", DateTimeOffset.UtcNow.ToString())
                 };
 
-                // Додаємо ролі як claims
                 foreach (var role in result.Data.User.Roles ?? new List<string>())
                 {
                     claims.Add(new Claim(ClaimTypes.Role, role));
@@ -165,26 +156,24 @@ namespace UI.Controllers
                 var authProperties = new AuthenticationProperties
                 {
                     IsPersistent = model.RememberMe,
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddHours(model.RememberMe ? 24 * 7 : 8), // 8 годин або 1 тиждень
+                    ExpiresUtc = DateTimeOffset.UtcNow.AddHours(model.RememberMe ? 24 * 7 : 8),
                     IssuedUtc = DateTimeOffset.UtcNow,
-                    AllowRefresh = true // ВАЖЛИВО для sliding expiration
+                    AllowRefresh = true
                 };
 
-                // ВСТАНОВЛЮЄМО AUTHENTICATION COOKIE
                 await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
                     new ClaimsPrincipal(claimsIdentity), authProperties);
 
                 _logger.LogInformation("MVC authentication cookie created for {Email}. Expires: {Expires}",
                     model.Email, authProperties.ExpiresUtc);
 
-                // Зберігаємо дані в сесії для сумісності
                 HttpContext.Session.SetString("IsAuthenticated", "true");
                 HttpContext.Session.SetString("UserData", JsonConvert.SerializeObject(result.Data.User));
                 HttpContext.Session.SetString("LoginTime", DateTimeOffset.UtcNow.ToString());
 
                 _logger.LogInformation("Session data saved for {Email}", model.Email);
 
-                TempData["SuccessMessage"] = "Вхід виконано успішно!";
+                TempData["SuccessMessage"] = "Login successful!";
 
                 if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
                 {
@@ -204,13 +193,10 @@ namespace UI.Controllers
             var userEmail = User.Identity?.Name;
             _logger.LogInformation("User logout: {Email}", userEmail);
 
-            // Очищаємо authentication cookie
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
-            // Очищаємо сесію
             HttpContext.Session.Clear();
 
-            // Викликаємо logout на API (опціонально)
             try
             {
                 await _apiService.LogoutAsync();
@@ -221,11 +207,10 @@ namespace UI.Controllers
             }
 
             _logger.LogInformation("User {Email} successfully logged out", userEmail);
-            TempData["SuccessMessage"] = "Вихід виконано успішно!";
+            TempData["SuccessMessage"] = "Logout successful!";
             return RedirectToAction("Index", "Home");
         }
 
-        // НОВИЙ ENDPOINT для діагностики
         [HttpGet]
         public IActionResult AuthStatus()
         {
@@ -262,7 +247,6 @@ namespace UI.Controllers
                     return Json(new { success = false, message = "Not authenticated" });
                 }
 
-                // Автоматично оновлюємо authentication cookie
                 await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, User,
                     new AuthenticationProperties
                     {
@@ -272,7 +256,6 @@ namespace UI.Controllers
                         AllowRefresh = true
                     });
 
-                // Викликаємо API для оновлення
                 var result = await _apiService.RefreshSessionAsync();
                 _logger.LogInformation("API session refresh result: {Success}", result.Success);
 

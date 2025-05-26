@@ -15,25 +15,22 @@ namespace UI.Controllers
             _logger = logger;
         }
 
-        // Головна сторінка адмін панелі
         public IActionResult Index()
         {
-            // Перевіряємо, чи користувач адміністратор
             if (ViewBag.IsAdministrator != true)
             {
-                TempData["ErrorMessage"] = "Доступ заборонено. Тільки адміністратори можуть переглядати цю сторінку.";
+                TempData["ErrorMessage"] = "Access denied. Only administrators can view this page.";
                 return RedirectToAction("Index", "Home");
             }
 
             return View();
         }
 
-        // Список всіх користувачів
         public async Task<IActionResult> Users()
         {
             if (ViewBag.IsAdministrator != true)
             {
-                TempData["ErrorMessage"] = "Доступ заборонено.";
+                TempData["ErrorMessage"] = "Access denied.";
                 return RedirectToAction("Index", "Home");
             }
 
@@ -48,13 +45,13 @@ namespace UI.Controllers
             return View(new List<UserDTO>());
         }
 
-        // Деталі користувача
+
         [HttpGet]
         public async Task<IActionResult> UserDetails(string id)
         {
             if (ViewBag.IsAdministrator != true)
             {
-                TempData["ErrorMessage"] = "Доступ заборонено.";
+                TempData["ErrorMessage"] = "Access denied.";
                 return RedirectToAction("Index", "Home");
             }
 
@@ -69,28 +66,27 @@ namespace UI.Controllers
             return RedirectToAction("Users");
         }
 
-        // Створення користувача - GET
+
         [HttpGet]
         public IActionResult CreateUser()
         {
             if (ViewBag.IsAdministrator != true)
             {
-                TempData["ErrorMessage"] = "Доступ заборонено.";
+                TempData["ErrorMessage"] = "Access denied.";
                 return RedirectToAction("Index", "Home");
             }
 
             return View(new CreateUserViewModel());
         }
 
-        // Створення користувача - POST
-        // Оновіть метод CreateUser в AdminController
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateUser(CreateUserViewModel model)
         {
             if (ViewBag.IsAdministrator != true)
             {
-                TempData["ErrorMessage"] = "Доступ заборонено.";
+                TempData["ErrorMessage"] = "Access denied.";
                 return RedirectToAction("Index", "Home");
             }
 
@@ -106,7 +102,7 @@ namespace UI.Controllers
                 FirstName = model.FirstName,
                 LastName = model.LastName,
                 PhoneNumber = model.PhoneNumber,
-                Role = model.UserType // ВИПРАВЛЕНО: передаємо роль з моделі
+                Role = model.UserType
             };
 
             ApiResponse<object> result = model.UserType switch
@@ -114,16 +110,15 @@ namespace UI.Controllers
                 "RegisteredUser" => await _apiService.CreateUserAsync(request),
                 "Manager" => await _apiService.CreateManagerAsync(request),
                 "Administrator" => await _apiService.CreateAdminAsync(request),
-                _ => new ApiResponse<object> { Success = false, Message = "Невірний тип користувача" }
+                _ => new ApiResponse<object> { Success = false, Message = "Invalid user type" }
             };
 
             if (result.Success)
             {
-                TempData["SuccessMessage"] = $"Користувач створений успішно з роллю {model.UserType}!";
+                TempData["SuccessMessage"] = $"User successfully created with role {model.UserType}!";
                 return RedirectToAction("Users");
             }
 
-            // ВИПРАВЛЕНО: краща обробка помилок
             if (result.ValidationErrors?.Any() == true)
             {
                 foreach (var error in result.ValidationErrors)
@@ -149,13 +144,13 @@ namespace UI.Controllers
             return View(model);
         }
 
-        // Редагування користувача - GET
+
         [HttpGet]
         public async Task<IActionResult> EditUser(string id)
         {
             if (ViewBag.IsAdministrator != true)
             {
-                TempData["ErrorMessage"] = "Доступ заборонено.";
+                TempData["ErrorMessage"] = "Access denied.";
                 return RedirectToAction("Index", "Home");
             }
 
@@ -180,14 +175,13 @@ namespace UI.Controllers
             return RedirectToAction("Users");
         }
 
-        // Редагування користувача - POST
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditUser(EditUserViewModel model)
         {
             if (ViewBag.IsAdministrator != true)
             {
-                TempData["ErrorMessage"] = "Доступ заборонено.";
+                TempData["ErrorMessage"] = "Access denied.";
                 return RedirectToAction("Index", "Home");
             }
 
@@ -208,7 +202,7 @@ namespace UI.Controllers
 
             if (result.Success)
             {
-                TempData["SuccessMessage"] = "Користувач оновлений успішно!";
+                TempData["SuccessMessage"] = "User updated successfully!";
                 return RedirectToAction("Users");
             }
 
@@ -227,13 +221,13 @@ namespace UI.Controllers
             return View(model);
         }
 
-        // Видалення користувача - GET
+
         [HttpGet]
         public async Task<IActionResult> DeleteUser(string id)
         {
             if (ViewBag.IsAdministrator != true)
             {
-                TempData["ErrorMessage"] = "Доступ заборонено.";
+                TempData["ErrorMessage"] = "Access denied.";
                 return RedirectToAction("Index", "Home");
             }
 
@@ -248,14 +242,14 @@ namespace UI.Controllers
             return RedirectToAction("Users");
         }
 
-        // Видалення користувача - POST
+
         [HttpPost, ActionName("DeleteUser")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteUserConfirmed(string id)
         {
             if (ViewBag.IsAdministrator != true)
             {
-                TempData["ErrorMessage"] = "Доступ заборонено.";
+                TempData["ErrorMessage"] = "Access denied.";
                 return RedirectToAction("Index", "Home");
             }
 
@@ -263,7 +257,7 @@ namespace UI.Controllers
 
             if (result.Success)
             {
-                TempData["SuccessMessage"] = "Користувач видалений успішно!";
+                TempData["SuccessMessage"] = "User deleted successfully!";
             }
             else
             {
@@ -273,13 +267,13 @@ namespace UI.Controllers
             return RedirectToAction("Users");
         }
 
-        // Зміна паролю - GET
+
         [HttpGet]
         public async Task<IActionResult> ChangePassword(string id)
         {
             if (ViewBag.IsAdministrator != true)
             {
-                TempData["ErrorMessage"] = "Доступ заборонено.";
+                TempData["ErrorMessage"] = "Access denied.";
                 return RedirectToAction("Index", "Home");
             }
 
@@ -299,7 +293,7 @@ namespace UI.Controllers
             return View(model);
         }
 
-        // Зміна паролю - POST
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
@@ -309,7 +303,7 @@ namespace UI.Controllers
             if (ViewBag.IsAdministrator != true)
             {
                 _logger.LogWarning("Non-administrator tried to change password");
-                TempData["ErrorMessage"] = "Доступ заборонено.";
+                TempData["ErrorMessage"] = "Access denied.";
                 return RedirectToAction("Index", "Home");
             }
 
@@ -322,7 +316,6 @@ namespace UI.Controllers
                         error.Key, string.Join(", ", error.Value.Errors.Select(e => e.ErrorMessage)));
                 }
 
-                // Перезавантажуємо дані користувача для відображення
                 var userResult = await _apiService.GetUserByIdAsync(model.UserId);
                 if (userResult.Success)
                 {
@@ -336,7 +329,7 @@ namespace UI.Controllers
             {
                 var request = new ChangePasswordRequest
                 {
-                    UserId = model.UserId,        // ДОДАНО: передаємо UserId
+                    UserId = model.UserId,
                     NewPassword = model.NewPassword
                 };
 
@@ -349,7 +342,7 @@ namespace UI.Controllers
                 if (result.Success)
                 {
                     _logger.LogInformation("Password changed successfully for user {UserId}", model.UserId);
-                    TempData["SuccessMessage"] = "Пароль змінений успішно!";
+                    TempData["SuccessMessage"] = "Password changed successfully!";
                     return RedirectToAction("Users");
                 }
 
@@ -366,10 +359,9 @@ namespace UI.Controllers
                 }
                 else
                 {
-                    ModelState.AddModelError("", result.Message ?? "Невідома помилка");
+                    ModelState.AddModelError("", result.Message ?? "Unknown error");
                 }
 
-                // Перезавантажуємо дані користувача для відображення
                 var userReloadResult = await _apiService.GetUserByIdAsync(model.UserId);
                 if (userReloadResult.Success)
                 {
@@ -381,9 +373,8 @@ namespace UI.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Exception in ChangePassword for user {UserId}", model.UserId);
-                ModelState.AddModelError("", "Сталася неочікувана помилка");
+                ModelState.AddModelError("", "Unexcepted error");
 
-                // Перезавантажуємо дані користувача для відображення
                 try
                 {
                     var userReloadResult = await _apiService.GetUserByIdAsync(model.UserId);
@@ -392,22 +383,18 @@ namespace UI.Controllers
                         model.UserEmail = userReloadResult.Data.Email;
                     }
                 }
-                catch
-                {
-                    // Ігноруємо помилки при перезавантаженні даних
-                }
+                catch{}
 
                 return View(model);
             }
         }
 
-        // Управління ролями - GET
         [HttpGet]
         public async Task<IActionResult> ManageRoles(string id)
         {
             if (ViewBag.IsAdministrator != true)
             {
-                TempData["ErrorMessage"] = "Доступ заборонено.";
+                TempData["ErrorMessage"] = "Access denied.";
                 return RedirectToAction("Index", "Home");
             }
 
@@ -428,18 +415,16 @@ namespace UI.Controllers
                 return View(model);
             }
 
-            TempData["ErrorMessage"] = "Помилка завантаження даних";
+            TempData["ErrorMessage"] = "Error loading data";
             return RedirectToAction("Users");
         }
 
-        // Призначення ролі
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AssignRole(string userId, string roleName)
         {
-            // КРИТИЧНО ВАЖЛИВЕ ЛОГУВАННЯ
             Console.WriteLine("=================================================");
-            Console.WriteLine("ASSIGNROLE МЕТОД ВИКЛИКАНИЙ!");
+            Console.WriteLine("ASSIGNROLE METHOD CALLED!");
             Console.WriteLine($"userId: '{userId}'");
             Console.WriteLine($"roleName: '{roleName}'");
             Console.WriteLine($"ViewBag.IsAdministrator: {ViewBag.IsAdministrator}");
@@ -447,47 +432,47 @@ namespace UI.Controllers
 
             if (ViewBag.IsAdministrator != true)
             {
-                Console.WriteLine("ДОСТУП ЗАБОРОНЕНО!");
-                TempData["ErrorMessage"] = "Доступ заборонено.";
+                Console.WriteLine("ACCESS DENIED!");
+                TempData["ErrorMessage"] = "Access denied.";
                 return RedirectToAction("Index", "Home");
             }
 
             if (!RoleConstants.IsValidRole(roleName))
             {
-                Console.WriteLine($"НЕПРИПУСТИМА РОЛЬ: {roleName}");
-                TempData["ErrorMessage"] = $"Недопустима роль: {roleName}";
+                Console.WriteLine($"INVALID ROLE: {roleName}");
+                TempData["ErrorMessage"] = $"Invalid role: {roleName}";
                 return RedirectToAction("ManageRoles", new { id = userId });
             }
 
-            Console.WriteLine("СТВОРЮЄМО REQUEST...");
+            Console.WriteLine("CREATING REQUEST...");
             var request = new AssignRoleRequest { RoleName = roleName };
 
-            Console.WriteLine("ВИКЛИКАЄМО API СЕРВІС...");
+            Console.WriteLine("CALLING API SERVICE...");
             var result = await _apiService.AssignRoleToUserAsync(userId, request);
 
-            Console.WriteLine($"РЕЗУЛЬТАТ API: Success={result.Success}, Message='{result.Message}'");
+            Console.WriteLine($"API RESULT: Success={result.Success}, Message='{result.Message}'");
 
             if (result.Success)
             {
-                TempData["SuccessMessage"] = $"Роль {roleName} призначена успішно!";
+                TempData["SuccessMessage"] = $"Role {roleName} assigned successfully!";
             }
             else
             {
                 TempData["ErrorMessage"] = result.Message;
             }
 
-            Console.WriteLine("ПЕРЕНАПРАВЛЯЄМО НА MANAGEROLES...");
+            Console.WriteLine("REDIRECTING TO MANAGEROLES...");
             return RedirectToAction("ManageRoles", new { id = userId });
         }
 
-        // Видалення ролі
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RemoveRole(string userId, string roleName)
         {
             if (ViewBag.IsAdministrator != true)
             {
-                TempData["ErrorMessage"] = "Доступ заборонено.";
+                TempData["ErrorMessage"] = "Access denied.";
                 return RedirectToAction("Index", "Home");
             }
 
@@ -496,7 +481,7 @@ namespace UI.Controllers
 
             if (result.Success)
             {
-                TempData["SuccessMessage"] = $"Роль {roleName} видалена успішно!";
+                TempData["SuccessMessage"] = $"Role {roleName} removed successfully!";
             }
             else
             {
@@ -505,6 +490,7 @@ namespace UI.Controllers
 
             return RedirectToAction("ManageRoles", new { id = userId });
         }
+
 
         [HttpGet]
         public async Task<IActionResult> DiagnosticAuth()
@@ -518,28 +504,24 @@ namespace UI.Controllers
                 using var httpClient = new HttpClient();
                 httpClient.Timeout = TimeSpan.FromSeconds(30);
 
-                // Додаємо cookies вручну
                 var cookieHeader = string.Join("; ", HttpContext.Request.Cookies.Select(c => $"{c.Key}={c.Value}"));
                 httpClient.DefaultRequestHeaders.Add("Cookie", cookieHeader);
 
                 logger.LogInformation("Making direct call to AdminUsers service...");
                 logger.LogInformation("Cookie header length: {Length}", cookieHeader.Length);
 
-                // Test 1: Прямий виклик до AdminUsers сервісу
                 var directResponse = await httpClient.GetAsync("http://localhost:5005/AdminUsers/TestAuth");
                 var directContent = await directResponse.Content.ReadAsStringAsync();
 
                 logger.LogInformation("Direct call result: Status={Status}, Content={Content}",
                     directResponse.StatusCode, directContent);
 
-                // Test 2: Виклик через Ocelot
                 var ocelotResponse = await httpClient.GetAsync("https://localhost:5003/api/users/testauth");
                 var ocelotContent = await ocelotResponse.Content.ReadAsStringAsync();
 
                 logger.LogInformation("Ocelot call result: Status={Status}, Content={Content}",
                     ocelotResponse.StatusCode, ocelotContent);
 
-                // Test 3: Виклик GetAllUsers через Ocelot
                 var usersResponse = await httpClient.GetAsync("https://localhost:5003/api/users/getall");
                 var usersContent = await usersResponse.Content.ReadAsStringAsync();
 
@@ -605,7 +587,6 @@ namespace UI.Controllers
 
             logger.LogInformation("=== COOKIE DEBUG ===");
 
-            // Детальна інформація про всі cookies
             var cookieInfo = new Dictionary<string, object>();
 
             foreach (var cookie in HttpContext.Request.Cookies)
@@ -620,7 +601,6 @@ namespace UI.Controllers
                 };
             }
 
-            // Перевіряємо, чи є LibraryApp.AuthCookie
             var hasAuthCookie = HttpContext.Request.Cookies.ContainsKey("LibraryApp.AuthCookie");
             var authCookieValue = HttpContext.Request.Cookies["LibraryApp.AuthCookie"];
 
@@ -630,7 +610,6 @@ namespace UI.Controllers
                 logger.LogInformation("LibraryApp.AuthCookie length: {Length}", authCookieValue?.Length ?? 0);
             }
 
-            // Перевіряємо Claims
             var claims = User.Claims.Select(c => new { c.Type, c.Value }).ToArray();
 
             return Json(new

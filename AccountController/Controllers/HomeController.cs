@@ -10,21 +10,22 @@ namespace PL.Controllers.Api
         [HttpGet]
         public IActionResult Index()
         {
-            return Ok(new { message = "API працює" });
+            return Ok(new { message = "API is running" });
         }
 
         [HttpGet("secure")]
         [Authorize]
         public IActionResult SecurePage()
         {
-            return Ok(new { message = "Ви маєте доступ до захищеного ресурсу" });
+            return Ok(new { message = "You have access to the protected resource" });
         }
 
         [HttpGet("admin")]
         [Authorize(Roles = "Administrator")]
         public IActionResult AdminPage()
         {
-            return Ok(new { message = "Ви маєте доступ до адміністративного ресурсу" });
+            return Ok(new { message = "You have access to the administrative resource" });
         }
     }
+
 }

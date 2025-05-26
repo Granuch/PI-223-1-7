@@ -1,4 +1,4 @@
-using BLL.Interfaces;
+п»їusing BLL.Interfaces;
 using BLL.Services;
 using Mapping.Mapping;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -9,25 +9,21 @@ using PI_223_1_7.DbContext;
 using PI_223_1_7.Models;
 using PI_223_1_7.Patterns.UnitOfWork;
 using PL.Controllers;
-using PL.Services; // Для UserContextService
+using PL.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+
 builder.Services.AddControllers();
 
-// DbContext
 builder.Services.AddDbContext<LibraryDbContext>(options =>
     options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=LibratyDb;Trusted_Connection=True;"));
 
-// AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
-// Ваші сервіси
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IUserService, UserService>();
 
-// Identity (ЗАЛИШАЄМО для UserService, але НЕ для автентифікації)
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
 {
     options.Password.RequireDigit = true;
@@ -41,21 +37,18 @@ builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
 .AddEntityFrameworkStores<LibraryDbContext>()
 .AddDefaultTokenProviders();
 
-// КРИТИЧНО: HttpContextAccessor та UserContextService
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, UserContextService>();
 
-// Data Protection (ТОЧНО ОДНАКОВИЙ ДЛЯ ВСІХ СЕРВІСІВ)
 builder.Services.AddDataProtection()
-    .SetApplicationName("LibraryApp") // ТОЧНО ТА Ж НАЗВА
-    .PersistKeysToFileSystem(new DirectoryInfo(@"C:\temp\keys")) // ТА Ж ПАПКА
+    .SetApplicationName("LibraryApp")
+    .PersistKeysToFileSystem(new DirectoryInfo(@"C:\temp\keys"))
     .SetDefaultKeyLifetime(TimeSpan.FromDays(30));
 
-// Cookie Authentication (ПЕРЕВИЗНАЧАЄМО після Identity)
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.Cookie.Name = "LibraryApp.AuthCookie"; // ТА ЖЕ НАЗВА
+        options.Cookie.Name = "LibraryApp.AuthCookie";
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
@@ -71,14 +64,13 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
             return Task.CompletedTask;
         };
     });
-// CORS (ВИПРАВЛЕНО)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowMvcClient", policy =>
     {
         policy.WithOrigins(
-                "https://localhost:7280",  // MVC клієнт HTTPS
-                "http://localhost:5018",   // MVC клієнт HTTP
+                "https://localhost:7280",  // MVC HTTPS
+                "http://localhost:5018",   // MVC HTTP
                 "https://localhost:5003",  // Ocelot Gateway HTTPS
                 "http://localhost:5003"    // Ocelot Gateway HTTP
             )
@@ -90,7 +82,6 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
@@ -98,10 +89,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// CORS ПЕРЕД аутентифікацією
 app.UseCors("AllowMvcClient");
 
-// Cookie policy
 app.UseCookiePolicy(new CookiePolicyOptions
 {
     MinimumSameSitePolicy = SameSiteMode.Lax,
@@ -109,13 +98,11 @@ app.UseCookiePolicy(new CookiePolicyOptions
     CheckConsentNeeded = context => false
 });
 
-// ВАЖЛИВО: правильний порядок middleware
-app.UseAuthentication(); // ПЕРЕД UseAuthorization
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
-// Seed data
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -128,7 +115,7 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Помилка при ініціалізації ролей та користувачів.");
+        logger.LogError(ex, "Error during roles and users initialization.");
     }
 }
 

@@ -66,7 +66,6 @@ namespace UI.Controllers
             _logger.LogInformation("Book details: Title={Title}, Author={Author}, Genre={Genre}, Type={Type}, Description={Description}",
                 book.Title, book.Author, book.Genre, book.Type, book.Description);
 
-            // ВИПРАВЛЕНО: Очищаємо валідацію для OrderId (не потрібен при створенні книги)
             ModelState.Remove("OrderId");
 
             if (!ModelState.IsValid)
@@ -81,7 +80,6 @@ namespace UI.Controllers
             }
 
             book.IsAvailable = true;
-            // Встановлюємо OrderId в 0 або null для нової книги
             book.OrderId = 0;
 
             var result = await _apiService.CreateBookAsync(book);
@@ -122,11 +120,10 @@ namespace UI.Controllers
             if (id != book.Id)
             {
                 _logger.LogWarning("Book ID mismatch: URL ID {UrlId} vs Model ID {ModelId}", id, book.Id);
-                ModelState.AddModelError("", "ID не співпадає");
+                ModelState.AddModelError("", "ID does not match");
                 return View(book);
             }
 
-            // Очищаємо валідацію для OrderId (якщо воно є)
             ModelState.Remove("OrderId");
 
             if (!ModelState.IsValid)
@@ -147,13 +144,13 @@ namespace UI.Controllers
             if (result.Success)
             {
                 _logger.LogInformation("Book {BookId} successfully updated", id);
-                TempData["SuccessMessage"] = "Книга успішно оновлена!";
+                TempData["SuccessMessage"] = "Book updated successfully!";
                 return RedirectToAction("Index");
             }
 
             _logger.LogError("Failed to update book {BookId}: {Message}", id, result.Message);
             ModelState.AddModelError("", result.Message);
-            TempData["ErrorMessage"] = $"Помилка оновлення книги: {result.Message}";
+            TempData["ErrorMessage"] = $"Error updating book: {result.Message}";
             return View(book);
         }
 
@@ -179,7 +176,7 @@ namespace UI.Controllers
 
             if (result.Success)
             {
-                TempData["SuccessMessage"] = "Книга успішно видалена!";
+                TempData["SuccessMessage"] = "Book deleted successfully!";
             }
             else
             {
@@ -208,11 +205,10 @@ namespace UI.Controllers
         {
             _logger.LogInformation("User attempting to order book {BookId}", bookId);
 
-            // Перевіряємо, чи користувач авторизований
             var userDataJson = HttpContext.Session.GetString("UserData");
             if (string.IsNullOrEmpty(userDataJson))
             {
-                TempData["ErrorMessage"] = "Для замовлення книги потрібно увійти в систему";
+                TempData["ErrorMessage"] = "You need to log in to order a book.";
                 return RedirectToAction("Login", "Account", new { returnUrl = Url.Action("Details", new { id = bookId }) });
             }
 
@@ -220,7 +216,6 @@ namespace UI.Controllers
             {
                 _logger.LogInformation("User session data: {UserDataJson}", userDataJson);
 
-                // Парсимо дані користувача як UserInfo (правильний тип)
                 var userData = JsonConvert.DeserializeObject<UserInfo>(userDataJson);
                 string userId = userData.UserId ?? userData.Id ?? userData.Email;
 
@@ -229,31 +224,29 @@ namespace UI.Controllers
                 if (string.IsNullOrEmpty(userId))
                 {
                     _logger.LogError("Cannot get UserId from session data: {UserData}", userDataJson);
-                    TempData["ErrorMessage"] = "Помилка ідентифікації користувача";
+                    TempData["ErrorMessage"] = "User identification error.";
                     return RedirectToAction("Details", new { id = bookId });
                 }
 
-                // Перевіряємо, чи книга доступна
                 var bookResult = await _apiService.GetBookByIdAsync(bookId);
                 if (!bookResult.Success)
                 {
-                    TempData["ErrorMessage"] = "Помилка отримання інформації про книгу";
+                    TempData["ErrorMessage"] = "Error retrieving book information.";
                     return RedirectToAction("Details", new { id = bookId });
                 }
 
                 if (!bookResult.Data.IsAvailable)
                 {
-                    TempData["ErrorMessage"] = "Ця книга зараз недоступна для замовлення";
+                    TempData["ErrorMessage"] = "This book is currently unavailable for ordering.";
                     return RedirectToAction("Details", new { id = bookId });
                 }
 
-                // Створюємо замовлення
                 var order = new OrderDTO
                 {
                     UserId = userId,
                     BookId = bookId,
                     OrderDate = DateTime.Now,
-                    Type = 1, // Активне замовлення
+                    Type = 1,
                     ReturnDate = null
                 };
 
@@ -262,21 +255,21 @@ namespace UI.Controllers
                 if (result.Success)
                 {
                     _logger.LogInformation("User {UserId} successfully ordered book {BookId}", userId, bookId);
-                    TempData["SuccessMessage"] = $"Книгу '{bookResult.Data.Title}' успішно замовлено! Перевірте розділ 'Мої замовлення'";
+                    TempData["SuccessMessage"] = $"The book '{bookResult.Data.Title}' has been successfully ordered! Please check the 'My Orders' section.";
                     return RedirectToAction("MyOrders");
                 }
                 else
                 {
                     _logger.LogError("Failed to create order for user {UserId} and book {BookId}: {Message}",
                         userId, bookId, result.Message);
-                    TempData["ErrorMessage"] = $"Помилка створення замовлення: {result.Message}";
+                    TempData["ErrorMessage"] = $"Order creation error: {result.Message}";
                     return RedirectToAction("Details", new { id = bookId });
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing book order for book {BookId}", bookId);
-                TempData["ErrorMessage"] = "Сталася помилка при обробці замовлення";
+                TempData["ErrorMessage"] = "An error occurred while processing the order";
                 return RedirectToAction("Details", new { id = bookId });
             }
         }
@@ -286,87 +279,73 @@ namespace UI.Controllers
         public async Task<IActionResult> CancelOrder(int orderId)
         {
             _logger.LogInformation("User attempting to cancel order {OrderId}", orderId);
-
-            // Перевіряємо, чи користувач авторизований
             var userDataJson = HttpContext.Session.GetString("UserData");
             if (string.IsNullOrEmpty(userDataJson))
             {
-                TempData["ErrorMessage"] = "Для скасування замовлення потрібно увійти в систему";
+                TempData["ErrorMessage"] = "Please log in to cancel an order";
                 return RedirectToAction("Login", "Account");
             }
-
             try
             {
-                // Отримуємо UserId з сесії
                 var userData = JsonConvert.DeserializeObject<UserInfo>(userDataJson);
                 string userId = userData.UserId ?? userData.Id ?? userData.Email;
-
                 if (string.IsNullOrEmpty(userId))
                 {
                     _logger.LogError("Cannot get UserId from session data");
-                    TempData["ErrorMessage"] = "Помилка ідентифікації користувача";
+                    TempData["ErrorMessage"] = "User identification error";
                     return RedirectToAction("MyOrders");
                 }
-
                 var result = await _apiService.CancelOrderAsync(orderId, userId);
-
                 if (result.Success)
                 {
                     _logger.LogInformation("User {UserId} successfully cancelled order {OrderId}", userId, orderId);
-                    TempData["SuccessMessage"] = "Замовлення успішно скасовано! Книга знову доступна для замовлення";
+                    TempData["SuccessMessage"] = "Order successfully cancelled! The book is now available for ordering again";
                 }
                 else
                 {
                     _logger.LogError("Failed to cancel order {OrderId} for user {UserId}: {Message}",
                         orderId, userId, result.Message);
-                    TempData["ErrorMessage"] = $"Помилка скасування замовлення: {result.Message}";
+                    TempData["ErrorMessage"] = $"Error cancelling order: {result.Message}";
                 }
-
                 return RedirectToAction("MyOrders");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing order cancellation for order {OrderId}", orderId);
-                TempData["ErrorMessage"] = "Сталася помилка при скасуванні замовлення";
+                TempData["ErrorMessage"] = "An error occurred while cancelling the order";
                 return RedirectToAction("MyOrders");
             }
         }
 
-        // Додайте цей метод в BooksController
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ReturnBook(int orderId)
         {
             _logger.LogInformation("User attempting to return book for order {OrderId}", orderId);
-
             if (orderId <= 0)
             {
-                TempData["ErrorMessage"] = "Невірний ідентифікатор замовлення";
+                TempData["ErrorMessage"] = "Invalid order identifier";
                 return RedirectToAction("MyOrders");
             }
-
             try
             {
-                // Використовуємо існуючий метод для видалення замовлення
                 var result = await _apiService.DeleteOrderAsync(orderId);
-
                 if (result.Success)
                 {
                     _logger.LogInformation("Successfully returned book for order {OrderId}", orderId);
-                    TempData["SuccessMessage"] = "Книгу успішно повернено! Дякуємо за користування";
+                    TempData["SuccessMessage"] = "Book successfully returned! Thank you for using our service";
                 }
                 else
                 {
                     _logger.LogError("Failed to return book for order {OrderId}: {Message}", orderId, result.Message);
-                    TempData["ErrorMessage"] = $"Помилка повернення книги: {result.Message}";
+                    TempData["ErrorMessage"] = $"Error returning book: {result.Message}";
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error returning book for order {OrderId}", orderId);
-                TempData["ErrorMessage"] = "Сталася помилка при поверненні книги";
+                TempData["ErrorMessage"] = "An error occurred while returning the book";
             }
-
             return RedirectToAction("MyOrders");
         }
     }

@@ -1,4 +1,4 @@
-using Mapping.DTOs;
+п»їusing Mapping.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -38,20 +38,20 @@ namespace PL.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterViewModel model)
         {
-            _logger.LogInformation($"Отримано запит на реєстрацію для {model.Email}");
+            _logger.LogInformation($"Received registration request for {model.Email}");
 
             if (ModelState.IsValid)
             {
-                // Перевіряємо, чи не існує вже такий користувач
                 var existingUser = await _userManager.FindByEmailAsync(model.Email);
                 if (existingUser != null)
                 {
-                    _logger.LogWarning($"Користувач з email {model.Email} вже існує");
+                    _logger.LogWarning($"User with email {model.Email} already exists");
                     return BadRequest(new
                     {
                         success = false,
-                        message = "Користувач з таким email вже існує"
+                        message = "A user with this email already exists"
                     });
+
                 }
 
                 var user = new ApplicationUser
@@ -68,25 +68,22 @@ namespace PL.Controllers
 
                 if (result.Succeeded)
                 {
-                    _logger.LogInformation($"Користувач {user.Email} успішно зареєстрований");
+                    _logger.LogInformation($"User {user.Email} registered successfully");
 
-                    // Додаємо роль
                     await _userManager.AddToRoleAsync(user, "RegisteredUser");
 
-                    // ДОДАНО: Виконуємо Cookie вхід для MVC частини
                     await _signInManager.SignInAsync(user, isPersistent: false);
 
-                    // ДОДАНО: Генеруємо JWT токен для API
                     var token = await GenerateJwtToken(user);
                     var roles = await _userManager.GetRolesAsync(user);
 
-                    _logger.LogInformation($"Автоматичний вхід для {user.Email} після реєстрації");
+                    _logger.LogInformation($"Automatic login for {user.Email} after registration");
 
                     return Ok(new
                     {
                         success = true,
-                        message = "Реєстрація пройшла успішно",
-                        token = token, // ДОДАНО: JWT токен
+                        message = "Registration was successful",
+                        token = token,
                         user = new
                         {
                             id = user.Id,
@@ -99,7 +96,7 @@ namespace PL.Controllers
                     });
                 }
 
-                _logger.LogWarning($"Помилка при реєстрації користувача {model.Email}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                _logger.LogWarning($"Error during registration of user {model.Email}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
                 return BadRequest(new
                 {
                     success = false,
@@ -107,7 +104,7 @@ namespace PL.Controllers
                 });
             }
 
-            _logger.LogWarning($"Неправильна модель даних для реєстрації: {string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage))}");
+            _logger.LogWarning($"Invalid registration data model: {string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage))}");
             return BadRequest(new
             {
                 success = false,
@@ -118,11 +115,11 @@ namespace PL.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginViewModel model)
         {
-            _logger.LogInformation($"Отримано запит на вхід для користувача: {model.Email}");
+            _logger.LogInformation($"Login request received for user: {model.Email}");
 
             if (!ModelState.IsValid)
             {
-                _logger.LogWarning($"Неправильна модель даних для входу: {string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage))}");
+                _logger.LogWarning($"Invalid login data model: {string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage))}");
                 return BadRequest(new
                 {
                     success = false,
@@ -130,27 +127,24 @@ namespace PL.Controllers
                 });
             }
 
-            // Явно шукаємо користувача за Email
             var user = await _userManager.FindByEmailAsync(model.Email);
             if (user == null)
             {
-                _logger.LogWarning($"Користувач з email {model.Email} не знайдений в базі даних");
-                return BadRequest(new { success = false, message = "Невірний логін або пароль" });
+                _logger.LogWarning($"User with email {model.Email} not found in the database");
+                return BadRequest(new { success = false, message = "Invalid login or password" });
             }
 
-            _logger.LogInformation($"Знайдено користувача: ID={user.Id}, UserName={user.UserName}");
+            _logger.LogInformation($"User found: ID={user.Id}, UserName={user.UserName}");
 
-            // Перевірка паролю
             var isPasswordValid = await _userManager.CheckPasswordAsync(user, model.Password);
             if (!isPasswordValid)
             {
-                _logger.LogWarning($"Неправильний пароль для користувача {model.Email}");
-                return BadRequest(new { success = false, message = "Невірний логін або пароль" });
+                _logger.LogWarning($"Incorrect password for user {model.Email}");
+                return BadRequest(new { success = false, message = "Invalid login or password" });
             }
 
-            _logger.LogInformation($"Пароль підтверджено для {model.Email}, виконується вхід");
+            _logger.LogInformation($"Password confirmed for {model.Email}, logging in");
 
-            // ОНОВЛЕНО: Виконуємо Cookie вхід для MVC частини
             var signInResult = await _signInManager.PasswordSignInAsync(
                 user.UserName,
                 model.Password,
@@ -160,16 +154,15 @@ namespace PL.Controllers
             if (signInResult.Succeeded)
             {
                 var roles = await _userManager.GetRolesAsync(user);
-                _logger.LogInformation($"Користувач {model.Email} успішно увійшов. Ролі: {string.Join(", ", roles)}");
+                _logger.LogInformation($"User {model.Email} logged in successfully. Roles: {string.Join(", ", roles)}");
 
-                // ДОДАНО: Генеруємо JWT токен для API запитів
                 var token = await GenerateJwtToken(user);
 
                 return Ok(new
                 {
                     success = true,
-                    message = "Вхід виконано успішно",
-                    token = token, // ДОДАНО: JWT токен
+                    message = "Login successful",
+                    token = token,
                     user = new
                     {
                         id = user.Id,
@@ -182,24 +175,23 @@ namespace PL.Controllers
                 });
             }
 
-            // Детальне логування причини невдачі
-            _logger.LogWarning($"Невдала спроба входу для {model.Email}. " +
+            _logger.LogWarning($"Failed login attempt for {model.Email}. " +
                 $"IsLockedOut: {signInResult.IsLockedOut}, " +
                 $"IsNotAllowed: {signInResult.IsNotAllowed}, " +
                 $"RequiresTwoFactor: {signInResult.RequiresTwoFactor}");
 
-            string errorMessage = "Невірний логін або пароль";
+            string errorMessage = "Invalid login or password";
             if (signInResult.IsLockedOut)
-                errorMessage = "Обліковий запис тимчасово заблоковано. Спробуйте пізніше.";
+                errorMessage = "Account is temporarily locked. Please try again later.";
             else if (signInResult.IsNotAllowed)
-                errorMessage = "Вхід заборонено. Можливо, потрібно підтвердити email.";
+                errorMessage = "Login is not allowed. Email confirmation might be required.";
             else if (signInResult.RequiresTwoFactor)
-                errorMessage = "Потрібна двофакторна автентифікація.";
+                errorMessage = "Two-factor authentication is required.";
 
             return BadRequest(new { success = false, message = errorMessage });
+
         }
 
-        // ДОДАНО: Метод для генерації JWT токенів
         private async Task<string> GenerateJwtToken(ApplicationUser user)
         {
             var roles = await _userManager.GetRolesAsync(user);
@@ -213,7 +205,6 @@ namespace PL.Controllers
                 new Claim("LastName", user.LastName ?? "")
             };
 
-            // Додаємо ролі як claims
             foreach (var role in roles)
             {
                 claims.Add(new Claim(ClaimTypes.Role, role));
@@ -226,7 +217,7 @@ namespace PL.Controllers
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddDays(7), // Токен дійсний 7 днів
+                Expires = DateTime.UtcNow.AddDays(7),
                 SigningCredentials = credentials
             };
 
@@ -240,7 +231,7 @@ namespace PL.Controllers
         public IActionResult TestAuth()
         {
             bool isAuthenticated = User?.Identity?.IsAuthenticated ?? false;
-            string userName = User?.Identity?.Name ?? "Не автентифіковано";
+            string userName = User?.Identity?.Name ?? "Not authenticated";
             var claims = User?.Claims?.Select(c => new { type = c.Type, value = c.Value }).ToList();
 
             return Ok(new
@@ -254,33 +245,33 @@ namespace PL.Controllers
         [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {
-            string email = User.Identity?.IsAuthenticated == true ? User.Identity.Name : "Анонімний користувач";
-            _logger.LogInformation($"Отримано запит на вихід із системи для користувача {email}");
+            string email = User.Identity?.IsAuthenticated == true ? User.Identity.Name : "Anonymous user";
+            _logger.LogInformation($"Logout request received for user {email}");
 
             await _signInManager.SignOutAsync();
-            _logger.LogInformation($"Користувач {email} вийшов із системи");
+            _logger.LogInformation($"User {email} has logged out");
 
-            return Ok(new { success = true, message = "Вихід виконано успішно" });
+            return Ok(new { success = true, message = "Logout successful" });
         }
 
         [HttpGet("status")]
         public async Task<IActionResult> CheckAuthStatus()
         {
-            _logger.LogInformation("Отримано запит на перевірку статусу автентифікації");
+            _logger.LogInformation("Authentication status check request received");
 
             if (User.Identity?.IsAuthenticated == true)
             {
-                _logger.LogInformation($"Автентифікований користувач: {User.Identity.Name}");
+                _logger.LogInformation($"Authenticated user: {User.Identity.Name}");
 
                 var user = await _userManager.GetUserAsync(User);
                 if (user == null)
                 {
-                    _logger.LogWarning($"Користувач автентифікований ({User.Identity.Name}), але не знайдений в базі даних");
+                    _logger.LogWarning($"User is authenticated ({User.Identity.Name}) but not found in the database");
                     return Ok(new { isAuthenticated = false });
                 }
 
                 var roles = await _userManager.GetRolesAsync(user);
-                _logger.LogInformation($"Статус автентифікації для {user.Email}: автентифікований. Ролі: {string.Join(", ", roles)}");
+                _logger.LogInformation($"Authentication status for {user.Email}: authenticated. Roles: {string.Join(", ", roles)}");
 
                 return Ok(new
                 {
@@ -297,11 +288,11 @@ namespace PL.Controllers
                 });
             }
 
-            _logger.LogInformation("Перевірка статусу: користувач не автентифікований");
+            _logger.LogInformation("Status check: user is not authenticated");
             return Ok(new { isAuthenticated = false });
         }
 
-        // ДОДАНО: Endpoint для перевірки JWT токену
+
         [HttpGet("me")]
         [Microsoft.AspNetCore.Authorization.Authorize]
         public async Task<IActionResult> GetCurrentUser()
@@ -311,13 +302,13 @@ namespace PL.Controllers
                 var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
                 if (string.IsNullOrEmpty(userEmail))
                 {
-                    return BadRequest(new { success = false, message = "Не вдалося отримати дані користувача" });
+                    return BadRequest(new { success = false, message = "Failed to retrieve user data" });
                 }
 
                 var user = await _userManager.FindByEmailAsync(userEmail);
                 if (user == null)
                 {
-                    return NotFound(new { success = false, message = "Користувача не знайдено" });
+                    return NotFound(new { success = false, message = "User not found" });
                 }
 
                 var roles = await _userManager.GetRolesAsync(user);
@@ -339,9 +330,10 @@ namespace PL.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting current user from JWT token");
-                return StatusCode(500, new { success = false, message = "Внутрішня помилка сервера" });
+                return StatusCode(500, new { success = false, message = "Internal server error" });
             }
         }
+
 
         [HttpPost("RefreshSession")]
         [Authorize]
@@ -359,7 +351,7 @@ namespace PL.Controllers
                     return Unauthorized(new ApiResponse<object>
                     {
                         Success = false,
-                        Message = "Користувач не авторизований"
+                        Message = "User is not authorized"
                     });
                 }
 
@@ -370,11 +362,10 @@ namespace PL.Controllers
                     return Unauthorized(new ApiResponse<object>
                     {
                         Success = false,
-                        Message = "Користувач не знайдений"
+                        Message = "User not found"
                     });
                 }
 
-                // Оновлюємо cookie авторизації
                 await _signInManager.RefreshSignInAsync(user);
 
                 _logger.LogInformation("Session refreshed for user: {Email}", user.Email);
@@ -382,7 +373,7 @@ namespace PL.Controllers
                 return Ok(new ApiResponse<object>
                 {
                     Success = true,
-                    Message = "Сесія оновлена успішно"
+                    Message = "Session refreshed successfully"
                 });
             }
             catch (Exception ex)
@@ -391,10 +382,11 @@ namespace PL.Controllers
                 return StatusCode(500, new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Помилка оновлення сесії"
+                    Message = "Error refreshing session"
                 });
             }
         }
+
 
         [HttpPost("CheckAndRefreshSession")]
         public async Task<ActionResult<ApiResponse<object>>> CheckAndRefreshSession([FromBody] RefreshSessionRequest request)
@@ -408,7 +400,7 @@ namespace PL.Controllers
                     return BadRequest(new ApiResponse<object>
                     {
                         Success = false,
-                        Message = "Email обов'язковий"
+                        Message = "Email is required"
                     });
                 }
 
@@ -419,11 +411,10 @@ namespace PL.Controllers
                     return BadRequest(new ApiResponse<object>
                     {
                         Success = false,
-                        Message = "Користувач не знайдений"
+                        Message = "User not found"
                     });
                 }
 
-                // Підписуємо користувача знову з довгим терміном
                 await _signInManager.SignInAsync(user, isPersistent: true);
 
                 _logger.LogInformation("Session refreshed for user: {Email}", user.Email);
@@ -431,7 +422,7 @@ namespace PL.Controllers
                 return Ok(new ApiResponse<object>
                 {
                     Success = true,
-                    Message = "Сесія оновлена успішно"
+                    Message = "Session refreshed successfully"
                 });
             }
             catch (Exception ex)
@@ -440,10 +431,11 @@ namespace PL.Controllers
                 return StatusCode(500, new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Помилка оновлення сесії"
+                    Message = "Error refreshing session"
                 });
             }
         }
+
 
         public class RefreshSessionRequest
         {

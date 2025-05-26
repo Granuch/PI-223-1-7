@@ -51,7 +51,6 @@ namespace Mapping.DTOs
         public string Description { get; set; }
     }
 
-    // DTO для створення користувача
     public class CreateUserRequest
     {
         [Required]
@@ -74,7 +73,6 @@ namespace Mapping.DTOs
         public string Role { get; set; } // "Administrator", "Manager", "RegisteredUser"
     }
 
-    // DTO для оновлення користувача
     public class UpdateUserRequest
     {
         public string FirstName { get; set; }
@@ -83,7 +81,6 @@ namespace Mapping.DTOs
         public string Email { get; set; }
     }
 
-    // DTO для зміни паролю
     public class ChangePasswordRequest
     {
         [Required]
@@ -94,7 +91,6 @@ namespace Mapping.DTOs
         public string NewPassword { get; set; }
     }
 
-    // DTO для призначення ролі
     public class AssignRoleRequest
     {
         [Required]
@@ -104,7 +100,6 @@ namespace Mapping.DTOs
         public string RoleName { get; set; }
     }
 
-    // DTO для створення ролі
     public class CreateRoleRequest
     {
         [Required]
@@ -113,7 +108,6 @@ namespace Mapping.DTOs
         public string Description { get; set; }
     }
 
-    // Відповідь API
     public class ApiResponse<T>
     {
         public bool Success { get; set; }

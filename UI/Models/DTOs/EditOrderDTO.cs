@@ -26,7 +26,6 @@ namespace UI.Models.DTOs
         [Display(Name = "Статус")]
         public int Type { get; set; }
 
-        // Ці поля не обов'язкові для валідації, тільки для відображення
         public BookDTO? Book { get; set; }
         public string? UserEmail { get; set; }
     }

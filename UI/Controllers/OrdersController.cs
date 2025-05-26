@@ -60,7 +60,7 @@ namespace UI.Controllers
 
             if (result.Success)
             {
-                TempData["SuccessMessage"] = "Замовлення успішно створено!";
+                TempData["SuccessMessage"] = "Order successfully created!";
                 return RedirectToAction("Index");
             }
 
@@ -75,7 +75,6 @@ namespace UI.Controllers
 
             if (result.Success)
             {
-                // Маппінг з OrderDTO до EditOrderDTO
                 var editModel = new EditOrderDTO
                 {
                     Id = result.Data.Id,
@@ -101,13 +100,12 @@ namespace UI.Controllers
         {
             if (id != editOrder.Id)
             {
-                ModelState.AddModelError("", "ID не співпадає");
+                ModelState.AddModelError("", "ID don't match");
                 return View(editOrder);
             }
 
             if (!ModelState.IsValid)
             {
-                // Перезавантажуємо додаткові дані для відображення
                 var reloadResult = await _apiService.GetOrderByIdAsync(id);
                 if (reloadResult.Success)
                 {
@@ -117,7 +115,6 @@ namespace UI.Controllers
                 return View(editOrder);
             }
 
-            // Маппінг з EditOrderDTO до OrderDTO для API
             var orderDto = new OrderDTO
             {
                 Id = editOrder.Id,
@@ -132,7 +129,7 @@ namespace UI.Controllers
 
             if (result.Success)
             {
-                TempData["SuccessMessage"] = "Замовлення успішно оновлено!";
+                TempData["SuccessMessage"] = "Order successfully updated!";
                 return RedirectToAction("Index");
             }
 
@@ -162,7 +159,7 @@ namespace UI.Controllers
 
             if (result.Success)
             {
-                TempData["SuccessMessage"] = "Замовлення успішно видалено!";
+                TempData["SuccessMessage"] = "Order successfully deleted!";
             }
             else
             {
