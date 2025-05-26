@@ -122,17 +122,15 @@ namespace BLL.Services
         {
             try
             {
-                // Перевіряємо, чи існує користувач з таким email
                 var existingUser = await _userManager.FindByEmailAsync(request.Email);
                 if (existingUser != null)
                 {
                     return IdentityResult.Failed(new IdentityError
                     {
-                        Description = "Користувач з таким email вже існує"
+                        Description = "A user with this email already exists"
                     });
                 }
 
-                // Створюємо нового користувача
                 var user = new ApplicationUser
                 {
                     UserName = request.Email,
@@ -147,13 +145,11 @@ namespace BLL.Services
 
                 if (result.Succeeded)
                 {
-                    // Перевіряємо, чи існує роль
                     if (!await _roleManager.RoleExistsAsync(roleName))
                     {
                         await _roleManager.CreateAsync(new ApplicationRole(roleName));
                     }
 
-                    // Призначаємо роль користувачу
                     await _userManager.AddToRoleAsync(user, roleName);
 
                     _logger.LogInformation("User {Email} created successfully with role {Role}", request.Email, roleName);
@@ -166,7 +162,7 @@ namespace BLL.Services
                 _logger.LogError(ex, "Error creating user {Email}", request.Email);
                 return IdentityResult.Failed(new IdentityError
                 {
-                    Description = "Помилка створення користувача"
+                    Description = "User creation error"
                 });
             }
         }
@@ -180,11 +176,10 @@ namespace BLL.Services
                 {
                     return IdentityResult.Failed(new IdentityError
                     {
-                        Description = "Користувача не знайдено"
+                        Description = "User not found"
                     });
                 }
 
-                // Оновлюємо дані користувача
                 user.FirstName = request.FirstName ?? user.FirstName;
                 user.LastName = request.LastName ?? user.LastName;
                 user.PhoneNumber = request.PhoneNumber ?? user.PhoneNumber;
@@ -202,7 +197,7 @@ namespace BLL.Services
                 _logger.LogError(ex, "Error updating user {UserId}", userId);
                 return IdentityResult.Failed(new IdentityError
                 {
-                    Description = "Помилка оновлення користувача"
+                    Description = "User update error"
                 });
             }
         }
@@ -216,7 +211,7 @@ namespace BLL.Services
                 {
                     return IdentityResult.Failed(new IdentityError
                     {
-                        Description = "Користувача не знайдено"
+                        Description = "User not found"
                     });
                 }
 
@@ -234,7 +229,7 @@ namespace BLL.Services
                 _logger.LogError(ex, "Error deleting user {UserId}", userId);
                 return IdentityResult.Failed(new IdentityError
                 {
-                    Description = "Помилка видалення користувача"
+                    Description = "Error deleting user"
                 });
             }
         }
@@ -248,7 +243,7 @@ namespace BLL.Services
                 {
                     return IdentityResult.Failed(new IdentityError
                     {
-                        Description = "Користувача не знайдено"
+                        Description = "User not found"
                     });
                 }
 
@@ -260,7 +255,7 @@ namespace BLL.Services
                 _logger.LogError(ex, "Error changing password for user {UserId}", userId);
                 return IdentityResult.Failed(new IdentityError
                 {
-                    Description = "Помилка зміни паролю"
+                    Description = "Error changing password"
                 });
             }
         }
@@ -274,7 +269,7 @@ namespace BLL.Services
                 {
                     return IdentityResult.Failed(new IdentityError
                     {
-                        Description = "Користувача не знайдено"
+                        Description = "User not found"
                     });
                 }
 
@@ -282,7 +277,7 @@ namespace BLL.Services
                 {
                     return IdentityResult.Failed(new IdentityError
                     {
-                        Description = "Роль не існує"
+                        Description = "Role does not exist"
                     });
                 }
 
@@ -290,7 +285,7 @@ namespace BLL.Services
                 {
                     return IdentityResult.Failed(new IdentityError
                     {
-                        Description = "Користувач вже має цю роль"
+                        Description = "The user already has this role"
                     });
                 }
 
@@ -301,7 +296,7 @@ namespace BLL.Services
                 _logger.LogError(ex, "Error assigning role {Role} to user {UserId}", roleName, userId);
                 return IdentityResult.Failed(new IdentityError
                 {
-                    Description = "Помилка призначення ролі"
+                    Description = "Role assignment error"
                 });
             }
         }
@@ -315,7 +310,7 @@ namespace BLL.Services
                 {
                     return IdentityResult.Failed(new IdentityError
                     {
-                        Description = "Користувача не знайдено"
+                        Description = "User not found"
                     });
                 }
 
@@ -323,7 +318,7 @@ namespace BLL.Services
                 {
                     return IdentityResult.Failed(new IdentityError
                     {
-                        Description = "Користувач не має цієї ролі"
+                        Description = "The user does not have this role"
                     });
                 }
 
@@ -334,7 +329,7 @@ namespace BLL.Services
                 _logger.LogError(ex, "Error removing role {Role} from user {UserId}", roleName, userId);
                 return IdentityResult.Failed(new IdentityError
                 {
-                    Description = "Помилка видалення ролі"
+                    Description = "Role removal error"
                 });
             }
         }
@@ -365,7 +360,7 @@ namespace BLL.Services
                 {
                     return IdentityResult.Failed(new IdentityError
                     {
-                        Description = "Роль вже існує"
+                        Description = "Role already exist"
                     });
                 }
 
@@ -381,7 +376,7 @@ namespace BLL.Services
                 _logger.LogError(ex, "Error creating role {RoleName}", roleName);
                 return IdentityResult.Failed(new IdentityError
                 {
-                    Description = "Помилка створення ролі"
+                    Description = "Role creation error"
                 });
             }
         }

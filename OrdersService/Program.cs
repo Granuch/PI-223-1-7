@@ -11,7 +11,6 @@ using PL.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 
 builder.Services.AddDataProtection()
     .SetApplicationName("LibraryApp")
@@ -22,7 +21,7 @@ builder.Services.AddDataProtection()
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.Cookie.Name = "LibraryApp.AuthCookie"; // “¿ ∆≈ Õ¿«¬¿
+        options.Cookie.Name = "LibraryApp.AuthCookie"; 
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
@@ -54,7 +53,6 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, UserContextService>();
 
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<LibraryDbContext>(options =>
@@ -80,7 +78,7 @@ app.UseHttpsRedirection();
 
 app.UseCors("AllowMvcClient");
 app.UseCookiePolicy();
-app.UseAuthentication(); // œ≈–≈ƒ UseAuthorization
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

@@ -1,5 +1,3 @@
-// ========== ОНОВЛЕНИЙ BooksController БЕЗ UserManager ==========
-
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BLL.Interfaces;
@@ -8,7 +6,7 @@ using PI_223_1_7.Enums;
 using BLL.Exceptions;
 using Microsoft.Extensions.Logging;
 using System.Security.Claims;
-using PL.Services; // Для UserContextService
+using PL.Services;
 
 namespace PL.Controllers
 {
@@ -19,19 +17,18 @@ namespace PL.Controllers
     {
         private readonly IBookService _bookService;
         private readonly ILogger<BooksController> _logger;
-        private readonly IUserContextService _userContext; // ЗАМІНИЛИ UserManager
+        private readonly IUserContextService _userContext; 
 
         public BooksController(
             IBookService bookService,
             ILogger<BooksController> logger,
-            IUserContextService userContext) // ОНОВИЛИ КОНСТРУКТОР
+            IUserContextService userContext)
         {
             _bookService = bookService ?? throw new ArgumentNullException(nameof(bookService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext)); // ЗАМІНИЛИ
+            _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext)); 
         }
 
-        // Отримує всі книги з можливістю пошуку, фільтрації та сортування
         [HttpGet("GetAll")]
         [ProducesResponseType(typeof(IEnumerable<BookDTO>), 200)]
         [ProducesResponseType(500)]
@@ -85,7 +82,7 @@ namespace PL.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving books");
-                return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
+                return StatusCode(500, new { message = $"Internal server error: {ex.Message}" });
             }
         }
 
@@ -149,12 +146,12 @@ namespace PL.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving books with filtering");
-                return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
+                return StatusCode(500, new { message = $"Internal server error: {ex.Message}" });
             }
         }
 
         [HttpGet("GetUserOrders")]
-        [Authorize] // Базова авторизація
+        [Authorize] 
         [ProducesResponseType(typeof(IEnumerable<BookDTO>), 200)]
         [ProducesResponseType(401)]
         [ProducesResponseType(403)]
@@ -170,14 +167,14 @@ namespace PL.Controllers
                 if (!_userContext.IsAuthenticated())
                 {
                     _logger.LogWarning("User not authenticated when trying to get orders");
-                    return Unauthorized(new { message = "Користувач не авторизований" });
+                    return Unauthorized(new { message = "User is not autorized" });
                 }
 
                 var userId = _userContext.GetCurrentUserId();
                 if (string.IsNullOrEmpty(userId))
                 {
                     _logger.LogWarning("Cannot get UserId from context");
-                    return BadRequest(new { message = "Помилка ідентифікації користувача" });
+                    return BadRequest();
                 }
 
                 var books = await _bookService.GetUserOrderedBooksAsync(userId);
@@ -187,7 +184,7 @@ namespace PL.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving user's ordered books");
-                return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
+                return StatusCode(500, new { message = $"Internal server error: {ex.Message}" });
             }
         }
 
@@ -205,17 +202,17 @@ namespace PL.Controllers
             catch (BookNotFoundException ex)
             {
                 _logger.LogWarning(ex, $"Book not found: {id}");
-                return NotFound(new { message = $"Книга з ID {id} не знайдена" });
+                return NotFound(new { message = $"Book not found: {id}" });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error retrieving book with ID: {id}");
-                return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
+                return StatusCode(500, new { message = $"Internal server error: {ex.Message}" });
             }
         }
 
         [HttpPost("CreateBook")]
-        [Authorize] // Базова авторизація
+        [Authorize]
         [ProducesResponseType(typeof(BookDTO), 201)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -227,7 +224,6 @@ namespace PL.Controllers
             {
                 _logger.LogInformation("CreateBook called by user: {User}", _userContext.GetCurrentUserEmail());
 
-                // Перевіряємо права доступу
                 if (!_userContext.IsManager())
                 {
                     _logger.LogWarning("Non-manager user tried to create book: {User}", _userContext.GetCurrentUserEmail());
@@ -248,12 +244,12 @@ namespace PL.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating book");
-                return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
+                return StatusCode(500, new { message = $"Internal server error: {ex.Message}" });
             }
         }
 
         [HttpPut("UpdateBook/{id:int}")]
-        [Authorize] // Базова авторизація
+        [Authorize] 
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -266,7 +262,6 @@ namespace PL.Controllers
             {
                 _logger.LogInformation("UpdateBook called by user: {User}", _userContext.GetCurrentUserEmail());
 
-                // Перевіряємо права доступу
                 if (!_userContext.IsManager())
                 {
                     _logger.LogWarning("Non-manager user tried to update book: {User}", _userContext.GetCurrentUserEmail());
@@ -276,7 +271,7 @@ namespace PL.Controllers
                 if (id != book.Id)
                 {
                     _logger.LogWarning($"Mismatch between URL ID: {id} and body ID: {book.Id}");
-                    return BadRequest(new { message = "Ідентифікатор книги в URL повинен співпадати з ідентифікатором в тілі запиту" });
+                    return BadRequest(new { message = "The book ID in the URL must match the ID in the request body" });
                 }
 
                 if (!ModelState.IsValid)
@@ -292,17 +287,17 @@ namespace PL.Controllers
             catch (BookNotFoundException ex)
             {
                 _logger.LogWarning(ex, $"Book not found: {id}");
-                return NotFound(new { message = $"Книга з ID {id} не знайдена" });
+                return NotFound(new { message = $"Book not found: {id}" });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error updating book with ID: {id}");
-                return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
+                return StatusCode(500, new { message = $"Internal server error: {ex.Message}" });
             }
         }
 
         [HttpDelete("DeleteBook/{id}")]
-        [Authorize] // Базова авторизація
+        [Authorize] 
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -315,7 +310,6 @@ namespace PL.Controllers
             {
                 _logger.LogInformation("DeleteBook called by user: {User}", _userContext.GetCurrentUserEmail());
 
-                // Перевіряємо права доступу - тільки адміністратори можуть видаляти
                 if (!_userContext.IsAdministrator())
                 {
                     _logger.LogWarning("Non-administrator user tried to delete book: {User}", _userContext.GetCurrentUserEmail());
@@ -329,7 +323,7 @@ namespace PL.Controllers
             catch (BookNotFoundException ex)
             {
                 _logger.LogWarning(ex, $"Book not found: {id}");
-                return NotFound(new { message = $"Книга з ID {id} не знайдена" });
+                return NotFound(new { message = $"Book not found:  {id}" });
             }
             catch (BookDeleteException ex)
             {
@@ -339,12 +333,12 @@ namespace PL.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error deleting book with ID: {id}");
-                return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
+                return StatusCode(500, new { message = $"Internal server error: {ex.Message}" });
             }
         }
 
         [HttpPost("OrderBook/{id:int}")]
-        [Authorize] // Базова авторизація
+        [Authorize] 
         [ProducesResponseType(typeof(OrderDTO), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -376,7 +370,7 @@ namespace PL.Controllers
             catch (BookNotFoundException ex)
             {
                 _logger.LogWarning(ex, $"Book not found: {id}");
-                return NotFound(new { message = $"Книга з ID {id} не знайдена" });
+                return NotFound(new { message = $"Book not found:  {id}" });
             }
             catch (BookNotAvailableException ex)
             {
@@ -386,7 +380,7 @@ namespace PL.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error ordering book with ID: {id}");
-                return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
+                return StatusCode(500, new { message = $"Internal server error: {ex.Message}" });
             }
         }
 
@@ -399,7 +393,7 @@ namespace PL.Controllers
             if (string.IsNullOrWhiteSpace(author))
             {
                 _logger.LogWarning("Empty author parameter provided");
-                return BadRequest(new { message = "Ім'я автора не може бути порожнім" });
+                return BadRequest(new { message = "Empty author parameter provided" });
             }
 
             try
@@ -411,7 +405,7 @@ namespace PL.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error retrieving books by author: {author}");
-                return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
+                return StatusCode(500, new { message = $"Internal server error: {ex.Message}" });
             }
         }
 
@@ -430,17 +424,17 @@ namespace PL.Controllers
             catch (BookNotFoundException ex)
             {
                 _logger.LogWarning(ex, $"Book not found: {id}");
-                return NotFound(new { message = $"Книга з ID {id} не знайдена" });
+                return NotFound(new { message = $"Book not found:  {id}" });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error checking availability for book with ID: {id}");
-                return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
+                return StatusCode(500, new { message = $"Internal server error: {ex.Message}" });
             }
         }
 
         [HttpPut("SetAvailability/{id}")]
-        [Authorize] // Базова авторизація
+        [Authorize] 
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -453,7 +447,6 @@ namespace PL.Controllers
             {
                 _logger.LogInformation("SetBookAvailability called by user: {User}", _userContext.GetCurrentUserEmail());
 
-                // Перевіряємо права доступу
                 if (!_userContext.IsManager())
                 {
                     _logger.LogWarning("Non-manager user tried to set book availability: {User}", _userContext.GetCurrentUserEmail());
@@ -467,12 +460,12 @@ namespace PL.Controllers
             catch (BookNotFoundException ex)
             {
                 _logger.LogWarning(ex, $"Book not found: {id}");
-                return NotFound(new { message = $"Книга з ID {id} не знайдена" });
+                return NotFound(new { message = $"Book not found:   {id}" });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error updating availability for book with ID: {id}");
-                return StatusCode(500, new { message = $"Внутрішня помилка сервера: {ex.Message}" });
+                return StatusCode(500, new { message = $"Internal server error: {ex.Message}" });
             }
         }
     }
