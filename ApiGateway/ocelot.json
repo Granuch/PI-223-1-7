@@ -195,8 +195,6 @@
       "UpstreamPathTemplate": "/api/books/setavailability/{id}",
       "UpstreamHttpMethod": [ "Put" ]
     },
-
-    //AdminUsers - FIXED ROUTING
     {
       "DownstreamPathTemplate": "/AdminUsers/GetAllUsers",
       "DownstreamScheme": "http",

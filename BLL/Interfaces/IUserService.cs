@@ -10,27 +10,27 @@ namespace BLL.Interfaces
 {
     public interface IUserService
     {
-        // Методи для отримання користувачів
+        // Methods for retrieving users
         Task<IEnumerable<UserDTO>> GetAllUsersAsync();
         Task<UserDTO> GetUserByIdAsync(string userId);
         Task<UserDTO> GetUserByEmailAsync(string email);
 
-        // Методи для створення користувачів
+        // Methods for creating users
         Task<IdentityResult> CreateUserAsync(CreateUserRequest request);
         Task<IdentityResult> CreateAdminAsync(CreateUserRequest request);
         Task<IdentityResult> CreateManagerAsync(CreateUserRequest request);
 
-        // Методи для управління користувачами
+        // Methods for managing users
         Task<IdentityResult> UpdateUserAsync(string userId, UpdateUserRequest request);
         Task<IdentityResult> DeleteUserAsync(string userId);
         Task<IdentityResult> ChangeUserPasswordAsync(string userId, string newPassword);
 
-        // Методи для управління ролями
+        // Methods for managing roles
         Task<IdentityResult> AssignRoleToUserAsync(string userId, string roleName);
         Task<IdentityResult> RemoveRoleFromUserAsync(string userId, string roleName);
         Task<IEnumerable<string>> GetUserRolesAsync(string userId);
 
-        // Методи для ролей
+        // Methods for roles
         Task<IEnumerable<RoleDTO>> GetAllRolesAsync();
         Task<IdentityResult> CreateRoleAsync(string roleName, string description = null);
     }

@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 
 namespace PL.Controllers
 {
-    //[Authorize]// Базовий доступ для авторизованих 
     [ApiController]
     [Route("[controller]")]
     public class OrdersController : ControllerBase

@@ -59,7 +59,6 @@ namespace BLL.Services
             if (existingBook == null)
                 throw new BookNotFoundException($"Book with ID {bookDto.Id} not found");
 
-            // Map updated values
             _mapper.Map(bookDto, existingBook);
 
             _unitOfWork.books.Update(existingBook);
@@ -73,7 +72,6 @@ namespace BLL.Services
             if (book == null)
                 throw new BookNotFoundException($"Book with ID {id} not found");
 
-            // Check if the book has any orders
             var ordersWithBook = await _unitOfWork.orders.FindAsync(o => o.BookId == id);
 
             if (ordersWithBook.Any())
@@ -185,11 +183,9 @@ namespace BLL.Services
                 Book = book
             };
 
-            // Update book availability
             book.IsAvaliable = false;
             _unitOfWork.books.Update(book);
 
-            // Add the order
             await _unitOfWork.orders.AddAsync(order);
             await _unitOfWork.orders.SaveAsync();
 
@@ -201,11 +197,9 @@ namespace BLL.Services
             if (string.IsNullOrEmpty(userId))
                 throw new ArgumentException("User ID cannot be null or empty", nameof(userId));
 
-            // Get all orders with details for the specific user
             var orders = await _unitOfWork.orders.GetAllWithDetailsAsync();
             var userOrders = orders.Where(o => o.UserId == userId);
 
-            // Extract books from the orders
             var orderedBooks = userOrders.Select(o => o.Book).ToList();
 
             return _mapper.Map<IEnumerable<BookDTO>>(orderedBooks);
