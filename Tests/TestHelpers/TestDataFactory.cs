@@ -1,8 +1,7 @@
 ﻿using Mapping.DTOs;
 using PI_223_1_7.Enums;
 using PI_223_1_7.Models;
-using System;
-using System.Collections.Generic;
+
 
 namespace Tests.TestHelpers
 {
@@ -87,7 +86,7 @@ namespace Tests.TestHelpers
             return orders;
         }
 
-        // Методи для створення User
+        // Метод для створення User
         public static ApplicationUser CreateUser(string id = "user1", string email = "user1@example.com")
         {
             return new ApplicationUser
@@ -102,7 +101,7 @@ namespace Tests.TestHelpers
             };
         }
 
-        // Методи для CreateUserRequest
+        // Метод для CreateUserRequest
         public static CreateUserRequest CreateUserRequest(string email = "newuser@example.com")
         {
             return new CreateUserRequest
@@ -116,7 +115,7 @@ namespace Tests.TestHelpers
             };
         }
 
-        // Методи для UpdateUserRequest
+        // Метод для UpdateUserRequest
         public static UpdateUserRequest CreateUpdateUserRequest()
         {
             return new UpdateUserRequest

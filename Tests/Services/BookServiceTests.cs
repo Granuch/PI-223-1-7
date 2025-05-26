@@ -13,14 +13,14 @@ namespace Tests.Services
     [TestFixture]
     public class BookServiceTests
     {
-        private MockUnitOfWork _mockUnitOfWork;
+        private Mocks.Mocks _mockUnitOfWork;
         private IMapper _mapper;
         private BookService _bookService;
 
         [SetUp]
         public void Setup()
         {
-            _mockUnitOfWork = new MockUnitOfWork();
+            _mockUnitOfWork = new Mocks.Mocks();
             _mapper = MapperHelper.CreateMapper();
             _bookService = new BookService(_mockUnitOfWork.UnitOfWorkMock.Object, _mapper);
         }

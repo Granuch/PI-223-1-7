@@ -1,6 +1,5 @@
 ﻿using AutoMapper;
 using BLL.Services;
-using Tests.Mocks;
 using Tests.TestHelpers;
 using Mapping.DTOs;
 using Moq;
@@ -11,14 +10,14 @@ namespace Tests.Services
     [TestFixture]
     public class OrderServiceTests
     {
-        private MockUnitOfWork _mockUnitOfWork;
+        private Mocks.Mocks _mockUnitOfWork;
         private IMapper _mapper;
         private OrderService _orderService;
 
         [SetUp]
         public void Setup()
         {
-            _mockUnitOfWork = new MockUnitOfWork();
+            _mockUnitOfWork = new Mocks.Mocks();
             _mapper = MapperHelper.CreateMapper();
             _orderService = new OrderService(_mockUnitOfWork.UnitOfWorkMock.Object, _mapper);
         }
