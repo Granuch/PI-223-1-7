@@ -3,6 +3,15 @@
 > [!NOTE]
 > Система управління бібліотекою - це сучасний веб-додаток, побудований на мікросервісній архітектурі з використанням ASP.NET Core 9.0. Система забезпечує повне управління книгами, замовленнями та користувачами з розподіленою обробкою даних через API Gateway.
 
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Granuch_PI-223-1-7&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Granuch_PI-223-1-7)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Granuch_PI-223-1-7&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Granuch_PI-223-1-7)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=Granuch_PI-223-1-7&metric=bugs)](https://sonarcloud.io/summary/new_code?id=Granuch_PI-223-1-7)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=Granuch_PI-223-1-7&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=Granuch_PI-223-1-7)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=Granuch_PI-223-1-7&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=Granuch_PI-223-1-7)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=Granuch_PI-223-1-7&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=Granuch_PI-223-1-7)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=Granuch_PI-223-1-7&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=Granuch_PI-223-1-7)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=Granuch_PI-223-1-7&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=Granuch_PI-223-1-7)
+
 ##  Ключові особливості
 
 -  Мікросервісна архітектура з API Gateway (Ocelot)
