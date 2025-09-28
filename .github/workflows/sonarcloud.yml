@@ -1,0 +1,58 @@
+name: SonarCloud analysis
+
+on:
+  push:
+    branches: [ "master" ]   # если у тебя main — поменяй тут
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+permissions:
+  pull-requests: read
+
+jobs:
+  sonarcloud:
+    name: SonarCloud
+    runs-on: windows-latest   # для .NET проектов
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install SonarScanner
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: SonarScanner Begin
+        run: |
+          echo "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
+          dotnet sonarscanner begin `
+            /k:"Granuch_PI-223-1-7" `
+            /o:"granuch" `
+            /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
+            /d:sonar.cs.opencover.reportsPaths="**/coverage.xml" `
+            /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
+            /d:sonar.qualitygate.wait=true
+        shell: pwsh
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
+
+
+      - name: Tests with coverage
+        run: |
+          dotnet test -c Release --no-build `
+          /p:CollectCoverage=true `
+          /p:CoverletOutput=TestResults/coverage.xml `
+          /p:CoverletOutputFormat=opencover
+        shell: pwsh
+
+      - name: SonarScanner End
+        run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+        shell: pwsh
