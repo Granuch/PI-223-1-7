@@ -27,16 +27,19 @@ jobs:
         run: dotnet tool install --global dotnet-sonarscanner
 
       - name: SonarScanner Begin
+        shell: pwsh
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          echo "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
-          dotnet sonarscanner begin `
+            echo "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
+            dotnet sonarscanner begin `
             /k:"Granuch_PI-223-1-7" `
             /o:"granuch" `
-            /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
+            /d:sonar.token="$env:SONAR_TOKEN" `
             /d:sonar.cs.opencover.reportsPaths="**/coverage.xml" `
             /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
             /d:sonar.qualitygate.wait=true
-        shell: pwsh
+
 
       - name: Restore
         run: dotnet restore
