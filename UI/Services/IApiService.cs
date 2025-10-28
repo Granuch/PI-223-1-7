@@ -21,6 +21,7 @@ namespace UI.Services
         Task<ApiResponse<object>> DeleteBookAsync(int id);
         Task<ApiResponse<IEnumerable<BookDTO>>> GetUserOrdersAsync();
         Task<ApiResponse<bool>> CheckBookAvailabilityAsync(int id);
+        Task<ApiResponse<bool>> SetBookAvailabilityAsync(int id, bool isAvailable);
         Task<ApiResponse<object>> CancelOrderAsync(int orderId, string userId);
 
         // Orders

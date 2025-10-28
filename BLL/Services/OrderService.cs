@@ -58,6 +58,13 @@ namespace BLL.Services
             if (order == null)
                 throw new ArgumentException();
 
+            Book book = await unitOfWork.books.GetByIdAsync(order.BookId);
+
+            if (book.Type == 0)
+            {
+                book.IsAvaliable = true;
+            }
+
             unitOfWork.orders.Delete(order);
             await unitOfWork.orders.SaveAsync();
         }

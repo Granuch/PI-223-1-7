@@ -251,6 +251,14 @@ namespace UI.Controllers
                 };
 
                 var result = await _apiService.CreateOrderAsync(order);
+                ApiResponse<BookDTO> response = await _apiService.GetBookByIdAsync(bookId);
+                BookDTO book = response.Data;
+
+
+                if (book.Type == "Physical")
+                {
+                    await _apiService.SetBookAvailabilityAsync(bookId, false);
+                }
 
                 if (result.Success)
                 {

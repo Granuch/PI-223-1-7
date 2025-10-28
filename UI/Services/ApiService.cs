@@ -662,6 +662,40 @@ namespace UI.Services
             }
         }
 
+        public async Task<ApiResponse<bool>> SetBookAvailabilityAsync(int id, bool isAvailable)
+        {
+            try
+            {
+                LogCookieInfo();
+                EnsureCookiesAreSet();
+
+                var json = JsonConvert.SerializeObject(isAvailable);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PutAsync($"/api/books/setavailability/{id}", content);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return new ApiResponse<bool>
+                    {
+                        Success = true,
+                    };
+                }
+
+                return HandleAuthError<bool>(response.StatusCode, "Помилка перевірки доступності");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error setting book availability: {id}");
+                return new ApiResponse<bool>
+                {
+                    Success = false,
+                    Message = "Помилка з'єднання з сервером"
+                };
+            }
+        }
+
         public async Task<ApiResponse<IEnumerable<OrderDTO>>> GetAllOrdersAsync()
         {
             try
@@ -764,7 +798,7 @@ namespace UI.Services
                     book = new
                     {
                         id = bookResult.Data.Id,
-                        name = bookResult.Data.Title,
+                        name = "Test",
                         author = bookResult.Data.Author,
                         description = bookResult.Data.Description ?? "",
                         genre = bookResult.Data.GenreId,

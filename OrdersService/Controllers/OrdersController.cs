@@ -96,7 +96,7 @@ namespace PL.Controllers
             try
             {
                 await _orderService.DeleteOrderById(id);
-                return NoContent();
+                return Ok();
             }
             catch (KeyNotFoundException ex)
             {
