@@ -399,7 +399,7 @@ namespace Tests.Services
 
             // Assert
             Assert.That(result.Succeeded, Is.False);
-            Assert.That(result.Errors.First().Description, Does.Contain("не існує"));
+            Assert.That(result.Errors.First().Description, Does.Contain("Role does not exist"));
         }
 
         [Test]
