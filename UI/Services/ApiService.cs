@@ -794,7 +794,7 @@ namespace UI.Services
                     userId = order.UserId,
                     bookId = order.BookId,
                     orderDate = order.OrderDate.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                    type = 0,
+                    type = 1,
                     book = new
                     {
                         id = bookResult.Data.Id,

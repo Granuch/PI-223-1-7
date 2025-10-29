@@ -81,14 +81,14 @@ namespace UI.Models.DTOs
         {
             return genreId switch
             {
-                1 => "Fiction",
-                2 => "Science",
-                3 => "History",
-                4 => "Biography",
-                5 => "Fantasy",
-                6 => "Mystery",
-                7 => "Romance",
-                8 => "Thriller",
+                0 => "Fiction",
+                1 => "Science",
+                2 => "History",
+                3 => "Biography",
+                4 => "Fantasy",
+                5 => "Mystery",
+                6 => "Romance",
+                7 => "Thriller",
                 _ => ""
             };
         }
