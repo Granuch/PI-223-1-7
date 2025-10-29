@@ -60,6 +60,7 @@ namespace PL.Controllers
                     Email = model.Email,
                     FirstName = model.FirstName,
                     LastName = model.LastName,
+                    PhoneNumber = model.PhoneNumber,
                     EmailConfirmed = true,
                     CreatedAt = DateTime.UtcNow
                 };

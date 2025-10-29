@@ -142,10 +142,24 @@ namespace UI.Services
                 }
 
                 var errorResult = JsonConvert.DeserializeObject<dynamic>(responseContent);
+                string message = null;
+
+                if (errorResult?.errors != null)
+                {
+                    var errors = (Newtonsoft.Json.Linq.JObject)errorResult.errors;
+
+                    var firstError = errors.Properties().FirstOrDefault();
+
+                    if (firstError != null && firstError.Value is Newtonsoft.Json.Linq.JArray arr && arr.Count > 0)
+                    {
+                        message = arr[0].ToString();
+                    }
+                }
+
                 return new ApiResponse<UserResponse>
                 {
                     Success = false,
-                    Message = errorResult.message ?? "Помилка реєстрації"
+                    Message = message ?? "Помилка реєстрації"
                 };
             }
             catch (Exception ex)
