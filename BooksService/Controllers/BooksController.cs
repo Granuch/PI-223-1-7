@@ -32,6 +32,7 @@ namespace PL.Controllers
         [HttpGet("GetAll")]
         [ProducesResponseType(typeof(IEnumerable<BookDTO>), 200)]
         [ProducesResponseType(500)]
+        [Authorize(Roles = "Administrator")]
         public async Task<ActionResult<IEnumerable<BookDTO>>> GetBooks(
             [FromQuery] string sortOrder = null,
             [FromQuery] string searchString = null,

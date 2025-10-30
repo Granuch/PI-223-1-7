@@ -21,7 +21,7 @@ namespace UI.Middleware
                 var isAuthenticated = context.Session.GetString("IsAuthenticated") == "true";
                 if (isAuthenticated)
                 {
-                    var token = context.Session.GetString("AuthToken");
+                    var token = context.Session.GetString("AccessToken");
 
                     if (!string.IsNullOrEmpty(token))
                     {
@@ -40,7 +40,7 @@ namespace UI.Middleware
                         catch (Exception ex)
                         {
                             _logger.LogError(ex, "Error checking token expiration");
-                            context.Session.Remove("AuthToken");
+                            context.Session.Remove("AccessToken");
                         }
                     }
                 }

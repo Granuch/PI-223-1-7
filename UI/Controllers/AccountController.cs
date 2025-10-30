@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Newtonsoft.Json;
 using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
 using UI.Models.ViewModels;
 using UI.Services;
 
@@ -53,39 +55,16 @@ namespace UI.Controllers
                 {
                     _logger.LogInformation("Registration successful for {Email}", model.Email);
 
-                    var claims = new List<Claim>
-                    {
-                        new Claim(ClaimTypes.NameIdentifier, result.Data.User.UserId ?? result.Data.User.Id ?? result.Data.User.Email),
-                        new Claim(ClaimTypes.Email, result.Data.User.Email),
-                        new Claim(ClaimTypes.Name, result.Data.User.Email),
-                        new Claim("FirstName", result.Data.User.FirstName ?? ""),
-                        new Claim("LastName", result.Data.User.LastName ?? ""),
-                        new Claim("LoginTime", DateTimeOffset.UtcNow.ToString())
-                    };
+                    // JWT токени вже збережені в Session через ApiService
+                    // Витягуємо claims з токену
+                    var accessToken = HttpContext.Session.GetString("AccessToken");
+                    var claims = ExtractClaimsFromToken(accessToken);
 
-                    foreach (var role in result.Data.User.Roles ?? new List<string>())
+                    if (claims != null)
                     {
-                        claims.Add(new Claim(ClaimTypes.Role, role));
-                        _logger.LogInformation("Adding role to claims: {Role}", role);
+                        _logger.LogInformation("User authenticated with JWT. Roles: {Roles}",
+                            string.Join(", ", claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value)));
                     }
-
-                    var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                    var authProperties = new AuthenticationProperties
-                    {
-                        IsPersistent = false,
-                        ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8),
-                        IssuedUtc = DateTimeOffset.UtcNow,
-                        AllowRefresh = true
-                    };
-
-                    await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-                        new ClaimsPrincipal(claimsIdentity), authProperties);
-
-                    _logger.LogInformation("Authentication cookie created for new user: {Email}", model.Email);
-
-                    HttpContext.Session.SetString("IsAuthenticated", "true");
-                    HttpContext.Session.SetString("UserData", JsonConvert.SerializeObject(result.Data.User));
-                    HttpContext.Session.SetString("LoginTime", DateTimeOffset.UtcNow.ToString());
 
                     TempData["SuccessMessage"] = "Registration completed successfully! Welcome!";
                     return RedirectToAction("Index", "Home");
@@ -133,45 +112,27 @@ namespace UI.Controllers
             if (result.Success)
             {
                 _logger.LogInformation("API login successful for {Email}", model.Email);
-                _logger.LogInformation("User roles from API: {Roles}",
-                    string.Join(", ", result.Data.User.Roles ?? new List<string>()));
 
-                var claims = new List<Claim>
-                {
-                    new Claim(ClaimTypes.NameIdentifier, result.Data.User.UserId ?? result.Data.User.Id ?? result.Data.User.Email),
-                    new Claim(ClaimTypes.Email, result.Data.User.Email),
-                    new Claim(ClaimTypes.Name, result.Data.User.Email),
-                    new Claim("FirstName", result.Data.User.FirstName ?? ""),
-                    new Claim("LastName", result.Data.User.LastName ?? ""),
-                    new Claim("LoginTime", DateTimeOffset.UtcNow.ToString())
-                };
+                // ДОДАЙТЕ ЦЕ ЛОГУВАННЯ
+                var accessToken = HttpContext.Session.GetString("AccessToken");
+                _logger.LogInformation("AccessToken in session: {HasToken}", !string.IsNullOrEmpty(accessToken));
 
-                foreach (var role in result.Data.User.Roles ?? new List<string>())
+                if (!string.IsNullOrEmpty(accessToken))
                 {
-                    claims.Add(new Claim(ClaimTypes.Role, role));
-                    _logger.LogInformation("Adding role to MVC claims: {Role}", role);
+                    _logger.LogInformation("Token length: {Length}", accessToken.Length);
                 }
 
-                var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                var authProperties = new AuthenticationProperties
+                var claims = ExtractClaimsFromToken(accessToken);
+
+                if (claims != null)
                 {
-                    IsPersistent = model.RememberMe,
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddHours(model.RememberMe ? 24 * 7 : 8),
-                    IssuedUtc = DateTimeOffset.UtcNow,
-                    AllowRefresh = true
-                };
-
-                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-                    new ClaimsPrincipal(claimsIdentity), authProperties);
-
-                _logger.LogInformation("MVC authentication cookie created for {Email}. Expires: {Expires}",
-                    model.Email, authProperties.ExpiresUtc);
-
-                HttpContext.Session.SetString("IsAuthenticated", "true");
-                HttpContext.Session.SetString("UserData", JsonConvert.SerializeObject(result.Data.User));
-                HttpContext.Session.SetString("LoginTime", DateTimeOffset.UtcNow.ToString());
-
-                _logger.LogInformation("Session data saved for {Email}", model.Email);
+                    var roles = claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value);
+                    _logger.LogInformation("User roles from JWT: {Roles}", string.Join(", ", roles));
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to extract claims from token!");
+                }
 
                 TempData["SuccessMessage"] = "Login successful!";
 
@@ -188,13 +149,16 @@ namespace UI.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize]
         public async Task<IActionResult> Logout()
         {
             var userEmail = User.Identity?.Name;
             _logger.LogInformation("User logout: {Email}", userEmail);
 
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-
+            // Очищаємо токени з Session
+            HttpContext.Session.Remove("AccessToken");
+            HttpContext.Session.Remove("RefreshToken");
+            HttpContext.Session.Remove("TokenExpiry");
             HttpContext.Session.Clear();
 
             try
@@ -214,58 +178,67 @@ namespace UI.Controllers
         [HttpGet]
         public IActionResult AuthStatus()
         {
-            var authTime = User.FindFirst("LoginTime")?.Value;
-            var authTimeUtc = !string.IsNullOrEmpty(authTime) ? DateTimeOffset.Parse(authTime) : (DateTimeOffset?)null;
-            var timeLoggedIn = authTimeUtc.HasValue ? DateTimeOffset.UtcNow - authTimeUtc.Value : (TimeSpan?)null;
+            var accessToken = HttpContext.Session.GetString("AccessToken");
+            var isAuthenticated = !string.IsNullOrEmpty(accessToken);
+
+            List<Claim> claims = null;
+            if (isAuthenticated)
+            {
+                claims = ExtractClaimsFromToken(accessToken);
+            }
+
+            var authTime = claims?.FirstOrDefault(c => c.Type == "iat")?.Value;
+            DateTimeOffset? authTimeUtc = null;
+            TimeSpan? timeLoggedIn = null;
+
+            if (!string.IsNullOrEmpty(authTime) && long.TryParse(authTime, out var iat))
+            {
+                authTimeUtc = DateTimeOffset.FromUnixTimeSeconds(iat);
+                timeLoggedIn = DateTimeOffset.UtcNow - authTimeUtc.Value;
+            }
 
             var status = new
             {
-                IsAuthenticated = User.Identity?.IsAuthenticated ?? false,
-                UserName = User.Identity?.Name,
-                Email = User.FindFirst(ClaimTypes.Email)?.Value,
-                Roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray(),
-                LoginTime = authTime,
+                IsAuthenticated = isAuthenticated,
+                UserName = claims?.FirstOrDefault(c => c.Type == ClaimTypes.Name)?.Value,
+                Email = claims?.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value,
+                Roles = claims?.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToArray() ?? Array.Empty<string>(),
+                LoginTime = authTimeUtc?.ToString("O"),
                 TimeLoggedIn = timeLoggedIn?.ToString(@"hh\:mm\:ss"),
-                SessionExists = HttpContext.Session.GetString("IsAuthenticated") == "true",
-                Cookies = Request.Cookies.Select(c => new { c.Key, ValueLength = c.Value.Length }).ToArray()
+                TokenExpiry = HttpContext.Session.GetString("TokenExpiry"),
+                HasRefreshToken = !string.IsNullOrEmpty(HttpContext.Session.GetString("RefreshToken"))
             };
 
             return Json(status);
         }
 
         [HttpPost]
+        [Authorize]
         public async Task<IActionResult> KeepAlive()
         {
             try
             {
-                var isAuthenticated = User.Identity?.IsAuthenticated ?? false;
-                _logger.LogInformation("KeepAlive called. IsAuthenticated: {IsAuth}, User: {User}",
-                    isAuthenticated, User.Identity?.Name ?? "Anonymous");
+                var accessToken = HttpContext.Session.GetString("AccessToken");
+                var isAuthenticated = !string.IsNullOrEmpty(accessToken);
+
+                _logger.LogInformation("KeepAlive called. IsAuthenticated: {IsAuth}", isAuthenticated);
 
                 if (!isAuthenticated)
                 {
                     return Json(new { success = false, message = "Not authenticated" });
                 }
 
-                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, User,
-                    new AuthenticationProperties
-                    {
-                        IsPersistent = true,
-                        ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8),
-                        IssuedUtc = DateTimeOffset.UtcNow,
-                        AllowRefresh = true
-                    });
-
                 var result = await _apiService.RefreshSessionAsync();
                 _logger.LogInformation("API session refresh result: {Success}", result.Success);
 
                 if (result.Success)
                 {
+                    var tokenExpiry = HttpContext.Session.GetString("TokenExpiry");
                     return Json(new
                     {
                         success = true,
                         message = "Session refreshed",
-                        expiresAt = DateTimeOffset.UtcNow.AddHours(8)
+                        expiresAt = tokenExpiry
                     });
                 }
                 else
@@ -278,6 +251,25 @@ namespace UI.Controllers
             {
                 _logger.LogError(ex, "Error in KeepAlive");
                 return Json(new { success = false, message = "Error refreshing session" });
+            }
+        }
+
+        // Helper method to extract claims from JWT token
+        private List<Claim> ExtractClaimsFromToken(string token)
+        {
+            if (string.IsNullOrEmpty(token))
+                return null;
+
+            try
+            {
+                var handler = new JwtSecurityTokenHandler();
+                var jwtToken = handler.ReadJwtToken(token);
+                return jwtToken.Claims.ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error extracting claims from token");
+                return null;
             }
         }
     }

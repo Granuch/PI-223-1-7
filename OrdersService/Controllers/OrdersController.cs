@@ -1,16 +1,14 @@
 using BLL.Interfaces;
 using Mapping.DTOs;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using PI_223_1_7.DbContext;
-using PI_223_1_7.Models;
-using System.Threading.Tasks;
+using System.Security.Claims;
 
 namespace PL.Controllers
 {
     [ApiController]
     [Route("[controller]")]
+    [Authorize]
     public class OrdersController : ControllerBase
     {
         private readonly IOrderService _orderService;
@@ -27,7 +25,19 @@ namespace PL.Controllers
         {
             try
             {
+                var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var isManagerOrAdmin = User.IsInRole("Manager") || User.IsInRole("Administrator");
+
                 var order = await _orderService.GetSpecificOrder(id);
+
+                // Users can only see their own orders unless they are Manager/Admin
+                if (!isManagerOrAdmin && order.UserId != currentUserId)
+                {
+                    _logger.LogWarning("User {UserId} tried to access order {OrderId} belonging to another user",
+                        currentUserId, id);
+                    return Forbid();
+                }
+
                 return Ok(order);
             }
             catch (KeyNotFoundException ex)
@@ -38,6 +48,7 @@ namespace PL.Controllers
         }
 
         [HttpGet("GetAll")]
+        [Authorize(Roles = "Administrator,Manager")]
         public async Task<IActionResult> GetAllOrders()
         {
             try
@@ -47,6 +58,31 @@ namespace PL.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error getting all orders");
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpGet("GetMyOrders")]
+        [Authorize(Roles = "Administrator")]
+        public async Task<IActionResult> GetMyOrders()
+        {
+            try
+            {
+                var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(currentUserId))
+                {
+                    return Unauthorized();
+                }
+
+                var allOrders = await _orderService.GetAllWithDetails();
+                var myOrders = allOrders.Where(o => o.UserId == currentUserId);
+
+                return Ok(myOrders);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user orders");
                 return BadRequest(ex.Message);
             }
         }
@@ -56,23 +92,33 @@ namespace PL.Controllers
         {
             try
             {
+                var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var isManagerOrAdmin = User.IsInRole("Manager") || User.IsInRole("Administrator");
+
+                // Regular users can only create orders for themselves
+                if (!isManagerOrAdmin && orderDTO.UserId != currentUserId)
+                {
+                    _logger.LogWarning("User {UserId} tried to create order for another user", currentUserId);
+                    return Forbid();
+                }
+
                 await _orderService.CreateOrder(orderDTO);
-                return Ok();
+                return Ok(new { success = true, message = "Order created successfully" });
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error creating order");
                 return BadRequest(ex.Message);
             }
         }
 
         [HttpPut("Update")]
+        [Authorize(Roles = "Administrator,Manager")]
         public async Task<IActionResult> UpdateOrder([FromBody] OrderDTO UpdatedOrder)
         {
             try
             {
-
                 await _orderService.UpdateOrder(UpdatedOrder);
-
                 return NoContent();
             }
             catch (KeyNotFoundException ex)
@@ -81,11 +127,11 @@ namespace PL.Controllers
             }
             catch (ArgumentException ex)
             {
-
                 return NotFound(ex.Message);
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error updating order");
                 return BadRequest(ex.Message);
             }
         }
@@ -95,8 +141,21 @@ namespace PL.Controllers
         {
             try
             {
+                var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var isManagerOrAdmin = User.IsInRole("Manager") || User.IsInRole("Administrator");
+
+                var order = await _orderService.GetSpecificOrder(id);
+
+                // Users can only delete their own orders unless they are Manager/Admin
+                if (!isManagerOrAdmin && order.UserId != currentUserId)
+                {
+                    _logger.LogWarning("User {UserId} tried to delete order {OrderId} belonging to another user",
+                        currentUserId, id);
+                    return Forbid();
+                }
+
                 await _orderService.DeleteOrderById(id);
-                return Ok();
+                return Ok(new { success = true, message = "Order deleted successfully" });
             }
             catch (KeyNotFoundException ex)
             {
@@ -109,8 +168,24 @@ namespace PL.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error deleting order");
                 return BadRequest(ex.Message);
             }
+        }
+
+        [HttpGet("TestAuth")]
+        [AllowAnonymous]
+        public IActionResult TestAuth()
+        {
+            return Ok(new
+            {
+                IsAuthenticated = User?.Identity?.IsAuthenticated ?? false,
+                UserName = User?.Identity?.Name,
+                UserId = User?.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                Email = User?.FindFirst(ClaimTypes.Email)?.Value,
+                Roles = User?.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList(),
+                Claims = User?.Claims?.Select(c => new { c.Type, c.Value }).ToList()
+            });
         }
     }
 }

@@ -1,12 +1,13 @@
 ﻿using BLL.Interfaces;
 using BLL.Services;
 using Mapping.Mapping;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using PI_223_1_7.DbContext;
 using PI_223_1_7.Patterns.UnitOfWork;
-using PL.Services; 
+using PL.Services;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,41 +23,41 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IBookService, BookService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, UserContextService>();
-builder.Services.AddDataProtection()
-    .SetApplicationName("LibraryApp") 
-    .PersistKeysToFileSystem(new DirectoryInfo(@"C:\temp\keys")) 
-    .SetDefaultKeyLifetime(TimeSpan.FromDays(30));
 
-// Cookie Authentication
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options =>
+// JWT Authentication Configuration
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+var secretKey = jwtSettings["SecretKey"];
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.SaveToken = true;
+    options.RequireHttpsMetadata = false;
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-        options.Cookie.Name = "LibraryApp.AuthCookie"; 
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SameSite = SameSiteMode.Lax;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
-        options.SlidingExpiration = true;
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtSettings["Issuer"] ?? "LibraryApp",
+        ValidAudience = jwtSettings["Audience"] ?? "LibraryAppUsers",
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+        ClockSkew = TimeSpan.Zero
+    };
+});
 
-        options.Events.OnRedirectToLogin = context => {
-            if (context.Request.Path.StartsWithSegments("/api"))
-            {
-                context.Response.StatusCode = 401;
-                return Task.CompletedTask;
-            }
-            return Task.CompletedTask;
-        };
-    });
-// CORS 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowMvcClient", policy =>
+    options.AddPolicy("AllowAll", policy =>
     {
         policy.WithOrigins(
-                "https://localhost:7280",  // MVC клієнт HTTPS
-                "http://localhost:5018",   // MVC клієнт HTTP
-                "https://localhost:5003",  // Ocelot Gateway HTTPS
-                "http://localhost:5003"    // Ocelot Gateway HTTP
+                "https://localhost:7280",
+                "http://localhost:5018",
+                "https://localhost:5003",
+                "http://localhost:5003"
             )
             .AllowAnyMethod()
             .AllowAnyHeader()
@@ -66,7 +67,6 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -77,18 +77,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("AllowAll");
 
-app.UseCors("AllowMvcClient");
-
-// Cookie policy
-app.UseCookiePolicy(new CookiePolicyOptions
-{
-    MinimumSameSitePolicy = SameSiteMode.Lax,
-    Secure = CookieSecurePolicy.SameAsRequest,
-    CheckConsentNeeded = context => false
-});
-
-app.UseAuthentication(); 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
