@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using UI.Models.DTOs;
 using UI.Services;
 
@@ -69,6 +70,7 @@ namespace UI.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Administrator,Manager")]
         public async Task<IActionResult> Edit(int id)
         {
             var result = await _apiService.GetOrderByIdAsync(id);
@@ -96,6 +98,7 @@ namespace UI.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Administrator,Manager")]
         public async Task<IActionResult> Edit(int id, EditOrderDTO editOrder)
         {
             if (id != editOrder.Id)
@@ -138,6 +141,7 @@ namespace UI.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Administrator,Manager")]
         public async Task<IActionResult> Delete(int id)
         {
             var result = await _apiService.GetOrderByIdAsync(id);
@@ -153,6 +157,7 @@ namespace UI.Controllers
 
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Administrator,Manager")]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var result = await _apiService.DeleteOrderAsync(id);

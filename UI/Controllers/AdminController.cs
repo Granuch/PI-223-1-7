@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using UI.Models.DTOs;
 using UI.Models.ViewModels;
 using UI.Services;
@@ -68,6 +69,7 @@ namespace UI.Controllers
 
 
         [HttpGet]
+        //[Authorize(Roles = "Administrator")]
         public IActionResult CreateUser()
         {
             if (ViewBag.IsAdministrator != true)
@@ -177,6 +179,7 @@ namespace UI.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        //[Authorize(Roles = "Administrator")]
         public async Task<IActionResult> EditUser(EditUserViewModel model)
         {
             if (ViewBag.IsAdministrator != true)
@@ -245,6 +248,7 @@ namespace UI.Controllers
 
         [HttpPost, ActionName("DeleteUser")]
         [ValidateAntiForgeryToken]
+        //[Authorize(Roles = "Administrator")]
         public async Task<IActionResult> DeleteUserConfirmed(string id)
         {
             if (ViewBag.IsAdministrator != true)
@@ -296,6 +300,7 @@ namespace UI.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        //[Authorize(Roles = "Administrator")]
         public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
         {
             _logger.LogInformation("ChangePassword POST called for user {UserId}", model?.UserId);
@@ -421,6 +426,7 @@ namespace UI.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        //[Authorize(Roles = "Administrator")]
         public async Task<IActionResult> AssignRole(string userId, string roleName)
         {
             Console.WriteLine("=================================================");
@@ -468,6 +474,7 @@ namespace UI.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        //[Authorize(Roles = "Administrator")]
         public async Task<IActionResult> RemoveRole(string userId, string roleName)
         {
             if (ViewBag.IsAdministrator != true)

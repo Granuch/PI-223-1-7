@@ -21,6 +21,7 @@ namespace PL.Controllers
         }
 
         [HttpGet("GetSpecific/{id}")]
+        [Authorize]
         public async Task<IActionResult> GetOrder(int id)
         {
             try
@@ -64,7 +65,7 @@ namespace PL.Controllers
         }
 
         [HttpGet("GetMyOrders")]
-        [Authorize(Roles = "Administrator")]
+        [Authorize]
         public async Task<IActionResult> GetMyOrders()
         {
             try

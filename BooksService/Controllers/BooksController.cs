@@ -32,7 +32,6 @@ namespace PL.Controllers
         [HttpGet("GetAll")]
         [ProducesResponseType(typeof(IEnumerable<BookDTO>), 200)]
         [ProducesResponseType(500)]
-        [Authorize(Roles = "Administrator")]
         public async Task<ActionResult<IEnumerable<BookDTO>>> GetBooks(
             [FromQuery] string sortOrder = null,
             [FromQuery] string searchString = null,
@@ -213,7 +212,7 @@ namespace PL.Controllers
         }
 
         [HttpPost("CreateBook")]
-        [Authorize]
+        [Authorize(Roles = "Administrator,Manager")]
         [ProducesResponseType(typeof(BookDTO), 201)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -250,7 +249,7 @@ namespace PL.Controllers
         }
 
         [HttpPut("UpdateBook/{id:int}")]
-        [Authorize] 
+        [Authorize(Roles = "Administrator,Manager")]
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -298,7 +297,7 @@ namespace PL.Controllers
         }
 
         [HttpDelete("DeleteBook/{id}")]
-        [Authorize] 
+        [Authorize(Roles = "Administrator,Manager")]
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -435,7 +434,7 @@ namespace PL.Controllers
         }
 
         [HttpPut("SetAvailability/{id}")]
-        [Authorize] 
+        [Authorize(Roles = "Administrator,Manager")]
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]

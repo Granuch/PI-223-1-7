@@ -54,6 +54,7 @@ namespace UI.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Administrator,Manager")]
         public IActionResult Create()
         {
             return View();
@@ -61,6 +62,7 @@ namespace UI.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Administrator,Manager")]
         public async Task<IActionResult> Create(BookDTO book)
         {
             _logger.LogInformation("Attempting to create book: {@Book}", book);
@@ -97,6 +99,7 @@ namespace UI.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Administrator,Manager")]
         public async Task<IActionResult> Edit(int id)
         {
             var result = await _apiService.GetBookByIdAsync(id);
@@ -112,6 +115,7 @@ namespace UI.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Administrator,Manager")]
         public async Task<IActionResult> Edit(int id, BookDTO book)
         {
             _logger.LogInformation("Attempting to edit book with ID: {BookId}", id);
@@ -156,6 +160,7 @@ namespace UI.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Administrator,Manager")]
         public async Task<IActionResult> Delete(int id)
         {
             var result = await _apiService.GetBookByIdAsync(id);
@@ -171,6 +176,7 @@ namespace UI.Controllers
 
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Administrator,Manager")]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var result = await _apiService.DeleteBookAsync(id);

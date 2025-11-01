@@ -25,7 +25,7 @@ namespace PL.Controllers
         }
 
         [HttpGet("GetAllUsers")]
-        [Authorize(Roles = "Administrator")] // Only administrators
+        [Authorize(Roles = "Administrator")]
         public async Task<ActionResult<ApiResponse<IEnumerable<UserDTO>>>> GetAllUsers()
         {
             try
