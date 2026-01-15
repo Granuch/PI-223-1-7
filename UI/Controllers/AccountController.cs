@@ -214,6 +214,7 @@ namespace UI.Controllers
 
         [HttpPost]
         [Authorize]
+        //[ValidateAntiForgeryToken]
         public async Task<IActionResult> KeepAlive()
         {
             try

@@ -1,152 +1,188 @@
 {
-  "Routes": [
-    {
-      //Orders
-      "DownstreamPathTemplate": "/Orders/GetAll",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5000
-        }
-      ],
-      "UpstreamPathTemplate": "/api/orders/getall",
-      "UpstreamHttpMethod": [ "GET" ]
-    },
-    {
-      "DownstreamPathTemplate": "/Orders/CreateNewOrder",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5000
-        }
-      ],
-      "UpstreamPathTemplate": "/api/orders/createnew",
-      "UpstreamHttpMethod": [ "Post" ]
-    },
-    {
-      "DownstreamPathTemplate": "/Orders/GetSpecific/{id}",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5000
-        }
-      ],
-      "UpstreamPathTemplate": "/api/orders/findspecific/{id}",
-      "UpstreamHttpMethod": [ "Get" ]
-    },
-    {
-      "DownstreamPathTemplate": "/Orders/Update",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5000
-        }
-      ],
-      "UpstreamPathTemplate": "/api/orders/update",
-      "UpstreamHttpMethod": [ "Put" ]
-    },
-    {
-      "DownstreamPathTemplate": "/Orders/Delete/{id}",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5000
-        }
-      ],
-      "UpstreamPathTemplate": "/api/orders/delete/{id}",
-      "UpstreamHttpMethod": [ "Delete" ]
-    },
+"Routes": [
+  {
+    //Orders - requires authentication
+    "DownstreamPathTemplate": "/Orders/GetAll",
+    "DownstreamScheme": "http",
+    "DownstreamHostAndPorts": [
+      {
+        "Host": "localhost",
+        "Port": 5000
+      }
+    ],
+    "UpstreamPathTemplate": "/api/orders/getall",
+    "UpstreamHttpMethod": [ "GET" ],
+    "AuthenticationOptions": {
+      "AuthenticationProviderKey": "Bearer",
+      "AllowedScopes": []
+    }
+  },
+  {
+    "DownstreamPathTemplate": "/Orders/CreateNewOrder",
+    "DownstreamScheme": "http",
+    "DownstreamHostAndPorts": [
+      {
+        "Host": "localhost",
+        "Port": 5000
+      }
+    ],
+    "UpstreamPathTemplate": "/api/orders/createnew",
+    "UpstreamHttpMethod": [ "Post" ],
+    "AuthenticationOptions": {
+      "AuthenticationProviderKey": "Bearer",
+      "AllowedScopes": []
+    }
+  },
+  {
+    "DownstreamPathTemplate": "/Orders/GetSpecific/{id}",
+    "DownstreamScheme": "http",
+    "DownstreamHostAndPorts": [
+      {
+        "Host": "localhost",
+        "Port": 5000
+      }
+    ],
+    "UpstreamPathTemplate": "/api/orders/findspecific/{id}",
+    "UpstreamHttpMethod": [ "Get" ],
+    "AuthenticationOptions": {
+      "AuthenticationProviderKey": "Bearer",
+      "AllowedScopes": []
+    }
+  },
+  {
+    "DownstreamPathTemplate": "/Orders/Update",
+    "DownstreamScheme": "http",
+    "DownstreamHostAndPorts": [
+      {
+        "Host": "localhost",
+        "Port": 5000
+      }
+    ],
+    "UpstreamPathTemplate": "/api/orders/update",
+    "UpstreamHttpMethod": [ "Put" ],
+    "AuthenticationOptions": {
+      "AuthenticationProviderKey": "Bearer",
+      "AllowedScopes": []
+    }
+  },
+  {
+    "DownstreamPathTemplate": "/Orders/Delete/{id}",
+    "DownstreamScheme": "http",
+    "DownstreamHostAndPorts": [
+      {
+        "Host": "localhost",
+        "Port": 5000
+      }
+    ],
+    "UpstreamPathTemplate": "/api/orders/delete/{id}",
+    "UpstreamHttpMethod": [ "Delete" ],
+    "AuthenticationOptions": {
+      "AuthenticationProviderKey": "Bearer",
+      "AllowedScopes": []
+    }
+  },
 
-    //Books
-    {
-      "DownstreamPathTemplate": "/Books/GetAll",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5001
-        }
-      ],
-      "UpstreamPathTemplate": "/api/books/getall",
-      "UpstreamHttpMethod": [ "GET" ]
-    },
-    {
-      "DownstreamPathTemplate": "/Books/GetUserOrders",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5001
-        }
-      ],
-      "UpstreamPathTemplate": "/api/books/getuserorders",
-      "UpstreamHttpMethod": [ "GET" ]
-    },
-    {
-      "DownstreamPathTemplate": "/Books/Filter",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5001
-        }
-      ],
-      "UpstreamPathTemplate": "/api/books/filter",
-      "UpstreamHttpMethod": [ "GET" ]
-    },
-    {
-      "DownstreamPathTemplate": "/Books/GetById/{id}",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5001
-        }
-      ],
-      "UpstreamPathTemplate": "/api/books/getbyid/{id}",
-      "UpstreamHttpMethod": [ "GET" ]
-    },
-    {
-      "DownstreamPathTemplate": "/Books/CreateBook",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5001
-        }
-      ],
-      "UpstreamPathTemplate": "/api/books/createbook",
-      "UpstreamHttpMethod": [ "Post" ]
-    },
-    {
-      "DownstreamPathTemplate": "/Books/UpdateBook/{id}",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5001
-        }
-      ],
-      "UpstreamPathTemplate": "/api/books/updatebook/{id}",
-      "UpstreamHttpMethod": [ "Put" ]
-    },
-    {
-      "DownstreamPathTemplate": "/Books/DeleteBook/{id}",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 5001
-        }
-      ],
-      "UpstreamPathTemplate": "/api/books/delete/{id}",
-      "UpstreamHttpMethod": [ "Delete" ]
-    },
+  //Books - public read, authenticated for create/update/delete
+  {
+    "DownstreamPathTemplate": "/Books/GetAll",
+    "DownstreamScheme": "http",
+    "DownstreamHostAndPorts": [
+      {
+        "Host": "localhost",
+        "Port": 5001
+      }
+    ],
+    "UpstreamPathTemplate": "/api/books/getall",
+    "UpstreamHttpMethod": [ "GET" ]
+  },
+  {
+    "DownstreamPathTemplate": "/Books/GetUserOrders",
+    "DownstreamScheme": "http",
+    "DownstreamHostAndPorts": [
+      {
+        "Host": "localhost",
+        "Port": 5001
+      }
+    ],
+    "UpstreamPathTemplate": "/api/books/getuserorders",
+    "UpstreamHttpMethod": [ "GET" ],
+    "AuthenticationOptions": {
+      "AuthenticationProviderKey": "Bearer",
+      "AllowedScopes": []
+    }
+  },
+  {
+    "DownstreamPathTemplate": "/Books/Filter",
+    "DownstreamScheme": "http",
+    "DownstreamHostAndPorts": [
+      {
+        "Host": "localhost",
+        "Port": 5001
+      }
+    ],
+    "UpstreamPathTemplate": "/api/books/filter",
+    "UpstreamHttpMethod": [ "GET" ]
+  },
+  {
+    "DownstreamPathTemplate": "/Books/GetById/{id}",
+    "DownstreamScheme": "http",
+    "DownstreamHostAndPorts": [
+      {
+        "Host": "localhost",
+        "Port": 5001
+      }
+    ],
+    "UpstreamPathTemplate": "/api/books/getbyid/{id}",
+    "UpstreamHttpMethod": [ "GET" ]
+  },
+  {
+    "DownstreamPathTemplate": "/Books/CreateBook",
+    "DownstreamScheme": "http",
+    "DownstreamHostAndPorts": [
+      {
+        "Host": "localhost",
+        "Port": 5001
+      }
+    ],
+    "UpstreamPathTemplate": "/api/books/createbook",
+    "UpstreamHttpMethod": [ "Post" ],
+    "AuthenticationOptions": {
+      "AuthenticationProviderKey": "Bearer",
+      "AllowedScopes": []
+    }
+  },
+  {
+    "DownstreamPathTemplate": "/Books/UpdateBook/{id}",
+    "DownstreamScheme": "http",
+    "DownstreamHostAndPorts": [
+      {
+        "Host": "localhost",
+        "Port": 5001
+      }
+    ],
+    "UpstreamPathTemplate": "/api/books/updatebook/{id}",
+    "UpstreamHttpMethod": [ "Put" ],
+    "AuthenticationOptions": {
+      "AuthenticationProviderKey": "Bearer",
+      "AllowedScopes": []
+    }
+  },
+  {
+    "DownstreamPathTemplate": "/Books/DeleteBook/{id}",
+    "DownstreamScheme": "http",
+    "DownstreamHostAndPorts": [
+      {
+        "Host": "localhost",
+        "Port": 5001
+      }
+    ],
+    "UpstreamPathTemplate": "/api/books/delete/{id}",
+    "UpstreamHttpMethod": [ "Delete" ],
+    "AuthenticationOptions": {
+      "AuthenticationProviderKey": "Bearer",
+      "AllowedScopes": []
+    }
+  },
     {
       "DownstreamPathTemplate": "/Books/OrderBook/{id}",
       "DownstreamScheme": "http",
@@ -157,7 +193,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/books/orderbook/{id}",
-      "UpstreamHttpMethod": [ "Post" ]
+      "UpstreamHttpMethod": [ "Post" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/Books/byauthor/{author}",
@@ -193,7 +233,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/books/setavailability/{id}",
-      "UpstreamHttpMethod": [ "Put" ]
+      "UpstreamHttpMethod": [ "Put" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/AdminUsers/GetAllUsers",
@@ -207,7 +251,7 @@
       "UpstreamPathTemplate": "/api/users/getall",
       "UpstreamHttpMethod": [ "Get" ],
       "AuthenticationOptions": {
-        "AuthenticationProviderKey": "",
+        "AuthenticationProviderKey": "Bearer",
         "AllowedScopes": []
       }
     },
@@ -221,7 +265,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/users/getallroles",
-      "UpstreamHttpMethod": [ "Get" ]
+      "UpstreamHttpMethod": [ "Get" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/AdminUsers/GetUserById",
@@ -233,7 +281,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/users/getuserbyid",
-      "UpstreamHttpMethod": [ "Get" ]
+      "UpstreamHttpMethod": [ "Get" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/AdminUsers/CreateUser",
@@ -245,7 +297,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/users/createuser",
-      "UpstreamHttpMethod": [ "Post" ]
+      "UpstreamHttpMethod": [ "Post" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/AdminUsers/CreateAdmin",
@@ -257,7 +313,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/users/createadmin",
-      "UpstreamHttpMethod": [ "Post" ]
+      "UpstreamHttpMethod": [ "Post" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/AdminUsers/CreateManager",
@@ -269,7 +329,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/users/createmanager",
-      "UpstreamHttpMethod": [ "Post" ]
+      "UpstreamHttpMethod": [ "Post" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/AdminUsers/UpdateUser",
@@ -281,7 +345,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/users/updateuser",
-      "UpstreamHttpMethod": [ "Put" ]
+      "UpstreamHttpMethod": [ "Put" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/AdminUsers/DeleteUser",
@@ -293,7 +361,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/users/deleteuser",
-      "UpstreamHttpMethod": [ "Delete" ]
+      "UpstreamHttpMethod": [ "Delete" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/AdminUsers/ChangePassword",
@@ -305,7 +377,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/users/changepassword",
-      "UpstreamHttpMethod": [ "Post" ]
+      "UpstreamHttpMethod": [ "Post" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/AdminUsers/AssignRole",
@@ -317,7 +393,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/users/assignrole",
-      "UpstreamHttpMethod": [ "Post" ]
+      "UpstreamHttpMethod": [ "Post" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/AdminUsers/RemoveRole",
@@ -329,7 +409,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/users/removerole",
-      "UpstreamHttpMethod": [ "Post" ]
+      "UpstreamHttpMethod": [ "Post" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/AdminUsers/GetUserRoles",
@@ -341,7 +425,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/users/getuserroles",
-      "UpstreamHttpMethod": [ "Get" ]
+      "UpstreamHttpMethod": [ "Get" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/AdminUsers/TestAuth",
@@ -353,7 +441,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/users/testauth",
-      "UpstreamHttpMethod": [ "Get" ]
+      "UpstreamHttpMethod": [ "Get" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/AdminUsers/GetAllUsersDebug",
@@ -365,7 +457,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/users/debug",
-      "UpstreamHttpMethod": [ "Get" ]
+      "UpstreamHttpMethod": [ "Get" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/AdminUsers/SimpleTest",
@@ -380,7 +476,7 @@
       "UpstreamHttpMethod": [ "Get" ]
     },
 
-    //Account
+    //Account - public endpoints for authentication
     {
       "DownstreamPathTemplate": "/api/account/test-auth",
       "DownstreamScheme": "http",
@@ -391,7 +487,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/account/auth",
-      "UpstreamHttpMethod": [ "Get" ]
+      "UpstreamHttpMethod": [ "Get" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/api/account/register",
@@ -427,7 +527,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/account/logout",
-      "UpstreamHttpMethod": [ "Post" ]
+      "UpstreamHttpMethod": [ "Post" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/api/account/status",
@@ -439,7 +543,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/account/stat",
-      "UpstreamHttpMethod": [ "Get" ]
+      "UpstreamHttpMethod": [ "Get" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/api/account/me",
@@ -451,7 +559,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/account/me",
-      "UpstreamHttpMethod": [ "Get" ]
+      "UpstreamHttpMethod": [ "Get" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/api/account/RefreshSession",
@@ -463,7 +575,11 @@
         }
       ],
       "UpstreamPathTemplate": "/api/account/refresh",
-      "UpstreamHttpMethod": [ "Post" ]
+      "UpstreamHttpMethod": [ "Post" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
         "DownstreamPathTemplate": "/api/account/CheckAndRefreshSession",
