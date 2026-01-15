@@ -139,7 +139,7 @@ services:
       - library-network
     restart: on-failure
 
-  # UI (Web Application - Port 8080)
+  # UI (Web Application - Port 8080) - Internal only, accessed via Nginx
   ui:
     build:
       context: .
@@ -152,13 +152,32 @@ services:
       - JwtSettings__SecretKey=HFaN3u/vHf7rmJ/45tTpO2cYwKjwlPlpBer0lXzf+ELQDn5TUR0YFKx46iQDiMwALiu8u7qr0FYGllpkS//d7g==
       - JwtSettings__Issuer=LibraryApp
       - JwtSettings__Audience=LibraryAppUsers
-    ports:
-      - "8080:8080"
+    # Remove external port - Nginx handles external traffic
+    # ports:
+    #   - "8080:8080"
     depends_on:
       - api-gateway
     networks:
       - library-network
     restart: on-failure
+
+  # Nginx Reverse Proxy - Main entry point
+  nginx:
+    image: nginx:alpine
+    container_name: library-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # For SSL certificates (uncomment when you have them):
+      # - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - ui
+      - api-gateway
+    networks:
+      - library-network
+    restart: always
 
 networks:
   library-network:
