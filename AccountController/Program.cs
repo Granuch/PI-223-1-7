@@ -42,7 +42,9 @@ builder.Services.AddScoped<IUserContextService, UserContextService>();
 
 // JWT Authentication Configuration
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
+var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") 
+    ?? jwtSettings["SecretKey"] 
+    ?? throw new InvalidOperationException("JWT SecretKey not configured. Set JWT_SECRET_KEY environment variable or configure in appsettings.json");
 
 builder.Services.AddAuthentication(options =>
 {
@@ -53,7 +55,8 @@ builder.Services.AddAuthentication(options =>
 .AddJwtBearer(options =>
 {
     options.SaveToken = true;
-    options.RequireHttpsMetadata = false; // For development; set to true in production
+    // SECURITY: Set to true in production environment
+    options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,

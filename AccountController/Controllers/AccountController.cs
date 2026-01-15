@@ -171,8 +171,18 @@ namespace PL.Controllers
         }
 
         [HttpPost("refresh-token")]
-        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest model)
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest? model)
         {
+            if (model == null)
+            {
+                return BadRequest(new { success = false, message = "Request body is required" });
+            }
+
+            if (string.IsNullOrEmpty(model.Token))
+            {
+                return BadRequest(new { success = false, message = "Access token is required" });
+            }
+
             if (string.IsNullOrEmpty(model.RefreshToken))
             {
                 return BadRequest(new { success = false, message = "Refresh token is required" });

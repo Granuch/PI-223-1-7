@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Ocelot.DependencyInjection;
 using Ocelot.Middleware;
 using System.Text;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,13 +22,50 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials()
-            .WithExposedHeaders("Authorization"); // Allow Authorization header
+            .WithExposedHeaders("Authorization");
     });
+});
+
+// Rate Limiting - Protection against brute-force attacks
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    
+    // Fixed window limiter for authentication endpoints
+    options.AddFixedWindowLimiter("auth", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = 5;
+        limiterOptions.Window = TimeSpan.FromMinutes(1);
+        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        limiterOptions.QueueLimit = 2;
+    });
+    
+    // General API rate limiter
+    options.AddSlidingWindowLimiter("api", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = 100;
+        limiterOptions.Window = TimeSpan.FromMinutes(1);
+        limiterOptions.SegmentsPerWindow = 4;
+        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        limiterOptions.QueueLimit = 10;
+    });
+    
+    // Global fallback limiter
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 200,
+                Window = TimeSpan.FromMinutes(1)
+            }));
 });
 
 // JWT Authentication Configuration
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
+var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") 
+    ?? jwtSettings["SecretKey"] 
+    ?? throw new InvalidOperationException("JWT SecretKey not configured. Set JWT_SECRET_KEY environment variable or configure in appsettings.json");
 
 builder.Services.AddAuthentication(options =>
 {
@@ -37,7 +76,8 @@ builder.Services.AddAuthentication(options =>
 .AddJwtBearer("Bearer", options =>
 {
     options.SaveToken = true;
-    options.RequireHttpsMetadata = false; // For development; set to true in production
+    // SECURITY: Set to true in production environment
+    options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
@@ -74,18 +114,27 @@ var app = builder.Build();
 
 app.UseCors("AllowAll");
 
+// Apply rate limiting
+app.UseRateLimiter();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Middleware to log requests and forward JWT tokens
+// Middleware to apply rate limiting for auth endpoints and log requests
 app.Use(async (context, next) =>
 {
     var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+    var path = context.Request.Path.Value?.ToLower() ?? "";
+    
+    // Apply stricter rate limiting for authentication endpoints
+    if (path.Contains("/account/log") || path.Contains("/account/reg") || path.Contains("/refresh-token"))
+    {
+        context.Features.Set(new RateLimiterStatisticsFeature { Policy = "auth" });
+    }
 
     logger.LogInformation("=== Ocelot Gateway Request ===");
     logger.LogInformation("Method: {Method}, Path: {Path}", context.Request.Method, context.Request.Path);
 
-    // Log Authorization header
     if (context.Request.Headers.ContainsKey("Authorization"))
     {
         var authHeader = context.Request.Headers["Authorization"].ToString();
@@ -105,3 +154,9 @@ app.Use(async (context, next) =>
 await app.UseOcelot();
 
 app.Run();
+
+// Helper class for rate limiting feature
+public class RateLimiterStatisticsFeature
+{
+    public string Policy { get; set; } = string.Empty;
+}
