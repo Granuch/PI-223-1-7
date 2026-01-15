@@ -16,8 +16,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
+// Read connection string from configuration/environment variables
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+    ?? "Server=(localdb)\\mssqllocaldb;Database=LibratyDb;Trusted_Connection=True;";
 builder.Services.AddDbContext<LibraryDbContext>(options =>
-    options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=LibratyDb;Trusted_Connection=True;"));
+    options.UseSqlServer(connectionString));
 
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
@@ -27,7 +30,21 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContextService, UserContextService>();
 
-// JWT Authentication Configuration
+// Identity Configuration (must be before Authentication for UserManager/RoleManager)
+builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
+{
+    options.Password.RequireDigit = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = true;
+    options.Password.RequiredLength = 6;
+    options.User.RequireUniqueEmail = true;
+    options.SignIn.RequireConfirmedEmail = false;
+})
+.AddEntityFrameworkStores<LibraryDbContext>()
+.AddDefaultTokenProviders();
+
+// JWT Authentication Configuration - MUST be after AddIdentity to override cookie defaults
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"];
 
@@ -35,6 +52,7 @@ builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(options =>
 {
@@ -73,22 +91,31 @@ builder.Services.AddAuthentication(options =>
             logger.LogInformation("Authorization header: {Header}",
                 string.IsNullOrEmpty(authHeader) ? "MISSING" : $"Present (length: {authHeader.Length})");
             return Task.CompletedTask;
+        },
+        OnChallenge = context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            logger.LogWarning("JWT Challenge triggered. Error: {Error}, ErrorDescription: {ErrorDescription}",
+                context.Error, context.ErrorDescription);
+            return Task.CompletedTask;
         }
     };
 });
 
-builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
+// Explicitly configure Identity to NOT redirect for API (override cookie behavior)
+builder.Services.ConfigureApplicationCookie(options =>
 {
-    options.Password.RequireDigit = true;
-    options.Password.RequireLowercase = true;
-    options.Password.RequireNonAlphanumeric = false;
-    options.Password.RequireUppercase = true;
-    options.Password.RequiredLength = 6;
-    options.User.RequireUniqueEmail = true;
-    options.SignIn.RequireConfirmedEmail = false;
-})
-.AddEntityFrameworkStores<LibraryDbContext>()
-.AddDefaultTokenProviders();
+    options.Events.OnRedirectToLogin = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return Task.CompletedTask;
+    };
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return Task.CompletedTask;
+    };
+});
 
 builder.Services.AddCors(options =>
 {
@@ -108,12 +135,18 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Note: Database migrations are handled by AccountService only
+// This service expects the database to already exist
+
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
 }
 
-app.UseHttpsRedirection();
+// Don't use HTTPS redirection for internal microservice communication
+// The API Gateway handles HTTPS for external requests
+// app.UseHttpsRedirection();
+
 app.UseCors("AllowAll");
 
 app.UseAuthentication();
@@ -121,20 +154,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    try
-    {
-        var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
-        var roleManager = services.GetRequiredService<RoleManager<ApplicationRole>>();
-        await RoleInitializer.InitializeAsync(userManager, roleManager);
-    }
-    catch (Exception ex)
-    {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Error during roles and users initialization.");
-    }
-}
+// RoleInitializer is now handled by AccountService only to avoid duplicate key errors
+// Roles and users will be seeded when AccountService starts
 
 app.Run();

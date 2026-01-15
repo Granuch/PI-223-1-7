@@ -63,25 +63,26 @@ namespace UI.Services
             }
         }
 
-        private async Task<T> ExecuteWithRetryAsync<T>(Func<Task<T>> action) where T : class
+        private async Task<HttpResponseMessage> SendWithRetryAsync(Func<Task<HttpResponseMessage>> httpAction)
         {
             SetAuthorizationHeader();
-            var response = await action();
+            var response = await httpAction();
 
-            // Check if response indicates unauthorized
-            var apiResponse = response as dynamic;
-            if (apiResponse?.Success == false && apiResponse?.Message?.Contains("Unauthorized") == true)
+            // Check if response indicates unauthorized (401) and try to refresh
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
                 var refreshed = await TryRefreshTokenAsync();
                 if (refreshed)
                 {
                     SetAuthorizationHeader();
-                    return await action();
+                    response = await httpAction();
                 }
             }
 
             return response;
         }
+
+
 
         // Authentication methods
         public async Task<ApiResponse<UserResponse>> RegisterAsync(RegisterViewModel model)
@@ -241,6 +242,9 @@ namespace UI.Services
                 _httpContextAccessor.HttpContext?.Session.Remove("RefreshToken");
                 _httpContextAccessor.HttpContext?.Session.Remove("TokenExpiry");
 
+                // Clear the authorization header after logout
+                _httpClient.DefaultRequestHeaders.Authorization = null;
+
                 return new ApiResponse<object> { Success = true };
             }
             catch (Exception ex)
@@ -257,10 +261,24 @@ namespace UI.Services
                 SetAuthorizationHeader();
                 var response = await _httpClient.GetAsync("/api/account/me");
 
+                // Try to refresh token if unauthorized
+                if (response.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    var refreshed = await TryRefreshTokenAsync();
+                    if (refreshed)
+                    {
+                        SetAuthorizationHeader();
+                        response = await _httpClient.GetAsync("/api/account/me");
+                    }
+                }
+
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadAsStringAsync();
                     var result = JsonConvert.DeserializeObject<dynamic>(content);
+
+                    // Handle both nested and flat response structures
+                    var userData = result.user ?? result;
 
                     return new ApiResponse<UserResponse>
                     {
@@ -270,10 +288,12 @@ namespace UI.Services
                             IsAuthenticated = true,
                             User = new UserInfo
                             {
-                                Email = result.user.email,
-                                FirstName = result.user.firstName,
-                                LastName = result.user.lastName,
-                                Roles = result.user.roles.ToObject<string[]>()
+                                Id = userData.id?.ToString(),
+                                UserId = userData.userId?.ToString(),
+                                Email = userData.email?.ToString(),
+                                FirstName = userData.firstName?.ToString(),
+                                LastName = userData.lastName?.ToString(),
+                                Roles = userData.roles?.ToObject<List<string>>() ?? new List<string>()
                             }
                         }
                     };
@@ -295,497 +315,469 @@ namespace UI.Services
         // Book methods
         public async Task<ApiResponse<IEnumerable<BookDTO>>> GetAllBooksAsync()
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
-                {
-                    var response = await _httpClient.GetAsync("/api/books/getall");
-                    var responseContent = await response.Content.ReadAsStringAsync();
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync("/api/books/getall"));
+                var responseContent = await response.Content.ReadAsStringAsync();
 
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var books = JsonConvert.DeserializeObject<IEnumerable<BookDTO>>(responseContent);
-                        return new ApiResponse<IEnumerable<BookDTO>> { Success = true, Data = books };
-                    }
-
-                    return new ApiResponse<IEnumerable<BookDTO>>
-                    {
-                        Success = false,
-                        Message = $"Error: {response.StatusCode}"
-                    };
-                }
-                catch (Exception ex)
+                if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogError(ex, "Error getting books");
-                    return new ApiResponse<IEnumerable<BookDTO>> { Success = false, Message = "Error" };
+                    var books = JsonConvert.DeserializeObject<IEnumerable<BookDTO>>(responseContent);
+                    return new ApiResponse<IEnumerable<BookDTO>> { Success = true, Data = books };
                 }
-            });
+
+                return new ApiResponse<IEnumerable<BookDTO>>
+                {
+                    Success = false,
+                    Message = $"Error: {response.StatusCode}"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting books");
+                return new ApiResponse<IEnumerable<BookDTO>> { Success = false, Message = "Error" };
+            }
         }
 
         public async Task<ApiResponse<IEnumerable<BookDTO>>> GetBooksWithFilteringAsync(
             string sortOrder = null, string searchString = null, string genre = null, string type = null)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
+                var queryParams = new List<string>();
+                if (!string.IsNullOrEmpty(sortOrder)) queryParams.Add($"sortOrder={Uri.EscapeDataString(sortOrder)}");
+                if (!string.IsNullOrEmpty(searchString)) queryParams.Add($"searchString={Uri.EscapeDataString(searchString)}");
+                if (!string.IsNullOrEmpty(genre)) queryParams.Add($"genre={ConvertGenreToInt(genre)}");
+                if (!string.IsNullOrEmpty(type)) queryParams.Add($"type={ConvertBookTypeToInt(type)}");
+
+                var queryString = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync($"/api/books/filter{queryString}"));
+
+                if (response.IsSuccessStatusCode)
                 {
-                    var queryParams = new List<string>();
-                    if (!string.IsNullOrEmpty(sortOrder)) queryParams.Add($"sortOrder={Uri.EscapeDataString(sortOrder)}");
-                    if (!string.IsNullOrEmpty(searchString)) queryParams.Add($"searchString={Uri.EscapeDataString(searchString)}");
-                    if (!string.IsNullOrEmpty(genre)) queryParams.Add($"genre={ConvertGenreToInt(genre)}");
-                    if (!string.IsNullOrEmpty(type)) queryParams.Add($"type={ConvertBookTypeToInt(type)}");
-
-                    var queryString = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";
-                    var response = await _httpClient.GetAsync($"/api/books/filter{queryString}");
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var content = await response.Content.ReadAsStringAsync();
-                        var books = JsonConvert.DeserializeObject<IEnumerable<BookDTO>>(content);
-                        return new ApiResponse<IEnumerable<BookDTO>> { Success = true, Data = books };
-                    }
-
-                    return new ApiResponse<IEnumerable<BookDTO>> { Success = false };
+                    var content = await response.Content.ReadAsStringAsync();
+                    var books = JsonConvert.DeserializeObject<IEnumerable<BookDTO>>(content);
+                    return new ApiResponse<IEnumerable<BookDTO>> { Success = true, Data = books };
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error filtering books");
-                    return new ApiResponse<IEnumerable<BookDTO>> { Success = false };
-                }
-            });
+
+                return new ApiResponse<IEnumerable<BookDTO>> { Success = false };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error filtering books");
+                return new ApiResponse<IEnumerable<BookDTO>> { Success = false };
+            }
         }
 
         public async Task<ApiResponse<BookDTO>> GetBookByIdAsync(int id)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync($"/api/books/getbyid/{id}"));
+                if (response.IsSuccessStatusCode)
                 {
-                    var response = await _httpClient.GetAsync($"/api/books/getbyid/{id}");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var content = await response.Content.ReadAsStringAsync();
-                        var book = JsonConvert.DeserializeObject<BookDTO>(content);
-                        return new ApiResponse<BookDTO> { Success = true, Data = book };
-                    }
-                    return new ApiResponse<BookDTO> { Success = false };
+                    var content = await response.Content.ReadAsStringAsync();
+                    var book = JsonConvert.DeserializeObject<BookDTO>(content);
+                    return new ApiResponse<BookDTO> { Success = true, Data = book };
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error getting book {BookId}", id);
-                    return new ApiResponse<BookDTO> { Success = false };
-                }
-            });
+                return new ApiResponse<BookDTO> { Success = false };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting book {BookId}", id);
+                return new ApiResponse<BookDTO> { Success = false };
+            }
         }
 
         public async Task<ApiResponse<BookDTO>> CreateBookAsync(BookDTO book)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
+                var apiData = new
                 {
-                    var apiData = new
-                    {
-                        id = 0,
-                        name = book.Title,
-                        author = book.Author,
-                        description = book.Description ?? "",
-                        genre = ConvertGenreToNumber(book.Genre),
-                        type = ConvertTypeToNumber(book.Type),
-                        isAvailable = book.IsAvailable,
-                        year = book.Year
-                    };
+                    id = 0,
+                    name = book.Title,
+                    author = book.Author,
+                    description = book.Description ?? "",
+                    genre = ConvertGenreToNumber(book.Genre),
+                    type = ConvertTypeToNumber(book.Type),
+                    isAvailable = book.IsAvailable,
+                    year = book.Year
+                };
 
-                    var json = JsonConvert.SerializeObject(apiData);
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    var response = await _httpClient.PostAsync("/api/books/createbook", content);
+                var json = JsonConvert.SerializeObject(apiData);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await SendWithRetryAsync(() => _httpClient.PostAsync("/api/books/createbook", content));
 
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var responseContent = await response.Content.ReadAsStringAsync();
-                        var result = JsonConvert.DeserializeObject<BookDTO>(responseContent);
-                        return new ApiResponse<BookDTO> { Success = true, Data = result };
-                    }
-
-                    return new ApiResponse<BookDTO> { Success = false };
-                }
-                catch (Exception ex)
+                if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogError(ex, "Error creating book");
-                    return new ApiResponse<BookDTO> { Success = false };
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    var result = JsonConvert.DeserializeObject<BookDTO>(responseContent);
+                    return new ApiResponse<BookDTO> { Success = true, Data = result };
                 }
-            });
+
+                return new ApiResponse<BookDTO> { Success = false };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating book");
+                return new ApiResponse<BookDTO> { Success = false };
+            }
         }
 
         public async Task<ApiResponse<object>> UpdateBookAsync(int id, BookDTO book)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
+                var updateData = new
                 {
-                    var updateData = new
-                    {
-                        id = book.Id,
-                        name = book.Title,
-                        author = book.Author,
-                        description = book.Description ?? "",
-                        genre = ConvertGenreToInt(book.Genre),
-                        type = ConvertBookTypeToInt(book.Type),
-                        isAvailable = book.IsAvailable,
-                        year = book.Year.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-                    };
+                    id = book.Id,
+                    name = book.Title,
+                    author = book.Author,
+                    description = book.Description ?? "",
+                    genre = ConvertGenreToInt(book.Genre),
+                    type = ConvertBookTypeToInt(book.Type),
+                    isAvailable = book.IsAvailable,
+                    year = book.Year.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+                };
 
-                    var json = JsonConvert.SerializeObject(updateData);
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    var response = await _httpClient.PutAsync($"/api/books/updatebook/{id}", content);
+                var json = JsonConvert.SerializeObject(updateData);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await SendWithRetryAsync(() => _httpClient.PutAsync($"/api/books/updatebook/{id}", content));
 
-                    return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error updating book {BookId}", id);
-                    return new ApiResponse<object> { Success = false };
-                }
-            });
+                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating book {BookId}", id);
+                return new ApiResponse<object> { Success = false };
+            }
         }
 
         public async Task<ApiResponse<object>> DeleteBookAsync(int id)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
-                {
-                    var response = await _httpClient.DeleteAsync($"/api/books/delete/{id}");
-                    return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error deleting book {BookId}", id);
-                    return new ApiResponse<object> { Success = false };
-                }
-            });
+                var response = await SendWithRetryAsync(() => _httpClient.DeleteAsync($"/api/books/delete/{id}"));
+                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting book {BookId}", id);
+                return new ApiResponse<object> { Success = false };
+            }
         }
 
         public async Task<ApiResponse<IEnumerable<BookDTO>>> GetUserOrdersAsync()
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync("/api/books/getuserorders"));
+                if (response.IsSuccessStatusCode)
                 {
-                    var response = await _httpClient.GetAsync("/api/books/getuserorders");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var content = await response.Content.ReadAsStringAsync();
-                        var books = JsonConvert.DeserializeObject<IEnumerable<BookDTO>>(content);
-                        return new ApiResponse<IEnumerable<BookDTO>> { Success = true, Data = books };
-                    }
-                    return new ApiResponse<IEnumerable<BookDTO>> { Success = false };
+                    var content = await response.Content.ReadAsStringAsync();
+                    var books = JsonConvert.DeserializeObject<IEnumerable<BookDTO>>(content);
+                    return new ApiResponse<IEnumerable<BookDTO>> { Success = true, Data = books };
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error getting user orders");
-                    return new ApiResponse<IEnumerable<BookDTO>> { Success = false };
-                }
-            });
+                return new ApiResponse<IEnumerable<BookDTO>> { Success = false };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user orders");
+                return new ApiResponse<IEnumerable<BookDTO>> { Success = false };
+            }
         }
 
         public async Task<ApiResponse<bool>> CheckBookAvailabilityAsync(int id)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync($"/api/books/availability/{id}"));
+                if (response.IsSuccessStatusCode)
                 {
-                    var response = await _httpClient.GetAsync($"/api/books/availability/{id}");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var content = await response.Content.ReadAsStringAsync();
-                        var isAvailable = JsonConvert.DeserializeObject<bool>(content);
-                        return new ApiResponse<bool> { Success = true, Data = isAvailable };
-                    }
-                    return new ApiResponse<bool> { Success = false };
+                    var content = await response.Content.ReadAsStringAsync();
+                    var isAvailable = JsonConvert.DeserializeObject<bool>(content);
+                    return new ApiResponse<bool> { Success = true, Data = isAvailable };
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error checking availability");
-                    return new ApiResponse<bool> { Success = false };
-                }
-            });
+                return new ApiResponse<bool> { Success = false };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking availability");
+                return new ApiResponse<bool> { Success = false };
+            }
         }
 
         public async Task<ApiResponse<bool>> SetBookAvailabilityAsync(int id, bool isAvailable)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
-                {
-                    var json = JsonConvert.SerializeObject(isAvailable);
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    var response = await _httpClient.PutAsync($"/api/books/setavailability/{id}", content);
-                    return new ApiResponse<bool> { Success = response.IsSuccessStatusCode };
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error setting availability");
-                    return new ApiResponse<bool> { Success = false };
-                }
-            });
+                var json = JsonConvert.SerializeObject(isAvailable);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await SendWithRetryAsync(() => _httpClient.PutAsync($"/api/books/setavailability/{id}", content));
+                return new ApiResponse<bool> { Success = response.IsSuccessStatusCode };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error setting availability");
+                return new ApiResponse<bool> { Success = false };
+            }
         }
 
         // Order methods
         public async Task<ApiResponse<IEnumerable<OrderDTO>>> GetAllOrdersAsync()
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync("/api/orders/getall"));
+                if (response.IsSuccessStatusCode)
                 {
-                    var response = await _httpClient.GetAsync("/api/orders/getall");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var content = await response.Content.ReadAsStringAsync();
-                        var orders = JsonConvert.DeserializeObject<IEnumerable<OrderDTO>>(content);
-                        return new ApiResponse<IEnumerable<OrderDTO>> { Success = true, Data = orders };
-                    }
-                    return new ApiResponse<IEnumerable<OrderDTO>> { Success = false };
+                    var content = await response.Content.ReadAsStringAsync();
+                    var orders = JsonConvert.DeserializeObject<IEnumerable<OrderDTO>>(content);
+                    return new ApiResponse<IEnumerable<OrderDTO>> { Success = true, Data = orders };
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error getting orders");
-                    return new ApiResponse<IEnumerable<OrderDTO>> { Success = false };
-                }
-            });
+                return new ApiResponse<IEnumerable<OrderDTO>> { Success = false };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting orders");
+                return new ApiResponse<IEnumerable<OrderDTO>> { Success = false };
+            }
         }
 
         public async Task<ApiResponse<OrderDTO>> GetOrderByIdAsync(int id)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync($"/api/orders/findspecific/{id}"));
+                if (response.IsSuccessStatusCode)
                 {
-                    var response = await _httpClient.GetAsync($"/api/orders/findspecific/{id}");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var content = await response.Content.ReadAsStringAsync();
-                        var order = JsonConvert.DeserializeObject<OrderDTO>(content);
-                        return new ApiResponse<OrderDTO> { Success = true, Data = order };
-                    }
-                    return new ApiResponse<OrderDTO> { Success = false };
+                    var content = await response.Content.ReadAsStringAsync();
+                    var order = JsonConvert.DeserializeObject<OrderDTO>(content);
+                    return new ApiResponse<OrderDTO> { Success = true, Data = order };
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error getting order {OrderId}", id);
-                    return new ApiResponse<OrderDTO> { Success = false };
-                }
-            });
+                return new ApiResponse<OrderDTO> { Success = false };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting order {OrderId}", id);
+                return new ApiResponse<OrderDTO> { Success = false };
+            }
         }
 
         public async Task<ApiResponse<object>> CreateOrderAsync(OrderDTO order)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
-                {
-                    var bookResult = await GetBookByIdAsync(order.BookId);
-                    if (!bookResult.Success || bookResult.Data == null)
-                        return new ApiResponse<object> { Success = false, Message = "Book not found" };
+                var bookResult = await GetBookByIdAsync(order.BookId);
+                if (!bookResult.Success || bookResult.Data == null)
+                    return new ApiResponse<object> { Success = false, Message = "Book not found" };
 
-                    var orderData = new
+                var orderData = new
+                {
+                    id = 0,
+                    userId = order.UserId,
+                    bookId = order.BookId,
+                    orderDate = order.OrderDate.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                    type = 0,
+                    book = new
                     {
-                        id = 0,
-                        userId = order.UserId,
-                        bookId = order.BookId,
-                        orderDate = order.OrderDate.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                        type = 0,
-                        book = new
-                        {
-                            id = bookResult.Data.Id,
-                            name = bookResult.Data.Title,
-                            author = bookResult.Data.Author,
-                            description = bookResult.Data.Description ?? "",
-                            genre = bookResult.Data.GenreId,
-                            type = bookResult.Data.TypeId,
-                            isAvailable = bookResult.Data.IsAvailable,
-                            year = bookResult.Data.Year.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-                        }
-                    };
+                        id = bookResult.Data.Id,
+                        name = bookResult.Data.Title,
+                        author = bookResult.Data.Author,
+                        description = bookResult.Data.Description ?? "",
+                        genre = bookResult.Data.GenreId,
+                        type = bookResult.Data.TypeId,
+                        isAvailable = bookResult.Data.IsAvailable,
+                        year = bookResult.Data.Year.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+                    }
+                };
 
-                    var json = JsonConvert.SerializeObject(orderData);
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    var response = await _httpClient.PostAsync("/api/orders/createnew", content);
+                var json = JsonConvert.SerializeObject(orderData);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await SendWithRetryAsync(() => _httpClient.PostAsync("/api/orders/createnew", content));
 
-                    return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error creating order");
-                    return new ApiResponse<object> { Success = false };
-                }
-            });
+                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating order");
+                return new ApiResponse<object> { Success = false };
+            }
         }
 
         public async Task<ApiResponse<object>> UpdateOrderAsync(int id, OrderDTO order)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
-                {
-                    var currentOrder = await GetOrderByIdAsync(id);
-                    if (!currentOrder.Success) return new ApiResponse<object> { Success = false };
+                var currentOrder = await GetOrderByIdAsync(id);
+                if (!currentOrder.Success) return new ApiResponse<object> { Success = false };
 
-                    var json = JsonConvert.SerializeObject(order);
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    var response = await _httpClient.PutAsync("/api/orders/update", content);
+                var json = JsonConvert.SerializeObject(order);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await SendWithRetryAsync(() => _httpClient.PutAsync("/api/orders/update", content));
 
-                    return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error updating order");
-                    return new ApiResponse<object> { Success = false };
-                }
-            });
+                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating order");
+                return new ApiResponse<object> { Success = false };
+            }
         }
 
         public async Task<ApiResponse<object>> DeleteOrderAsync(int id)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
-                {
-                    var response = await _httpClient.DeleteAsync($"/api/orders/delete/{id}");
-                    return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error deleting order");
-                    return new ApiResponse<object> { Success = false };
-                }
-            });
+                var response = await SendWithRetryAsync(() => _httpClient.DeleteAsync($"/api/orders/delete/{id}"));
+                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting order");
+                return new ApiResponse<object> { Success = false };
+            }
         }
 
         public async Task<ApiResponse<object>> CancelOrderAsync(int orderId, string userId)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
-                {
-                    var orderResult = await GetOrderByIdAsync(orderId);
-                    if (!orderResult.Success) return new ApiResponse<object> { Success = false };
+                var orderResult = await GetOrderByIdAsync(orderId);
+                if (!orderResult.Success) return new ApiResponse<object> { Success = false };
 
-                    if (orderResult.Data.UserId != userId)
-                        return new ApiResponse<object> { Success = false, Message = "Unauthorized" };
+                if (orderResult.Data.UserId != userId)
+                    return new ApiResponse<object> { Success = false, Message = "Unauthorized" };
 
-                    return await DeleteOrderAsync(orderId);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error cancelling order");
-                    return new ApiResponse<object> { Success = false };
-                }
-            });
+                return await DeleteOrderAsync(orderId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error cancelling order");
+                return new ApiResponse<object> { Success = false };
+            }
         }
 
         public async Task<ApiResponse<string>> GetUserEmailByIdAsync(string userId)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync($"/api/account/user/{userId}"));
+                if (response.IsSuccessStatusCode)
                 {
-                    var response = await _httpClient.GetAsync($"/api/account/user/{userId}");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var content = await response.Content.ReadAsStringAsync();
-                        var result = JsonConvert.DeserializeObject<dynamic>(content);
-                        return new ApiResponse<string> { Success = true, Data = result.email };
-                    }
-                    return new ApiResponse<string> { Success = false };
+                    var content = await response.Content.ReadAsStringAsync();
+                    var result = JsonConvert.DeserializeObject<dynamic>(content);
+                    return new ApiResponse<string> { Success = true, Data = result.email };
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error getting user email");
-                    return new ApiResponse<string> { Success = false };
-                }
-            });
+                return new ApiResponse<string> { Success = false };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user email");
+                return new ApiResponse<string> { Success = false };
+            }
         }
 
         // Admin methods
         public async Task<ApiResponse<IEnumerable<UserDTO>>> GetAllUsersAsync()
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
+                _logger.LogInformation("=== GetAllUsersAsync called ===");
+                _logger.LogInformation("Base URL: {BaseUrl}", _httpClient.BaseAddress);
+                
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync("/api/users/getall"));
+                
+                _logger.LogInformation("Response Status: {StatusCode}", response.StatusCode);
+                var content = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("Response Content: {Content}", content);
+                
+                if (response.IsSuccessStatusCode)
                 {
-                    var response = await _httpClient.GetAsync("/api/users/getall");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var content = await response.Content.ReadAsStringAsync();
-                        var apiResponse = JsonConvert.DeserializeObject<ApiResponse<IEnumerable<UserDTO>>>(content);
-                        return apiResponse;
-                    }
-                    return new ApiResponse<IEnumerable<UserDTO>> { Success = false };
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<IEnumerable<UserDTO>>>(content);
+                    _logger.LogInformation("Parsed users count: {Count}", apiResponse?.Data?.Count() ?? 0);
+                    return apiResponse;
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error getting users");
-                    return new ApiResponse<IEnumerable<UserDTO>> { Success = false };
-                }
-            });
+                
+                _logger.LogWarning("GetAllUsersAsync failed with status {StatusCode}", response.StatusCode);
+                return new ApiResponse<IEnumerable<UserDTO>> { Success = false, Message = $"HTTP {response.StatusCode}: {content}" };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting users");
+                return new ApiResponse<IEnumerable<UserDTO>> { Success = false, Message = ex.Message };
+            }
         }
 
         public async Task<ApiResponse<UserDTO>> GetUserByIdAsync(string id)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync($"/api/users/getuserbyid?id={Uri.EscapeDataString(id)}"));
+                if (response.IsSuccessStatusCode)
                 {
-                    var response = await _httpClient.GetAsync($"/api/users/getuserbyid?id={Uri.EscapeDataString(id)}");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var content = await response.Content.ReadAsStringAsync();
-                        var apiResponse = JsonConvert.DeserializeObject<ApiResponse<UserDTO>>(content);
-                        return apiResponse;
-                    }
-                    return new ApiResponse<UserDTO> { Success = false };
+                    var content = await response.Content.ReadAsStringAsync();
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<UserDTO>>(content);
+                    return apiResponse;
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error getting user");
-                    return new ApiResponse<UserDTO> { Success = false };
-                }
-            });
+                return new ApiResponse<UserDTO> { Success = false };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user");
+                return new ApiResponse<UserDTO> { Success = false };
+            }
         }
 
         public async Task<ApiResponse<object>> CreateUserAsync(CreateUserRequest request)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
+                var json = JsonConvert.SerializeObject(request);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await SendWithRetryAsync(() => _httpClient.PostAsync("/api/users/createuser", content));
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("CreateUser response: {StatusCode} - {Content}", response.StatusCode, responseContent);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    try
+                    {
+                        var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                        return apiResponse ?? new ApiResponse<object> { Success = true };
+                    }
+                    catch
+                    {
+                        return new ApiResponse<object> { Success = true };
+                    }
+                }
+
+                // Parse error response to get detailed error messages
                 try
                 {
-                    var json = JsonConvert.SerializeObject(request);
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    var response = await _httpClient.PostAsync("/api/users/createuser", content);
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var responseContent = await response.Content.ReadAsStringAsync();
-                        try
-                        {
-                            var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
-                            return apiResponse ?? new ApiResponse<object> { Success = true };
-                        }
-                        catch
-                        {
-                            return new ApiResponse<object> { Success = true };
-                        }
-                    }
-
-                    return new ApiResponse<object> { Success = false };
+                    var errorResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                    return errorResponse ?? new ApiResponse<object> 
+                    { 
+                        Success = false, 
+                        Message = $"Error: {response.StatusCode}" 
+                    };
                 }
-                catch (Exception ex)
+                catch
                 {
-                    _logger.LogError(ex, "Error creating user");
-                    return new ApiResponse<object> { Success = false };
+                    return new ApiResponse<object> 
+                    { 
+                        Success = false, 
+                        Message = $"Error: {response.StatusCode} - {responseContent}" 
+                    };
                 }
-            });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating user");
+                return new ApiResponse<object> { Success = false, Message = ex.Message };
+            }
         }
 
         public async Task<ApiResponse<object>> CreateAdminAsync(CreateUserRequest request)
@@ -802,145 +794,124 @@ namespace UI.Services
 
         public async Task<ApiResponse<object>> UpdateUserAsync(string id, UpdateUserRequest request)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
-                {
-                    var json = JsonConvert.SerializeObject(request);
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    var response = await _httpClient.PutAsync($"/api/users/updateuser?id={Uri.EscapeDataString(id)}", content);
+                var json = JsonConvert.SerializeObject(request);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await SendWithRetryAsync(() => _httpClient.PutAsync($"/api/users/updateuser?id={Uri.EscapeDataString(id)}", content));
 
-                    return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error updating user");
-                    return new ApiResponse<object> { Success = false };
-                }
-            });
+                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating user");
+                return new ApiResponse<object> { Success = false };
+            }
         }
 
         public async Task<ApiResponse<object>> DeleteUserAsync(string id)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
-                {
-                    var response = await _httpClient.DeleteAsync($"/api/users/deleteuser?id={Uri.EscapeDataString(id)}");
-                    return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error deleting user");
-                    return new ApiResponse<object> { Success = false };
-                }
-            });
+                var response = await SendWithRetryAsync(() => _httpClient.DeleteAsync($"/api/users/deleteuser?id={Uri.EscapeDataString(id)}"));
+                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting user");
+                return new ApiResponse<object> { Success = false };
+            }
         }
 
         public async Task<ApiResponse<object>> ChangeUserPasswordAsync(string id, ChangePasswordRequest request)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
-                {
-                    var json = JsonConvert.SerializeObject(request);
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    var response = await _httpClient.PostAsync($"/api/users/changepassword?id={Uri.EscapeDataString(id)}", content);
+                var json = JsonConvert.SerializeObject(request);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await SendWithRetryAsync(() => _httpClient.PostAsync($"/api/users/changepassword?id={Uri.EscapeDataString(id)}", content));
 
-                    return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error changing password");
-                    return new ApiResponse<object> { Success = false };
-                }
-            });
+                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error changing password");
+                return new ApiResponse<object> { Success = false };
+            }
         }
 
         public async Task<ApiResponse<object>> AssignRoleToUserAsync(string id, AssignRoleRequest request)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
-                {
-                    var json = JsonConvert.SerializeObject(request);
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    var response = await _httpClient.PostAsync($"/api/users/assignrole?id={Uri.EscapeDataString(id)}", content);
+                var json = JsonConvert.SerializeObject(request);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await SendWithRetryAsync(() => _httpClient.PostAsync($"/api/users/assignrole?id={Uri.EscapeDataString(id)}", content));
 
-                    return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error assigning role");
-                    return new ApiResponse<object> { Success = false };
-                }
-            });
+                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error assigning role");
+                return new ApiResponse<object> { Success = false };
+            }
         }
 
         public async Task<ApiResponse<object>> RemoveRoleFromUserAsync(string id, AssignRoleRequest request)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
-                {
-                    var json = JsonConvert.SerializeObject(request);
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    var response = await _httpClient.PostAsync($"/api/users/removerole?id={Uri.EscapeDataString(id)}", content);
+                var json = JsonConvert.SerializeObject(request);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await SendWithRetryAsync(() => _httpClient.PostAsync($"/api/users/removerole?id={Uri.EscapeDataString(id)}", content));
 
-                    return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error removing role");
-                    return new ApiResponse<object> { Success = false };
-                }
-            });
+                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error removing role");
+                return new ApiResponse<object> { Success = false };
+            }
         }
 
         public async Task<ApiResponse<IEnumerable<string>>> GetUserRolesAsync(string id)
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync($"/api/users/getuserroles?id={Uri.EscapeDataString(id)}"));
+                if (response.IsSuccessStatusCode)
                 {
-                    var response = await _httpClient.GetAsync($"/api/users/getuserroles?id={Uri.EscapeDataString(id)}");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var content = await response.Content.ReadAsStringAsync();
-                        var apiResponse = JsonConvert.DeserializeObject<ApiResponse<IEnumerable<string>>>(content);
-                        return apiResponse ?? new ApiResponse<IEnumerable<string>> { Success = true, Data = new List<string>() };
-                    }
-                    return new ApiResponse<IEnumerable<string>> { Success = false, Data = new List<string>() };
+                    var content = await response.Content.ReadAsStringAsync();
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<IEnumerable<string>>>(content);
+                    return apiResponse ?? new ApiResponse<IEnumerable<string>> { Success = true, Data = new List<string>() };
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error getting user roles");
-                    return new ApiResponse<IEnumerable<string>> { Success = false, Data = new List<string>() };
-                }
-            });
+                return new ApiResponse<IEnumerable<string>> { Success = false, Data = new List<string>() };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user roles");
+                return new ApiResponse<IEnumerable<string>> { Success = false, Data = new List<string>() };
+            }
         }
 
         public async Task<ApiResponse<IEnumerable<RoleDTO>>> GetAllRolesAsync()
         {
-            return await ExecuteWithRetryAsync(async () =>
+            try
             {
-                try
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync("/api/users/getallroles"));
+                if (response.IsSuccessStatusCode)
                 {
-                    var response = await _httpClient.GetAsync("/api/users/getallroles");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var content = await response.Content.ReadAsStringAsync();
-                        var apiResponse = JsonConvert.DeserializeObject<ApiResponse<IEnumerable<RoleDTO>>>(content);
-                        return apiResponse ?? new ApiResponse<IEnumerable<RoleDTO>> { Success = true, Data = new List<RoleDTO>() };
-                    }
-                    return new ApiResponse<IEnumerable<RoleDTO>> { Success = false, Data = new List<RoleDTO>() };
+                    var content = await response.Content.ReadAsStringAsync();
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<IEnumerable<RoleDTO>>>(content);
+                    return apiResponse ?? new ApiResponse<IEnumerable<RoleDTO>> { Success = true, Data = new List<RoleDTO>() };
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error getting all roles");
-                    return new ApiResponse<IEnumerable<RoleDTO>> { Success = false, Data = new List<RoleDTO>() };
-                }
-            });
+                return new ApiResponse<IEnumerable<RoleDTO>> { Success = false, Data = new List<RoleDTO>() };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all roles");
+                return new ApiResponse<IEnumerable<RoleDTO>> { Success = false, Data = new List<RoleDTO>() };
+            }
         }
 
         public async Task<ApiResponse<object>> RefreshSessionAsync()

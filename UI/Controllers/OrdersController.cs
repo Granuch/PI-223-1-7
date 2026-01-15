@@ -136,7 +136,7 @@ namespace UI.Controllers
                 return RedirectToAction("Index");
             }
 
-            ModelState.AddModelError("", result.Message);
+            ModelState.AddModelError("", result.Message ?? "An unexpected error occurred");
             return View(editOrder);
         }
 

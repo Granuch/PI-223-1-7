@@ -16,8 +16,11 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Read connection string from configuration/environment variables
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+    ?? "Server=(localdb)\\mssqllocaldb;Database=LibratyDb;Trusted_Connection=True;";
 builder.Services.AddDbContext<LibraryDbContext>(options =>
-    options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=LibratyDb;Trusted_Connection=True;"));
+    options.UseSqlServer(connectionString));
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IBookService, BookService>();
@@ -66,6 +69,9 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Note: Database migrations are handled by AccountService only
+// This service expects the database to already exist
 
 if (app.Environment.IsDevelopment())
 {

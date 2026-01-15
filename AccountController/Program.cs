@@ -16,8 +16,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
+// Read connection string from configuration/environment variables
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+    ?? "Server=(localdb)\\mssqllocaldb;Database=LibratyDb;Trusted_Connection=True;";
 builder.Services.AddDbContext<LibraryDbContext>(options =>
-    options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=LibratyDb;Trusted_Connection=True;"));
+    options.UseSqlServer(connectionString));
 
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
@@ -105,6 +108,33 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Apply migrations and create database automatically
+using (var migrationScope = app.Services.CreateScope())
+{
+    var dbContext = migrationScope.ServiceProvider.GetRequiredService<LibraryDbContext>();
+    var logger = migrationScope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    
+    try
+    {
+        logger.LogInformation("Applying database migrations...");
+        dbContext.Database.Migrate();
+        logger.LogInformation("Database migrations applied successfully.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Error applying database migrations. Attempting to create database...");
+        try
+        {
+            dbContext.Database.EnsureCreated();
+            logger.LogInformation("Database created successfully.");
+        }
+        catch (Exception createEx)
+        {
+            logger.LogError(createEx, "Failed to create database.");
+        }
+    }
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
@@ -131,7 +161,7 @@ try
 catch (Exception ex)
 {
     var logger = services.GetRequiredService<ILogger<Program>>();
-    logger.LogError(ex, "Error during roles and users initialization.");
+    logger.LogWarning(ex, "Error during roles and users initialization. Application will continue.");
 }
 
 app.Run();

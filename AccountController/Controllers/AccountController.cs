@@ -33,6 +33,15 @@ namespace PL.Controllers
             _logger = logger;
         }
 
+        /// <summary>
+        /// Health check endpoint for Docker healthcheck
+        /// </summary>
+        [HttpGet("health")]
+        public IActionResult Health()
+        {
+            return Ok(new { status = "healthy", timestamp = DateTime.UtcNow });
+        }
+
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterViewModel model)
         {

@@ -107,7 +107,9 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Configuration.AddJsonFile("ocelot.json", optional: false, reloadOnChange: true);
+// Load environment-specific Ocelot configuration
+var ocelotConfigFile = builder.Environment.IsProduction() ? "ocelot.Docker.json" : "ocelot.json";
+builder.Configuration.AddJsonFile(ocelotConfigFile, optional: false, reloadOnChange: true);
 builder.Services.AddOcelot(builder.Configuration);
 
 var app = builder.Build();

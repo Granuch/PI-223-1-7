@@ -1,0 +1,168 @@
+version: '3.8'
+
+services:
+  # SQL Server Database
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: library-sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrong@Passw0rd
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    networks:
+      - library-network
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStrong@Passw0rd" -C -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # Account Service (Port 5010) - MAIN SERVICE FOR DB MIGRATIONS AND SEEDING - STARTS FIRST
+  account-service:
+    build:
+      context: .
+      dockerfile: AccountController/Dockerfile
+    container_name: library-account-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5010
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=LibraryDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;
+      - JwtSettings__SecretKey=HFaN3u/vHf7rmJ/45tTpO2cYwKjwlPlpBer0lXzf+ELQDn5TUR0YFKx46iQDiMwALiu8u7qr0FYGllpkS//d7g==
+      - JwtSettings__Issuer=LibraryApp
+      - JwtSettings__Audience=LibraryAppUsers
+    ports:
+      - "5010:5010"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    networks:
+      - library-network
+    restart: on-failure
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5010/api/account/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  # Orders Service (Port 5000)
+  orders-service:
+    build:
+      context: .
+      dockerfile: OrdersService/Dockerfile
+    container_name: library-orders-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5000
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=LibraryDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;
+      - JwtSettings__SecretKey=HFaN3u/vHf7rmJ/45tTpO2cYwKjwlPlpBer0lXzf+ELQDn5TUR0YFKx46iQDiMwALiu8u7qr0FYGllpkS//d7g==
+      - JwtSettings__Issuer=LibraryApp
+      - JwtSettings__Audience=LibraryAppUsers
+    ports:
+      - "5000:5000"
+    depends_on:
+      account-service:
+        condition: service_healthy
+    networks:
+      - library-network
+    restart: on-failure
+
+  # Books Service (Port 5001)
+  books-service:
+    build:
+      context: .
+      dockerfile: BooksService/Dockerfile
+    container_name: library-books-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5001
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=LibraryDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;
+      - JwtSettings__SecretKey=HFaN3u/vHf7rmJ/45tTpO2cYwKjwlPlpBer0lXzf+ELQDn5TUR0YFKx46iQDiMwALiu8u7qr0FYGllpkS//d7g==
+      - JwtSettings__Issuer=LibraryApp
+      - JwtSettings__Audience=LibraryAppUsers
+    ports:
+      - "5001:5001"
+    depends_on:
+      account-service:
+        condition: service_healthy
+    networks:
+      - library-network
+    restart: on-failure
+
+  # Admin User Service (Port 5005)
+  adminuser-service:
+    build:
+      context: .
+      dockerfile: AdminUserService/Dockerfile
+    container_name: library-adminuser-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5005
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=LibraryDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;
+      - JwtSettings__SecretKey=HFaN3u/vHf7rmJ/45tTpO2cYwKjwlPlpBer0lXzf+ELQDn5TUR0YFKx46iQDiMwALiu8u7qr0FYGllpkS//d7g==
+      - JwtSettings__Issuer=LibraryApp
+      - JwtSettings__Audience=LibraryAppUsers
+    ports:
+      - "5005:5005"
+    depends_on:
+      account-service:
+        condition: service_healthy
+    networks:
+      - library-network
+    restart: on-failure
+
+  # API Gateway (Port 5003)
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ApiGateway/Dockerfile
+    container_name: library-api-gateway
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5003
+      - JwtSettings__SecretKey=HFaN3u/vHf7rmJ/45tTpO2cYwKjwlPlpBer0lXzf+ELQDn5TUR0YFKx46iQDiMwALiu8u7qr0FYGllpkS//d7g==
+      - JwtSettings__Issuer=LibraryApp
+      - JwtSettings__Audience=LibraryAppUsers
+    ports:
+      - "5003:5003"
+    depends_on:
+      - orders-service
+      - books-service
+      - adminuser-service
+      - account-service
+    networks:
+      - library-network
+    restart: on-failure
+
+  # UI (Web Application - Port 8080)
+  ui:
+    build:
+      context: .
+      dockerfile: UI/Dockerfile
+    container_name: library-ui
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - ApiSettings__BaseUrl=http://api-gateway:5003
+      - JwtSettings__SecretKey=HFaN3u/vHf7rmJ/45tTpO2cYwKjwlPlpBer0lXzf+ELQDn5TUR0YFKx46iQDiMwALiu8u7qr0FYGllpkS//d7g==
+      - JwtSettings__Issuer=LibraryApp
+      - JwtSettings__Audience=LibraryAppUsers
+    ports:
+      - "8080:8080"
+    depends_on:
+      - api-gateway
+    networks:
+      - library-network
+    restart: on-failure
+
+networks:
+  library-network:
+    driver: bridge
+
+volumes:
+  sqlserver_data:

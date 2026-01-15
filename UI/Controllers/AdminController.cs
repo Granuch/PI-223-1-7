@@ -140,7 +140,7 @@ namespace UI.Controllers
             }
             else
             {
-                ModelState.AddModelError("", result.Message);
+                ModelState.AddModelError("", result.Message ?? "An error occurred while creating the user.");
             }
 
             return View(model);
