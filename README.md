@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](https://www.docker.com/)
 ![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-9.0-512BD4)
-![EF Core](https://img.shields.io/badge/EF%20Core-9.0-512BD4)
+![EF Core](https://img.shields.io/badge/EF%20Core-10.0-512BD4)
 ![SQL Server](https://img.shields.io/badge/SQL%20Server-2022-CC2927)
 ![Nginx](https://img.shields.io/badge/Nginx-Reverse%20Proxy-009639)
 ![JWT](https://img.shields.io/badge/Auth-JWT-orange)
