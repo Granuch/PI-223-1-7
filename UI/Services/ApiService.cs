@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 using UI.Controllers;
 using UI.Models.DTOs;
@@ -14,103 +15,76 @@ namespace UI.Services
         private readonly ILogger<ApiService> _logger;
         private readonly IConfiguration _configuration;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private bool _isRefreshing = false;
 
-        public ApiService(HttpClient httpClient, ILogger<ApiService> logger, IConfiguration configuration, IHttpContextAccessor httpContextAccessor)
+        public ApiService(HttpClient httpClient, ILogger<ApiService> logger,
+            IConfiguration configuration, IHttpContextAccessor httpContextAccessor)
         {
             _httpClient = httpClient;
             _logger = logger;
             _configuration = configuration;
             _httpContextAccessor = httpContextAccessor;
 
-            var handler = new HttpClientHandler()
-            {
-                ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true,
-                UseCookies = true,
-                CookieContainer = new CookieContainer()
-            };
-
-            var baseUrl = _configuration["ApiSettings:BaseUrl"];
-            if (string.IsNullOrEmpty(baseUrl))
-            {
-                baseUrl = "https://localhost:5003";
-                _logger.LogWarning("ApiSettings:BaseUrl не знайдено в конфігурації. Використовується значення за замовчуванням: {BaseUrl}", baseUrl);
-            }
-
+            var baseUrl = _configuration["ApiSettings:BaseUrl"] ?? "https://localhost:5003";
             _httpClient.BaseAddress = new Uri(baseUrl);
             _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
 
-            _logger.LogInformation("ApiService ініціалізовано з BaseUrl: {BaseUrl}", baseUrl);
+            _logger.LogInformation("ApiService initialized with BaseUrl: {BaseUrl}", baseUrl);
         }
 
-        private void EnsureCookiesAreSet()
+        private void SetAuthorizationHeader()
         {
+            var token = _httpContextAccessor.HttpContext?.Session.GetString("AccessToken");
+            if (!string.IsNullOrEmpty(token))
+            {
+                _httpClient.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", token);
+                _logger.LogDebug("Authorization header set with JWT token");
+            }
+            else
+            {
+                _httpClient.DefaultRequestHeaders.Authorization = null;
+            }
+        }
+
+        private async Task<bool> TryRefreshTokenAsync()
+        {
+            if (_isRefreshing) return false;
+
+            _isRefreshing = true;
             try
             {
-                var httpContext = _httpContextAccessor.HttpContext;
-                if (httpContext?.Request?.Cookies != null && httpContext.Request.Cookies.Count > 0)
+                var result = await RefreshTokenAsync();
+                return result.Success;
+            }
+            finally
+            {
+                _isRefreshing = false;
+            }
+        }
+
+        private async Task<HttpResponseMessage> SendWithRetryAsync(Func<Task<HttpResponseMessage>> httpAction)
+        {
+            SetAuthorizationHeader();
+            var response = await httpAction();
+
+            // Check if response indicates unauthorized (401) and try to refresh
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                var refreshed = await TryRefreshTokenAsync();
+                if (refreshed)
                 {
-                    if (_httpClient.DefaultRequestHeaders.Contains("Cookie"))
-                    {
-                        _httpClient.DefaultRequestHeaders.Remove("Cookie");
-                    }
-
-                    var cookieHeader = string.Join("; ",
-                        httpContext.Request.Cookies.Select(c => $"{c.Key}={c.Value}"));
-
-                    _httpClient.DefaultRequestHeaders.Add("Cookie", cookieHeader);
-
-                    _logger.LogDebug("Set cookies for API request. Count: {Count}", httpContext.Request.Cookies.Count);
+                    SetAuthorizationHeader();
+                    response = await httpAction();
                 }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error setting cookies in HTTP client");
-            }
+
+            return response;
         }
 
-        private void LogCookieInfo()
-        {
-            var httpContext = _httpContextAccessor.HttpContext;
-            if (httpContext?.Request?.Cookies != null)
-            {
-                _logger.LogInformation("Current cookies count: {Count}", httpContext.Request.Cookies.Count);
-                foreach (var cookie in httpContext.Request.Cookies)
-                {
-                    _logger.LogInformation("Cookie: {Name} = {Value}", cookie.Key,
-                        cookie.Value.Length > 50 ? cookie.Value.Substring(0, 50) + "..." : cookie.Value);
-                }
-            }
-        }
 
-        private ApiResponse<T> HandleAuthError<T>(HttpStatusCode statusCode, string defaultMessage)
-        {
-            if (statusCode == HttpStatusCode.Unauthorized)
-            {
-                _logger.LogWarning("Unauthorized response - clearing session");
-                _httpContextAccessor.HttpContext?.Session.Clear();
-                return new ApiResponse<T>
-                {
-                    Success = false,
-                    Message = "Необхідно увійти в систему"
-                };
-            }
 
-            if (statusCode == HttpStatusCode.Forbidden)
-            {
-                return new ApiResponse<T>
-                {
-                    Success = false,
-                    Message = "Недостатньо прав доступу"
-                };
-            }
-
-            return new ApiResponse<T>
-            {
-                Success = false,
-                Message = $"{defaultMessage}: {statusCode}"
-            };
-        }
-
+        // Authentication methods
         public async Task<ApiResponse<UserResponse>> RegisterAsync(RegisterViewModel model)
         {
             try
@@ -124,6 +98,15 @@ namespace UI.Services
                 if (response.IsSuccessStatusCode)
                 {
                     var result = JsonConvert.DeserializeObject<dynamic>(responseContent);
+
+                    // Save tokens
+                    string token = result.token;
+                    string refreshToken = result.refreshToken;
+                    _httpContextAccessor.HttpContext?.Session.SetString("AccessToken", token);
+                    _httpContextAccessor.HttpContext?.Session.SetString("RefreshToken", refreshToken);
+                    _httpContextAccessor.HttpContext?.Session.SetString("TokenExpiry",
+                        DateTime.UtcNow.AddMinutes(480).ToString("O"));
+
                     return new ApiResponse<UserResponse>
                     {
                         Success = true,
@@ -135,27 +118,24 @@ namespace UI.Services
                                 Email = result.user.email,
                                 FirstName = result.user.firstName,
                                 LastName = result.user.lastName,
+                                Id = result.user.id,
+                                UserId = result.user.userId,
                                 Roles = result.user.roles.ToObject<string[]>()
                             }
                         }
                     };
                 }
 
-                var errorResult = JsonConvert.DeserializeObject<dynamic>(responseContent);
                 return new ApiResponse<UserResponse>
                 {
                     Success = false,
-                    Message = errorResult.message ?? "Помилка реєстрації"
+                    Message = "Registration error"
                 };
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during registration");
-                return new ApiResponse<UserResponse>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                return new ApiResponse<UserResponse> { Success = false, Message = "Server connection error" };
             }
         }
 
@@ -163,18 +143,23 @@ namespace UI.Services
         {
             try
             {
-                _logger.LogInformation("Attempting login for user: {Email}", model.Email);
-
                 var json = JsonConvert.SerializeObject(model);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var response = await _httpClient.PostAsync("/api/account/log", content);
-
                 var responseContent = await response.Content.ReadAsStringAsync();
-                _logger.LogInformation("API Response Status: {StatusCode}", response.StatusCode);
 
                 if (response.IsSuccessStatusCode)
                 {
                     var dynamicResult = JsonConvert.DeserializeObject<dynamic>(responseContent);
+
+                    string token = dynamicResult.token;
+                    string refreshToken = dynamicResult.refreshToken;
+                    int expiresIn = dynamicResult.expiresIn;
+
+                    _httpContextAccessor.HttpContext?.Session.SetString("AccessToken", token);
+                    _httpContextAccessor.HttpContext?.Session.SetString("RefreshToken", refreshToken);
+                    _httpContextAccessor.HttpContext?.Session.SetString("TokenExpiry",
+                        DateTime.UtcNow.AddSeconds(expiresIn).ToString("O"));
 
                     var userInfo = new UserInfo
                     {
@@ -193,20 +178,56 @@ namespace UI.Services
                     };
                 }
 
-                return new ApiResponse<UserResponse>
-                {
-                    Success = false,
-                    Message = "Невірний email або пароль"
-                };
+                return new ApiResponse<UserResponse> { Success = false, Message = "Invalid email or password" };
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during login");
-                return new ApiResponse<UserResponse>
+                return new ApiResponse<UserResponse> { Success = false, Message = "Server connection error" };
+            }
+        }
+
+        public async Task<ApiResponse<object>> RefreshTokenAsync()
+        {
+            try
+            {
+                var token = _httpContextAccessor.HttpContext?.Session.GetString("AccessToken");
+                var refreshToken = _httpContextAccessor.HttpContext?.Session.GetString("RefreshToken");
+
+                if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(refreshToken))
                 {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                    return new ApiResponse<object> { Success = false, Message = "No tokens found" };
+                }
+
+                var request = new { Token = token, RefreshToken = refreshToken };
+                var json = JsonConvert.SerializeObject(request);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync("/api/account/refresh-token", content);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = JsonConvert.DeserializeObject<dynamic>(responseContent);
+
+                    string newToken = result.token;
+                    string newRefreshToken = result.refreshToken;
+                    int expiresIn = result.expiresIn;
+
+                    _httpContextAccessor.HttpContext?.Session.SetString("AccessToken", newToken);
+                    _httpContextAccessor.HttpContext?.Session.SetString("RefreshToken", newRefreshToken);
+                    _httpContextAccessor.HttpContext?.Session.SetString("TokenExpiry",
+                        DateTime.UtcNow.AddSeconds(expiresIn).ToString("O"));
+
+                    return new ApiResponse<object> { Success = true };
+                }
+
+                return new ApiResponse<object> { Success = false, Message = "Token refresh failed" };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error refreshing token");
+                return new ApiResponse<object> { Success = false, Message = "Server connection error" };
             }
         }
 
@@ -214,23 +235,22 @@ namespace UI.Services
         {
             try
             {
-                EnsureCookiesAreSet();
-                var response = await _httpClient.PostAsync("/api/account/logout", null);
+                SetAuthorizationHeader();
+                await _httpClient.PostAsync("/api/account/logout", null);
 
-                return new ApiResponse<object>
-                {
-                    Success = response.IsSuccessStatusCode,
-                    Message = response.IsSuccessStatusCode ? "Вихід успішний" : "Помилка виходу"
-                };
+                _httpContextAccessor.HttpContext?.Session.Remove("AccessToken");
+                _httpContextAccessor.HttpContext?.Session.Remove("RefreshToken");
+                _httpContextAccessor.HttpContext?.Session.Remove("TokenExpiry");
+
+                // Clear the authorization header after logout
+                _httpClient.DefaultRequestHeaders.Authorization = null;
+
+                return new ApiResponse<object> { Success = true };
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during logout");
-                return new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                return new ApiResponse<object> { Success = false };
             }
         }
 
@@ -238,185 +258,114 @@ namespace UI.Services
         {
             try
             {
-                EnsureCookiesAreSet();
-                var response = await _httpClient.GetAsync("/api/account/stat");
-                var responseContent = await response.Content.ReadAsStringAsync();
+                SetAuthorizationHeader();
+                var response = await _httpClient.GetAsync("/api/account/me");
+
+                // Try to refresh token if unauthorized
+                if (response.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    var refreshed = await TryRefreshTokenAsync();
+                    if (refreshed)
+                    {
+                        SetAuthorizationHeader();
+                        response = await _httpClient.GetAsync("/api/account/me");
+                    }
+                }
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var result = JsonConvert.DeserializeObject<dynamic>(responseContent);
+                    var content = await response.Content.ReadAsStringAsync();
+                    var result = JsonConvert.DeserializeObject<dynamic>(content);
 
-                    if (result.isAuthenticated == true)
+                    // Handle both nested and flat response structures
+                    var userData = result.user ?? result;
+
+                    return new ApiResponse<UserResponse>
                     {
-                        return new ApiResponse<UserResponse>
+                        Success = true,
+                        Data = new UserResponse
                         {
-                            Success = true,
-                            Data = new UserResponse
+                            IsAuthenticated = true,
+                            User = new UserInfo
                             {
-                                IsAuthenticated = true,
-                                User = new UserInfo
-                                {
-                                    Email = result.user.email,
-                                    FirstName = result.user.firstName,
-                                    LastName = result.user.lastName,
-                                    Roles = result.user.roles.ToObject<string[]>()
-                                }
+                                Id = userData.id?.ToString(),
+                                UserId = userData.userId?.ToString(),
+                                Email = userData.email?.ToString(),
+                                FirstName = userData.firstName?.ToString(),
+                                LastName = userData.lastName?.ToString(),
+                                Roles = userData.roles?.ToObject<List<string>>() ?? new List<string>()
                             }
-                        };
-                    }
-                    else
-                    {
-                        return new ApiResponse<UserResponse>
-                        {
-                            Success = true,
-                            Data = new UserResponse { IsAuthenticated = false }
-                        };
-                    }
+                        }
+                    };
                 }
 
                 return new ApiResponse<UserResponse>
                 {
-                    Success = false,
-                    Message = "Помилка перевірки статусу"
+                    Success = true,
+                    Data = new UserResponse { IsAuthenticated = false }
                 };
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error checking auth status");
-                return new ApiResponse<UserResponse>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                return new ApiResponse<UserResponse> { Success = false };
             }
         }
 
-        public async Task<ApiResponse<object>> RefreshSessionAsync()
-        {
-            try
-            {
-                _logger.LogInformation("Refreshing session");
-                EnsureCookiesAreSet();
-
-                var userDataJson = _httpContextAccessor.HttpContext?.Session.GetString("UserData");
-                if (string.IsNullOrEmpty(userDataJson))
-                {
-                    return new ApiResponse<object>
-                    {
-                        Success = false,
-                        Message = "Дані користувача не знайдені в сесії"
-                    };
-                }
-
-                var userData = JsonConvert.DeserializeObject<UserInfo>(userDataJson);
-                var request = new RefreshSessionRequest { Email = userData.Email };
-
-                var json = JsonConvert.SerializeObject(request);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                var response = await _httpClient.PostAsync("/api/account/checkandrefresh", content);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    return new ApiResponse<object> { Success = true };
-                }
-
-                return HandleAuthError<object>(response.StatusCode, "Помилка оновлення сесії");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error refreshing session");
-                return new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
-            }
-        }
-
+        // Book methods
         public async Task<ApiResponse<IEnumerable<BookDTO>>> GetAllBooksAsync()
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                var response = await _httpClient.GetAsync("/api/books/getall");
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync("/api/books/getall"));
                 var responseContent = await response.Content.ReadAsStringAsync();
 
                 if (response.IsSuccessStatusCode)
                 {
                     var books = JsonConvert.DeserializeObject<IEnumerable<BookDTO>>(responseContent);
-                    return new ApiResponse<IEnumerable<BookDTO>>
-                    {
-                        Success = true,
-                        Data = books
-                    };
+                    return new ApiResponse<IEnumerable<BookDTO>> { Success = true, Data = books };
                 }
 
-                return HandleAuthError<IEnumerable<BookDTO>>(response.StatusCode, "Помилка отримання книг");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting all books");
                 return new ApiResponse<IEnumerable<BookDTO>>
                 {
                     Success = false,
-                    Message = "Помилка з'єднання з сервером"
+                    Message = $"Error: {response.StatusCode}"
                 };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting books");
+                return new ApiResponse<IEnumerable<BookDTO>> { Success = false, Message = "Error" };
             }
         }
 
-        public async Task<ApiResponse<IEnumerable<BookDTO>>> GetBooksWithFilteringAsync(string sortOrder = null, string searchString = null, string genre = null, string type = null)
+        public async Task<ApiResponse<IEnumerable<BookDTO>>> GetBooksWithFilteringAsync(
+            string sortOrder = null, string searchString = null, string genre = null, string type = null)
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
                 var queryParams = new List<string>();
-
-                if (!string.IsNullOrEmpty(sortOrder))
-                    queryParams.Add($"sortOrder={Uri.EscapeDataString(sortOrder)}");
-                if (!string.IsNullOrEmpty(searchString))
-                    queryParams.Add($"searchString={Uri.EscapeDataString(searchString)}");
-                if (!string.IsNullOrEmpty(genre))
-                {
-                    int genreId = ConvertGenreToInt(genre);
-                    queryParams.Add($"genre={genreId}");
-                }
-                if (!string.IsNullOrEmpty(type))
-                {
-                    int typeId = ConvertBookTypeToInt(type);
-                    queryParams.Add($"type={typeId}");
-                }
+                if (!string.IsNullOrEmpty(sortOrder)) queryParams.Add($"sortOrder={Uri.EscapeDataString(sortOrder)}");
+                if (!string.IsNullOrEmpty(searchString)) queryParams.Add($"searchString={Uri.EscapeDataString(searchString)}");
+                if (!string.IsNullOrEmpty(genre)) queryParams.Add($"genre={ConvertGenreToInt(genre)}");
+                if (!string.IsNullOrEmpty(type)) queryParams.Add($"type={ConvertBookTypeToInt(type)}");
 
                 var queryString = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";
-                var fullUrl = $"/api/books/filter{queryString}";
-
-                var response = await _httpClient.GetAsync(fullUrl);
-                var responseContent = await response.Content.ReadAsStringAsync();
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync($"/api/books/filter{queryString}"));
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var books = JsonConvert.DeserializeObject<IEnumerable<BookDTO>>(responseContent);
-                    return new ApiResponse<IEnumerable<BookDTO>>
-                    {
-                        Success = true,
-                        Data = books
-                    };
+                    var content = await response.Content.ReadAsStringAsync();
+                    var books = JsonConvert.DeserializeObject<IEnumerable<BookDTO>>(content);
+                    return new ApiResponse<IEnumerable<BookDTO>> { Success = true, Data = books };
                 }
 
-                return HandleAuthError<IEnumerable<BookDTO>>(response.StatusCode, "Помилка отримання книг");
+                return new ApiResponse<IEnumerable<BookDTO>> { Success = false };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting filtered books");
-                return new ApiResponse<IEnumerable<BookDTO>>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                _logger.LogError(ex, "Error filtering books");
+                return new ApiResponse<IEnumerable<BookDTO>> { Success = false };
             }
         }
 
@@ -424,32 +373,19 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                var response = await _httpClient.GetAsync($"/api/books/getbyid/{id}");
-                var responseContent = await response.Content.ReadAsStringAsync();
-
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync($"/api/books/getbyid/{id}"));
                 if (response.IsSuccessStatusCode)
                 {
-                    var book = JsonConvert.DeserializeObject<BookDTO>(responseContent);
-                    return new ApiResponse<BookDTO>
-                    {
-                        Success = true,
-                        Data = book
-                    };
+                    var content = await response.Content.ReadAsStringAsync();
+                    var book = JsonConvert.DeserializeObject<BookDTO>(content);
+                    return new ApiResponse<BookDTO> { Success = true, Data = book };
                 }
-
-                return HandleAuthError<BookDTO>(response.StatusCode, "Книга не знайдена");
+                return new ApiResponse<BookDTO> { Success = false };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error getting book by id: {id}");
-                return new ApiResponse<BookDTO>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                _logger.LogError(ex, "Error getting book {BookId}", id);
+                return new ApiResponse<BookDTO> { Success = false };
             }
         }
 
@@ -457,62 +393,35 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                int genreValue = ConvertGenreToNumber(book.Genre);
-                int typeValue = ConvertTypeToNumber(book.Type);
-
-                var apiBookData = new
+                var apiData = new
                 {
                     id = 0,
                     name = book.Title,
                     author = book.Author,
                     description = book.Description ?? "",
-                    genre = genreValue,
-                    type = typeValue,
+                    genre = ConvertGenreToNumber(book.Genre),
+                    type = ConvertTypeToNumber(book.Type),
                     isAvailable = book.IsAvailable,
                     year = book.Year
                 };
 
-                var json = JsonConvert.SerializeObject(apiBookData, Formatting.Indented);
+                var json = JsonConvert.SerializeObject(apiData);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await _httpClient.PostAsync("/api/books/createbook", content);
-                var responseContent = await response.Content.ReadAsStringAsync();
+                var response = await SendWithRetryAsync(() => _httpClient.PostAsync("/api/books/createbook", content));
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var apiResponse = JsonConvert.DeserializeObject<dynamic>(responseContent);
-                    var createdBook = new BookDTO
-                    {
-                        Id = apiResponse.id,
-                        Title = apiResponse.name,
-                        Author = apiResponse.author,
-                        Description = apiResponse.description,
-                        GenreId = apiResponse.genre,
-                        TypeId = apiResponse.type,
-                        IsAvailable = apiResponse.isAvailable,
-                        Year = apiResponse.year,
-                        OrderId = null
-                    };
-
-                    return new ApiResponse<BookDTO>
-                    {
-                        Success = true,
-                        Data = createdBook
-                    };
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    var result = JsonConvert.DeserializeObject<BookDTO>(responseContent);
+                    return new ApiResponse<BookDTO> { Success = true, Data = result };
                 }
 
-                return HandleAuthError<BookDTO>(response.StatusCode, "Помилка створення книги");
+                return new ApiResponse<BookDTO> { Success = false };
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating book");
-                return new ApiResponse<BookDTO>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                return new ApiResponse<BookDTO> { Success = false };
             }
         }
 
@@ -520,48 +429,28 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                int genreValue = ConvertGenreToInt(book.Genre);
-                int typeValue = ConvertBookTypeToInt(book.Type);
-
                 var updateData = new
                 {
                     id = book.Id,
                     name = book.Title,
                     author = book.Author,
                     description = book.Description ?? "",
-                    genre = genreValue,
-                    type = typeValue,
+                    genre = ConvertGenreToInt(book.Genre),
+                    type = ConvertBookTypeToInt(book.Type),
                     isAvailable = book.IsAvailable,
                     year = book.Year.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
                 };
 
-                var json = JsonConvert.SerializeObject(updateData, Formatting.Indented);
+                var json = JsonConvert.SerializeObject(updateData);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await SendWithRetryAsync(() => _httpClient.PutAsync($"/api/books/updatebook/{id}", content));
 
-                var response = await _httpClient.PutAsync($"/api/books/updatebook/{id}", content);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    return new ApiResponse<object>
-                    {
-                        Success = true,
-                        Message = "Книга успішно оновлена"
-                    };
-                }
-
-                return HandleAuthError<object>(response.StatusCode, "Помилка оновлення книги");
+                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error updating book: {BookId}", id);
-                return new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером: " + ex.Message
-                };
+                _logger.LogError(ex, "Error updating book {BookId}", id);
+                return new ApiResponse<object> { Success = false };
             }
         }
 
@@ -569,30 +458,13 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                var response = await _httpClient.DeleteAsync($"/api/books/delete/{id}");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    return new ApiResponse<object>
-                    {
-                        Success = true,
-                        Message = "Книга видалена"
-                    };
-                }
-
-                return HandleAuthError<object>(response.StatusCode, "Помилка видалення книги");
+                var response = await SendWithRetryAsync(() => _httpClient.DeleteAsync($"/api/books/delete/{id}"));
+                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error deleting book: {id}");
-                return new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                _logger.LogError(ex, "Error deleting book {BookId}", id);
+                return new ApiResponse<object> { Success = false };
             }
         }
 
@@ -600,32 +472,19 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                var response = await _httpClient.GetAsync("/api/books/getuserorders");
-                var responseContent = await response.Content.ReadAsStringAsync();
-
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync("/api/books/getuserorders"));
                 if (response.IsSuccessStatusCode)
                 {
-                    var books = JsonConvert.DeserializeObject<IEnumerable<BookDTO>>(responseContent);
-                    return new ApiResponse<IEnumerable<BookDTO>>
-                    {
-                        Success = true,
-                        Data = books
-                    };
+                    var content = await response.Content.ReadAsStringAsync();
+                    var books = JsonConvert.DeserializeObject<IEnumerable<BookDTO>>(content);
+                    return new ApiResponse<IEnumerable<BookDTO>> { Success = true, Data = books };
                 }
-
-                return HandleAuthError<IEnumerable<BookDTO>>(response.StatusCode, "Помилка отримання замовлень");
+                return new ApiResponse<IEnumerable<BookDTO>> { Success = false };
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting user orders");
-                return new ApiResponse<IEnumerable<BookDTO>>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                return new ApiResponse<IEnumerable<BookDTO>> { Success = false };
             }
         }
 
@@ -633,32 +492,19 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                var response = await _httpClient.GetAsync($"/api/books/availability/{id}");
-                var responseContent = await response.Content.ReadAsStringAsync();
-
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync($"/api/books/availability/{id}"));
                 if (response.IsSuccessStatusCode)
                 {
-                    var isAvailable = JsonConvert.DeserializeObject<bool>(responseContent);
-                    return new ApiResponse<bool>
-                    {
-                        Success = true,
-                        Data = isAvailable
-                    };
+                    var content = await response.Content.ReadAsStringAsync();
+                    var isAvailable = JsonConvert.DeserializeObject<bool>(content);
+                    return new ApiResponse<bool> { Success = true, Data = isAvailable };
                 }
-
-                return HandleAuthError<bool>(response.StatusCode, "Помилка перевірки доступності");
+                return new ApiResponse<bool> { Success = false };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error checking book availability: {id}");
-                return new ApiResponse<bool>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                _logger.LogError(ex, "Error checking availability");
+                return new ApiResponse<bool> { Success = false };
             }
         }
 
@@ -666,66 +512,36 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
                 var json = JsonConvert.SerializeObject(isAvailable);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                var response = await _httpClient.PutAsync($"/api/books/setavailability/{id}", content);
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                if (response.IsSuccessStatusCode)
-                {
-                    return new ApiResponse<bool>
-                    {
-                        Success = true,
-                    };
-                }
-
-                return HandleAuthError<bool>(response.StatusCode, "Помилка перевірки доступності");
+                var response = await SendWithRetryAsync(() => _httpClient.PutAsync($"/api/books/setavailability/{id}", content));
+                return new ApiResponse<bool> { Success = response.IsSuccessStatusCode };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error setting book availability: {id}");
-                return new ApiResponse<bool>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                _logger.LogError(ex, "Error setting availability");
+                return new ApiResponse<bool> { Success = false };
             }
         }
 
+        // Order methods
         public async Task<ApiResponse<IEnumerable<OrderDTO>>> GetAllOrdersAsync()
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                var response = await _httpClient.GetAsync("/api/orders/getall");
-                var responseContent = await response.Content.ReadAsStringAsync();
-
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync("/api/orders/getall"));
                 if (response.IsSuccessStatusCode)
                 {
-                    var orders = JsonConvert.DeserializeObject<IEnumerable<OrderDTO>>(responseContent);
-                    return new ApiResponse<IEnumerable<OrderDTO>>
-                    {
-                        Success = true,
-                        Data = orders
-                    };
+                    var content = await response.Content.ReadAsStringAsync();
+                    var orders = JsonConvert.DeserializeObject<IEnumerable<OrderDTO>>(content);
+                    return new ApiResponse<IEnumerable<OrderDTO>> { Success = true, Data = orders };
                 }
-
-                return HandleAuthError<IEnumerable<OrderDTO>>(response.StatusCode, "Помилка отримання замовлень");
+                return new ApiResponse<IEnumerable<OrderDTO>> { Success = false };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting all orders");
-                return new ApiResponse<IEnumerable<OrderDTO>>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                _logger.LogError(ex, "Error getting orders");
+                return new ApiResponse<IEnumerable<OrderDTO>> { Success = false };
             }
         }
 
@@ -733,32 +549,19 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                var response = await _httpClient.GetAsync($"/api/orders/findspecific/{id}");
-                var responseContent = await response.Content.ReadAsStringAsync();
-
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync($"/api/orders/findspecific/{id}"));
                 if (response.IsSuccessStatusCode)
                 {
-                    var order = JsonConvert.DeserializeObject<OrderDTO>(responseContent);
-                    return new ApiResponse<OrderDTO>
-                    {
-                        Success = true,
-                        Data = order
-                    };
+                    var content = await response.Content.ReadAsStringAsync();
+                    var order = JsonConvert.DeserializeObject<OrderDTO>(content);
+                    return new ApiResponse<OrderDTO> { Success = true, Data = order };
                 }
-
-                return HandleAuthError<OrderDTO>(response.StatusCode, "Замовлення не знайдено");
+                return new ApiResponse<OrderDTO> { Success = false };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error getting order by id: {id}");
-                return new ApiResponse<OrderDTO>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                _logger.LogError(ex, "Error getting order {OrderId}", id);
+                return new ApiResponse<OrderDTO> { Success = false };
             }
         }
 
@@ -766,27 +569,9 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
                 var bookResult = await GetBookByIdAsync(order.BookId);
                 if (!bookResult.Success || bookResult.Data == null)
-                {
-                    return new ApiResponse<object>
-                    {
-                        Success = false,
-                        Message = "Не вдалося отримати інформацію про книгу"
-                    };
-                }
-
-                if (!bookResult.Data.IsAvailable)
-                {
-                    return new ApiResponse<object>
-                    {
-                        Success = false,
-                        Message = "Книга вже недоступна для замовлення"
-                    };
-                }
+                    return new ApiResponse<object> { Success = false, Message = "Book not found" };
 
                 var orderData = new
                 {
@@ -798,7 +583,7 @@ namespace UI.Services
                     book = new
                     {
                         id = bookResult.Data.Id,
-                        name = "Test",
+                        name = bookResult.Data.Title,
                         author = bookResult.Data.Author,
                         description = bookResult.Data.Description ?? "",
                         genre = bookResult.Data.GenreId,
@@ -810,27 +595,14 @@ namespace UI.Services
 
                 var json = JsonConvert.SerializeObject(orderData);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await _httpClient.PostAsync("/api/orders/createnew", content);
+                var response = await SendWithRetryAsync(() => _httpClient.PostAsync("/api/orders/createnew", content));
 
-                if (response.IsSuccessStatusCode)
-                {
-                    return new ApiResponse<object>
-                    {
-                        Success = true,
-                        Message = "Замовлення успішно створено"
-                    };
-                }
-
-                return HandleAuthError<object>(response.StatusCode, "Помилка створення замовлення");
+                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating order");
-                return new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                return new ApiResponse<object> { Success = false };
             }
         }
 
@@ -838,73 +610,19 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
+                var currentOrder = await GetOrderByIdAsync(id);
+                if (!currentOrder.Success) return new ApiResponse<object> { Success = false };
 
-                var currentOrderResult = await GetOrderByIdAsync(id);
-                if (!currentOrderResult.Success || currentOrderResult.Data?.Book == null)
-                {
-                    return new ApiResponse<object>
-                    {
-                        Success = false,
-                        Message = "Помилка отримання поточних даних замовлення"
-                    };
-                }
-
-                var currentBook = currentOrderResult.Data.Book;
-
-                if (order.BookId != currentBook.Id)
-                {
-                    var newBookResult = await GetBookByIdAsync(order.BookId);
-                    if (newBookResult.Success && newBookResult.Data != null)
-                    {
-                        currentBook = newBookResult.Data;
-                    }
-                }
-
-                var updateData = new
-                {
-                    id = order.Id,
-                    userId = order.UserId,
-                    bookId = order.BookId,
-                    orderDate = order.OrderDate.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                    type = order.Type,
-                    book = new
-                    {
-                        id = currentBook.Id,
-                        name = currentBook.Title ?? "",
-                        author = currentBook.Author ?? "",
-                        description = currentBook.Description ?? "",
-                        genre = ConvertGenreToInt(currentBook.Genre),
-                        type = ConvertTypeToInt(currentBook.Type),
-                        isAvailable = currentBook.IsAvailable,
-                        year = currentBook.Year.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-                    }
-                };
-
-                var json = JsonConvert.SerializeObject(updateData);
+                var json = JsonConvert.SerializeObject(order);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await _httpClient.PutAsync($"/api/orders/update", content);
+                var response = await SendWithRetryAsync(() => _httpClient.PutAsync("/api/orders/update", content));
 
-                if (response.IsSuccessStatusCode)
-                {
-                    return new ApiResponse<object>
-                    {
-                        Success = true,
-                        Message = "Замовлення оновлено"
-                    };
-                }
-
-                return HandleAuthError<object>(response.StatusCode, "Помилка оновлення замовлення");
+                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error updating order: {OrderId}", id);
-                return new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                _logger.LogError(ex, "Error updating order");
+                return new ApiResponse<object> { Success = false };
             }
         }
 
@@ -912,30 +630,13 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                var response = await _httpClient.DeleteAsync($"/api/orders/delete/{id}");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    return new ApiResponse<object>
-                    {
-                        Success = true,
-                        Message = "Замовлення видалено"
-                    };
-                }
-
-                return HandleAuthError<object>(response.StatusCode, "Помилка видалення замовлення");
+                var response = await SendWithRetryAsync(() => _httpClient.DeleteAsync($"/api/orders/delete/{id}"));
+                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error deleting order: {id}");
-                return new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                _logger.LogError(ex, "Error deleting order");
+                return new ApiResponse<object> { Success = false };
             }
         }
 
@@ -943,58 +644,18 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
                 var orderResult = await GetOrderByIdAsync(orderId);
-                if (!orderResult.Success || orderResult.Data == null)
-                {
-                    return new ApiResponse<object>
-                    {
-                        Success = false,
-                        Message = "Замовлення не знайдено"
-                    };
-                }
+                if (!orderResult.Success) return new ApiResponse<object> { Success = false };
 
                 if (orderResult.Data.UserId != userId)
-                {
-                    return new ApiResponse<object>
-                    {
-                        Success = false,
-                        Message = "Ви не маєте права скасувати це замовлення"
-                    };
-                }
+                    return new ApiResponse<object> { Success = false, Message = "Unauthorized" };
 
-                if (orderResult.Data.Type != 1)
-                {
-                    return new ApiResponse<object>
-                    {
-                        Success = false,
-                        Message = "Можна скасувати тільки активні замовлення"
-                    };
-                }
-
-                var response = await _httpClient.DeleteAsync($"/api/orders/delete/{orderId}");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    return new ApiResponse<object>
-                    {
-                        Success = true,
-                        Message = "Замовлення успішно скасовано"
-                    };
-                }
-
-                return HandleAuthError<object>(response.StatusCode, "Помилка скасування замовлення");
+                return await DeleteOrderAsync(orderId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error cancelling order {OrderId}", orderId);
-                return new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                _logger.LogError(ex, "Error cancelling order");
+                return new ApiResponse<object> { Success = false };
             }
         }
 
@@ -1002,66 +663,50 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                var response = await _httpClient.GetAsync($"api/account/user/{userId}");
-                var responseContent = await response.Content.ReadAsStringAsync();
-
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync($"/api/account/user/{userId}"));
                 if (response.IsSuccessStatusCode)
                 {
-                    var result = JsonConvert.DeserializeObject<dynamic>(responseContent);
-                    return new ApiResponse<string>
-                    {
-                        Success = true,
-                        Data = result.email
-                    };
+                    var content = await response.Content.ReadAsStringAsync();
+                    var result = JsonConvert.DeserializeObject<dynamic>(content);
+                    return new ApiResponse<string> { Success = true, Data = result.email };
                 }
-
-                return HandleAuthError<string>(response.StatusCode, "Користувач не знайдений");
+                return new ApiResponse<string> { Success = false };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error getting user email by id: {userId}");
-                return new ApiResponse<string>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                _logger.LogError(ex, "Error getting user email");
+                return new ApiResponse<string> { Success = false };
             }
         }
 
+        // Admin methods
         public async Task<ApiResponse<IEnumerable<UserDTO>>> GetAllUsersAsync()
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                _logger.LogInformation("Getting all users");
-
-                var response = await _httpClient.GetAsync("/api/users/getall");
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                _logger.LogInformation("API Response Status: {StatusCode}", response.StatusCode);
-                _logger.LogInformation("API Response Content length: {ContentLength}", responseContent.Length);
-
+                _logger.LogInformation("=== GetAllUsersAsync called ===");
+                _logger.LogInformation("Base URL: {BaseUrl}", _httpClient.BaseAddress);
+                
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync("/api/users/getall"));
+                
+                _logger.LogInformation("Response Status: {StatusCode}", response.StatusCode);
+                var content = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("Response Content: {Content}", content);
+                
                 if (response.IsSuccessStatusCode)
                 {
-                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<IEnumerable<UserDTO>>>(responseContent);
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<IEnumerable<UserDTO>>>(content);
+                    _logger.LogInformation("Parsed users count: {Count}", apiResponse?.Data?.Count() ?? 0);
                     return apiResponse;
                 }
-
-                return HandleAuthError<IEnumerable<UserDTO>>(response.StatusCode, "Помилка отримання користувачів");
+                
+                _logger.LogWarning("GetAllUsersAsync failed with status {StatusCode}", response.StatusCode);
+                return new ApiResponse<IEnumerable<UserDTO>> { Success = false, Message = $"HTTP {response.StatusCode}: {content}" };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting all users");
-                return new ApiResponse<IEnumerable<UserDTO>>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                _logger.LogError(ex, "Error getting users");
+                return new ApiResponse<IEnumerable<UserDTO>> { Success = false, Message = ex.Message };
             }
         }
 
@@ -1069,28 +714,19 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                var response = await _httpClient.GetAsync($"/api/users/getuserbyid?id={Uri.EscapeDataString(id)}");
-                var responseContent = await response.Content.ReadAsStringAsync();
-
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync($"/api/users/getuserbyid?id={Uri.EscapeDataString(id)}"));
                 if (response.IsSuccessStatusCode)
                 {
-                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<UserDTO>>(responseContent);
+                    var content = await response.Content.ReadAsStringAsync();
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<UserDTO>>(content);
                     return apiResponse;
                 }
-
-                return HandleAuthError<UserDTO>(response.StatusCode, "Помилка отримання користувача");
+                return new ApiResponse<UserDTO> { Success = false };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting user by ID: {UserId}", id);
-                return new ApiResponse<UserDTO>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                _logger.LogError(ex, "Error getting user");
+                return new ApiResponse<UserDTO> { Success = false };
             }
         }
 
@@ -1098,19 +734,12 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                if (string.IsNullOrEmpty(request.Role))
-                {
-                    request.Role = "RegisteredUser";
-                }
-
                 var json = JsonConvert.SerializeObject(request);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await _httpClient.PostAsync("/api/users/createuser", content);
+                var response = await SendWithRetryAsync(() => _httpClient.PostAsync("/api/users/createuser", content));
 
                 var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("CreateUser response: {StatusCode} - {Content}", response.StatusCode, responseContent);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -1119,106 +748,64 @@ namespace UI.Services
                         var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
                         return apiResponse ?? new ApiResponse<object> { Success = true };
                     }
-                    catch (JsonSerializationException)
+                    catch
                     {
-                        return new ApiResponse<object> { Success = true, Message = "Користувач створений успішно" };
+                        return new ApiResponse<object> { Success = true };
                     }
                 }
 
-                return await ProcessCreateUserErrorResponse(responseContent, response.StatusCode);
+                // Parse error response to get detailed error messages
+                try
+                {
+                    var errorResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                    return errorResponse ?? new ApiResponse<object> 
+                    { 
+                        Success = false, 
+                        Message = $"Error: {response.StatusCode}" 
+                    };
+                }
+                catch
+                {
+                    return new ApiResponse<object> 
+                    { 
+                        Success = false, 
+                        Message = $"Error: {response.StatusCode} - {responseContent}" 
+                    };
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating user: {Email}", request.Email);
-                return new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                _logger.LogError(ex, "Error creating user");
+                return new ApiResponse<object> { Success = false, Message = ex.Message };
             }
         }
 
         public async Task<ApiResponse<object>> CreateAdminAsync(CreateUserRequest request)
         {
-            try
-            {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                request.Role = "Administrator";
-
-                var json = JsonConvert.SerializeObject(request);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await _httpClient.PostAsync("/api/users/createadmin", content);
-
-                return await ProcessCreateUserResponse(response, "адміністратора");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating admin: {Email}", request.Email);
-                return new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
-            }
+            request.Role = "Administrator";
+            return await CreateUserAsync(request);
         }
 
         public async Task<ApiResponse<object>> CreateManagerAsync(CreateUserRequest request)
         {
-            try
-            {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                request.Role = "Manager";
-
-                var json = JsonConvert.SerializeObject(request);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await _httpClient.PostAsync("/api/users/createmanager", content);
-
-                return await ProcessCreateUserResponse(response, "менеджера");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating manager: {Email}", request.Email);
-                return new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
-            }
+            request.Role = "Manager";
+            return await CreateUserAsync(request);
         }
 
         public async Task<ApiResponse<object>> UpdateUserAsync(string id, UpdateUserRequest request)
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
                 var json = JsonConvert.SerializeObject(request);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await _httpClient.PutAsync($"/api/users/updateuser?id={Uri.EscapeDataString(id)}", content);
+                var response = await SendWithRetryAsync(() => _httpClient.PutAsync($"/api/users/updateuser?id={Uri.EscapeDataString(id)}", content));
 
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
-                    return apiResponse;
-                }
-
-                return HandleAuthError<object>(response.StatusCode, "Помилка оновлення користувача");
+                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error updating user: {UserId}", id);
-                return new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                _logger.LogError(ex, "Error updating user");
+                return new ApiResponse<object> { Success = false };
             }
         }
 
@@ -1226,29 +813,13 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                var response = await _httpClient.DeleteAsync($"/api/users/deleteuser?id={Uri.EscapeDataString(id)}");
-
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
-                    return apiResponse;
-                }
-
-                return HandleAuthError<object>(response.StatusCode, "Помилка видалення користувача");
+                var response = await SendWithRetryAsync(() => _httpClient.DeleteAsync($"/api/users/deleteuser?id={Uri.EscapeDataString(id)}"));
+                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting user: {UserId}", id);
-                return new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                _logger.LogError(ex, "Error deleting user");
+                return new ApiResponse<object> { Success = false };
             }
         }
 
@@ -1256,38 +827,16 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
                 var json = JsonConvert.SerializeObject(request);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await _httpClient.PostAsync($"/api/users/changepassword?id={Uri.EscapeDataString(id)}", content);
+                var response = await SendWithRetryAsync(() => _httpClient.PostAsync($"/api/users/changepassword?id={Uri.EscapeDataString(id)}", content));
 
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                if (response.IsSuccessStatusCode)
-                {
-                    try
-                    {
-                        var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
-                        return apiResponse ?? new ApiResponse<object> { Success = true, Message = "Пароль змінений успішно" };
-                    }
-                    catch (JsonException)
-                    {
-                        return new ApiResponse<object> { Success = true, Message = "Пароль змінений успішно" };
-                    }
-                }
-
-                return HandleAuthError<object>(response.StatusCode, "Помилка зміни паролю");
+                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error changing password for user: {UserId}", id);
-                return new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Помилка з'єднання з сервером"
-                };
+                _logger.LogError(ex, "Error changing password");
+                return new ApiResponse<object> { Success = false };
             }
         }
 
@@ -1295,45 +844,16 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                request.UserId = id;
-
-                _logger.LogInformation("Assigning role {RoleName} to user: {UserId}", request.RoleName, id);
-
                 var json = JsonConvert.SerializeObject(request);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await SendWithRetryAsync(() => _httpClient.PostAsync($"/api/users/assignrole?id={Uri.EscapeDataString(id)}", content));
 
-                var response = await _httpClient.PostAsync($"/api/users/assignrole?id={Uri.EscapeDataString(id)}", content);
-
-                var responseContent = await response.Content.ReadAsStringAsync();
-                _logger.LogInformation("API Response Status: {StatusCode}", response.StatusCode);
-                _logger.LogInformation("API Response Content: {Content}", responseContent);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    try
-                    {
-                        var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
-                        return apiResponse ?? new ApiResponse<object> { Success = true, Message = "Роль призначена успішно" };
-                    }
-                    catch (JsonException)
-                    {
-                        return new ApiResponse<object> { Success = true, Message = "Роль призначена успішно" };
-                    }
-                }
-
-                return await HandleErrorResponse(responseContent, response.StatusCode, "Помилка призначення ролі");
+                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error assigning role {RoleName} to user: {UserId}", request?.RoleName, id);
-                return new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"Помилка з'єднання з сервером: {ex.Message}"
-                };
+                _logger.LogError(ex, "Error assigning role");
+                return new ApiResponse<object> { Success = false };
             }
         }
 
@@ -1341,41 +861,16 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                request.UserId = id;
-
                 var json = JsonConvert.SerializeObject(request);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await SendWithRetryAsync(() => _httpClient.PostAsync($"/api/users/removerole?id={Uri.EscapeDataString(id)}", content));
 
-                var response = await _httpClient.PostAsync($"/api/users/removerole?id={Uri.EscapeDataString(id)}", content);
-
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                if (response.IsSuccessStatusCode)
-                {
-                    try
-                    {
-                        var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
-                        return apiResponse ?? new ApiResponse<object> { Success = true, Message = "Роль видалена успішно" };
-                    }
-                    catch (JsonException)
-                    {
-                        return new ApiResponse<object> { Success = true, Message = "Роль видалена успішно" };
-                    }
-                }
-
-                return await HandleErrorResponse(responseContent, response.StatusCode, "Помилка видалення ролі");
+                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error removing role {RoleName} from user: {UserId}", request?.RoleName, id);
-                return new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"Помилка з'єднання з сервером: {ex.Message}"
-                };
+                _logger.LogError(ex, "Error removing role");
+                return new ApiResponse<object> { Success = false };
             }
         }
 
@@ -1383,70 +878,19 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                _logger.LogInformation("Getting roles for user: {UserId}", id);
-
-                var response = await _httpClient.GetAsync($"/api/users/getuserroles?id={Uri.EscapeDataString(id)}");
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                _logger.LogInformation("GetUserRoles API response: Status={StatusCode}, Content={Content}",
-                    response.StatusCode, responseContent);
-
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync($"/api/users/getuserroles?id={Uri.EscapeDataString(id)}"));
                 if (response.IsSuccessStatusCode)
                 {
-                    try
-                    {
-                        var apiResponse = JsonConvert.DeserializeObject<ApiResponse<IEnumerable<string>>>(responseContent);
-                        if (apiResponse != null && apiResponse.Success)
-                        {
-                            return apiResponse;
-                        }
-
-                        var directRoles = JsonConvert.DeserializeObject<IEnumerable<string>>(responseContent);
-                        if (directRoles != null)
-                        {
-                            return new ApiResponse<IEnumerable<string>>
-                            {
-                                Success = true,
-                                Data = directRoles,
-                                Message = "Роли получены успешно"
-                            };
-                        }
-
-                        _logger.LogWarning("Could not deserialize user roles response: {Content}", responseContent);
-                        return new ApiResponse<IEnumerable<string>>
-                        {
-                            Success = true,
-                            Data = new List<string>(),
-                            Message = "Роли не найдены"
-                        };
-                    }
-                    catch (JsonException ex)
-                    {
-                        _logger.LogError(ex, "JSON deserialization failed for user roles. Content: {Content}", responseContent);
-
-                        return new ApiResponse<IEnumerable<string>>
-                        {
-                            Success = true,
-                            Data = new List<string>(),
-                            Message = "Ошибка обработки данных ролей"
-                        };
-                    }
+                    var content = await response.Content.ReadAsStringAsync();
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<IEnumerable<string>>>(content);
+                    return apiResponse ?? new ApiResponse<IEnumerable<string>> { Success = true, Data = new List<string>() };
                 }
-
-                return HandleAuthError<IEnumerable<string>>(response.StatusCode, "Ошибка получения ролей пользователя");
+                return new ApiResponse<IEnumerable<string>> { Success = false, Data = new List<string>() };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting user roles: {UserId}", id);
-                return new ApiResponse<IEnumerable<string>>
-                {
-                    Success = false,
-                    Message = "Ошибка соединения с сервером",
-                    Data = new List<string>()
-                };
+                _logger.LogError(ex, "Error getting user roles");
+                return new ApiResponse<IEnumerable<string>> { Success = false, Data = new List<string>() };
             }
         }
 
@@ -1454,192 +898,26 @@ namespace UI.Services
         {
             try
             {
-                LogCookieInfo();
-                EnsureCookiesAreSet();
-
-                _logger.LogInformation("Getting all roles");
-
-                var response = await _httpClient.GetAsync("/api/users/getallroles");
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                _logger.LogInformation("GetAllRoles API response: Status={StatusCode}, Content={Content}",
-                    response.StatusCode, responseContent);
-
+                var response = await SendWithRetryAsync(() => _httpClient.GetAsync("/api/users/getallroles"));
                 if (response.IsSuccessStatusCode)
                 {
-                    try
-                    {
-                        var apiResponse = JsonConvert.DeserializeObject<ApiResponse<IEnumerable<RoleDTO>>>(responseContent);
-                        if (apiResponse != null)
-                        {
-                            return apiResponse;
-                        }
-
-                        var directRoles = JsonConvert.DeserializeObject<IEnumerable<RoleDTO>>(responseContent);
-                        return new ApiResponse<IEnumerable<RoleDTO>>
-                        {
-                            Success = true,
-                            Data = directRoles ?? new List<RoleDTO>(),
-                            Message = "Роли получены успешно"
-                        };
-                    }
-                    catch (JsonException ex)
-                    {
-                        _logger.LogError(ex, "JSON deserialization failed for roles. Content: {Content}", responseContent);
-                        return new ApiResponse<IEnumerable<RoleDTO>>
-                        {
-                            Success = false,
-                            Message = "Ошибка обработки данных ролей",
-                            Data = new List<RoleDTO>()
-                        };
-                    }
+                    var content = await response.Content.ReadAsStringAsync();
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<IEnumerable<RoleDTO>>>(content);
+                    return apiResponse ?? new ApiResponse<IEnumerable<RoleDTO>> { Success = true, Data = new List<RoleDTO>() };
                 }
-
-                return HandleAuthError<IEnumerable<RoleDTO>>(response.StatusCode, "Ошибка получения ролей");
+                return new ApiResponse<IEnumerable<RoleDTO>> { Success = false, Data = new List<RoleDTO>() };
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting all roles");
-                return new ApiResponse<IEnumerable<RoleDTO>>
-                {
-                    Success = false,
-                    Message = "Ошибка соединения с сервером",
-                    Data = new List<RoleDTO>()
-                };
+                return new ApiResponse<IEnumerable<RoleDTO>> { Success = false, Data = new List<RoleDTO>() };
             }
         }
 
-        private async Task<ApiResponse<object>> ProcessCreateUserResponse(HttpResponseMessage response, string userType)
+        public async Task<ApiResponse<object>> RefreshSessionAsync()
         {
-            var responseContent = await response.Content.ReadAsStringAsync();
-
-            if (response.IsSuccessStatusCode)
-            {
-                try
-                {
-                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
-                    return apiResponse ?? new ApiResponse<object>
-                    {
-                        Success = true,
-                        Message = $"{userType} створений успішно"
-                    };
-                }
-                catch (JsonSerializationException)
-                {
-                    return new ApiResponse<object>
-                    {
-                        Success = true,
-                        Message = $"{userType} створений успішно"
-                    };
-                }
-            }
-
-            return await ProcessCreateUserErrorResponse(responseContent, response.StatusCode);
-        }
-
-        private async Task<ApiResponse<object>> ProcessCreateUserErrorResponse(string responseContent, HttpStatusCode statusCode)
-        {
-            if (statusCode == HttpStatusCode.Unauthorized || statusCode == HttpStatusCode.Forbidden)
-            {
-                return HandleAuthError<object>(statusCode, "Ошибка создания пользователя");
-            }
-
-            try
-            {
-                if (string.IsNullOrEmpty(responseContent))
-                {
-                    return new ApiResponse<object>
-                    {
-                        Success = false,
-                        Message = $"Ошибка создания пользователя: {statusCode}"
-                    };
-                }
-
-                var errorResponse = JsonConvert.DeserializeObject<dynamic>(responseContent);
-                var apiResponse = new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Ошибка создания пользователя"
-                };
-
-                if (errorResponse?.errors != null)
-                {
-                    var errorsList = new List<string>();
-                    foreach (var error in errorResponse.errors)
-                    {
-                        if (error.Value != null)
-                        {
-                            foreach (var message in error.Value)
-                            {
-                                errorsList.Add($"{error.Name}: {message}");
-                            }
-                        }
-                    }
-                    if (errorsList.Any())
-                    {
-                        apiResponse.Errors = errorsList;
-                        apiResponse.Message = "Ошибки валидации: " + string.Join("; ", errorsList);
-                    }
-                }
-                else if (errorResponse?.message != null)
-                {
-                    apiResponse.Message = errorResponse.message.ToString();
-                }
-
-                return apiResponse;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error parsing error response: {Content}", responseContent);
-                return new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"Ошибка создания пользователя: {statusCode}"
-                };
-            }
-        }
-
-        private async Task<ApiResponse<object>> HandleErrorResponse(string responseContent, HttpStatusCode statusCode, string defaultErrorMessage)
-        {
-            if (statusCode == HttpStatusCode.Unauthorized || statusCode == HttpStatusCode.Forbidden)
-            {
-                return HandleAuthError<object>(statusCode, defaultErrorMessage);
-            }
-
-            try
-            {
-                var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
-                if (apiResponse != null)
-                {
-                    return apiResponse;
-                }
-            }
-            catch (JsonException)
-            {
-                try
-                {
-                    var validationError = JsonConvert.DeserializeObject<ValidationErrorResponse>(responseContent);
-                    if (validationError?.Errors != null)
-                    {
-                        var errorMessages = validationError.Errors
-                            .SelectMany(kvp => kvp.Value.Select(v => $"{kvp.Key}: {string.Join(", ", v)}"))
-                            .ToList();
-
-                        return new ApiResponse<object>
-                        {
-                            Success = false,
-                            Message = $"Помилки валідації: {string.Join("; ", errorMessages)}"
-                        };
-                    }
-                }
-                catch (JsonException){}
-            }
-
-            return new ApiResponse<object>
-            {
-                Success = false,
-                Message = $"{defaultErrorMessage}: {statusCode}"
-            };
+            // You can simply call the existing RefreshTokenAsync method
+            return await RefreshTokenAsync();
         }
     }
 
@@ -1656,15 +934,10 @@ namespace UI.Services
     {
         public bool IsAuthenticated { get; set; }
         public UserInfo User { get; set; }
+
+        public string AccessToken { get; set; }
+        public string RefreshToken { get; set; }
+        public DateTime AccessTokenExpiresAt { get; set; }
     }
 
-    public class RefreshSessionRequest
-    {
-        public string Email { get; set; }
-    }
-
-    public class ValidationErrorResponse
-    {
-        public Dictionary<string, string[]> Errors { get; set; }
-    }
 }

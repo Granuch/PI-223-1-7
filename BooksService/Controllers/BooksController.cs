@@ -212,7 +212,7 @@ namespace PL.Controllers
         }
 
         [HttpPost("CreateBook")]
-        [Authorize]
+        [Authorize(Roles = "Administrator,Manager")]
         [ProducesResponseType(typeof(BookDTO), 201)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -249,7 +249,7 @@ namespace PL.Controllers
         }
 
         [HttpPut("UpdateBook/{id:int}")]
-        [Authorize] 
+        [Authorize(Roles = "Administrator,Manager")]
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -297,7 +297,7 @@ namespace PL.Controllers
         }
 
         [HttpDelete("DeleteBook/{id}")]
-        [Authorize] 
+        [Authorize(Roles = "Administrator,Manager")]
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -434,7 +434,7 @@ namespace PL.Controllers
         }
 
         [HttpPut("SetAvailability/{id}")]
-        [Authorize] 
+        [Authorize(Roles = "Administrator,Manager")]
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]

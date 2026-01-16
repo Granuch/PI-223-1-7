@@ -7,6 +7,7 @@ using PI_223_1_7.Models;
 using PL.ViewModels;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace PL.Controllers
@@ -16,23 +17,29 @@ namespace PL.Controllers
     public class AccountController : ControllerBase
     {
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly RoleManager<ApplicationRole> _roleManager;
         private readonly IConfiguration _configuration;
         private readonly ILogger<AccountController> _logger;
 
         public AccountController(
             UserManager<ApplicationUser> userManager,
-            SignInManager<ApplicationUser> signInManager,
             RoleManager<ApplicationRole> roleManager,
-            IConfiguration configuration,
+            IConfiguration _configuration,
             ILogger<AccountController> logger)
         {
             _userManager = userManager;
-            _signInManager = signInManager;
             _roleManager = roleManager;
-            _configuration = configuration;
+            this._configuration = _configuration;
             _logger = logger;
+        }
+
+        /// <summary>
+        /// Health check endpoint for Docker healthcheck
+        /// </summary>
+        [HttpGet("health")]
+        public IActionResult Health()
+        {
+            return Ok(new { status = "healthy", timestamp = DateTime.UtcNow });
         }
 
         [HttpPost("register")]
@@ -40,75 +47,77 @@ namespace PL.Controllers
         {
             _logger.LogInformation($"Received registration request for {model.Email}");
 
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                var existingUser = await _userManager.FindByEmailAsync(model.Email);
-                if (existingUser != null)
-                {
-                    _logger.LogWarning($"User with email {model.Email} already exists");
-                    return BadRequest(new
-                    {
-                        success = false,
-                        message = "A user with this email already exists"
-                    });
-
-                }
-
-                var user = new ApplicationUser
-                {
-                    UserName = model.Email,
-                    Email = model.Email,
-                    FirstName = model.FirstName,
-                    LastName = model.LastName,
-                    EmailConfirmed = true,
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                var result = await _userManager.CreateAsync(user, model.Password);
-
-                if (result.Succeeded)
-                {
-                    _logger.LogInformation($"User {user.Email} registered successfully");
-
-                    await _userManager.AddToRoleAsync(user, "RegisteredUser");
-
-                    await _signInManager.SignInAsync(user, isPersistent: false);
-
-                    var token = await GenerateJwtToken(user);
-                    var roles = await _userManager.GetRolesAsync(user);
-
-                    _logger.LogInformation($"Automatic login for {user.Email} after registration");
-
-                    return Ok(new
-                    {
-                        success = true,
-                        message = "Registration was successful",
-                        token = token,
-                        user = new
-                        {
-                            id = user.Id,
-                            userId = user.Id,
-                            email = user.Email,
-                            firstName = user.FirstName,
-                            lastName = user.LastName,
-                            roles = roles
-                        }
-                    });
-                }
-
-                _logger.LogWarning($"Error during registration of user {model.Email}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
                 return BadRequest(new
                 {
                     success = false,
-                    errors = result.Errors.Select(e => e.Description)
+                    errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)
                 });
             }
 
-            _logger.LogWarning($"Invalid registration data model: {string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage))}");
+            var existingUser = await _userManager.FindByEmailAsync(model.Email);
+            if (existingUser != null)
+            {
+                _logger.LogWarning($"User with email {model.Email} already exists");
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "A user with this email already exists"
+                });
+            }
+
+            var user = new ApplicationUser
+            {
+                UserName = model.Email,
+                Email = model.Email,
+                FirstName = model.FirstName,
+                LastName = model.LastName,
+                EmailConfirmed = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var result = await _userManager.CreateAsync(user, model.Password);
+
+            if (result.Succeeded)
+            {
+                _logger.LogInformation($"User {user.Email} registered successfully");
+
+                await _userManager.AddToRoleAsync(user, "RegisteredUser");
+
+                var token = await GenerateJwtToken(user);
+                var refreshToken = GenerateRefreshToken();
+
+                // Save refresh token to user
+                user.RefreshToken = refreshToken;
+                user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+                await _userManager.UpdateAsync(user);
+
+                var roles = await _userManager.GetRolesAsync(user);
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Registration was successful",
+                    token = token,
+                    refreshToken = refreshToken,
+                    user = new
+                    {
+                        id = user.Id,
+                        userId = user.Id,
+                        email = user.Email,
+                        firstName = user.FirstName,
+                        lastName = user.LastName,
+                        roles = roles
+                    }
+                });
+            }
+
+            _logger.LogWarning($"Error during registration of user {model.Email}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
             return BadRequest(new
             {
                 success = false,
-                errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)
+                errors = result.Errors.Select(e => e.Description)
             });
         }
 
@@ -119,7 +128,6 @@ namespace PL.Controllers
 
             if (!ModelState.IsValid)
             {
-                _logger.LogWarning($"Invalid login data model: {string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage))}");
                 return BadRequest(new
                 {
                     success = false,
@@ -130,11 +138,9 @@ namespace PL.Controllers
             var user = await _userManager.FindByEmailAsync(model.Email);
             if (user == null)
             {
-                _logger.LogWarning($"User with email {model.Email} not found in the database");
+                _logger.LogWarning($"User with email {model.Email} not found");
                 return BadRequest(new { success = false, message = "Invalid login or password" });
             }
-
-            _logger.LogInformation($"User found: ID={user.Id}, UserName={user.UserName}");
 
             var isPasswordValid = await _userManager.CheckPasswordAsync(user, model.Password);
             if (!isPasswordValid)
@@ -143,158 +149,111 @@ namespace PL.Controllers
                 return BadRequest(new { success = false, message = "Invalid login or password" });
             }
 
-            _logger.LogInformation($"Password confirmed for {model.Email}, logging in");
-
-            var signInResult = await _signInManager.PasswordSignInAsync(
-                user.UserName,
-                model.Password,
-                model.RememberMe,
-                lockoutOnFailure: false);
-
-            if (signInResult.Succeeded)
-            {
-                var roles = await _userManager.GetRolesAsync(user);
-                _logger.LogInformation($"User {model.Email} logged in successfully. Roles: {string.Join(", ", roles)}");
-
-                var token = await GenerateJwtToken(user);
-
-                return Ok(new
-                {
-                    success = true,
-                    message = "Login successful",
-                    token = token,
-                    user = new
-                    {
-                        id = user.Id,
-                        userId = user.Id,
-                        email = user.Email,
-                        firstName = user.FirstName,
-                        lastName = user.LastName,
-                        roles = roles
-                    }
-                });
-            }
-
-            _logger.LogWarning($"Failed login attempt for {model.Email}. " +
-                $"IsLockedOut: {signInResult.IsLockedOut}, " +
-                $"IsNotAllowed: {signInResult.IsNotAllowed}, " +
-                $"RequiresTwoFactor: {signInResult.RequiresTwoFactor}");
-
-            string errorMessage = "Invalid login or password";
-            if (signInResult.IsLockedOut)
-                errorMessage = "Account is temporarily locked. Please try again later.";
-            else if (signInResult.IsNotAllowed)
-                errorMessage = "Login is not allowed. Email confirmation might be required.";
-            else if (signInResult.RequiresTwoFactor)
-                errorMessage = "Two-factor authentication is required.";
-
-            return BadRequest(new { success = false, message = errorMessage });
-
-        }
-
-        private async Task<string> GenerateJwtToken(ApplicationUser user)
-        {
             var roles = await _userManager.GetRolesAsync(user);
+            _logger.LogInformation($"User {model.Email} logged in successfully. Roles: {string.Join(", ", roles)}");
 
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Name, $"{user.FirstName} {user.LastName}"),
-                new Claim("FirstName", user.FirstName ?? ""),
-                new Claim("LastName", user.LastName ?? "")
-            };
+            var token = await GenerateJwtToken(user);
+            var refreshToken = GenerateRefreshToken();
 
-            foreach (var role in roles)
-            {
-                claims.Add(new Claim(ClaimTypes.Role, role));
-            }
-
-            var secretKey = _configuration["JwtSettings:SecretKey"] ?? "your-super-secret-key-that-is-long-enough-for-jwt-signing-and-should-be-at-least-32-characters";
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
-            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddDays(7),
-                SigningCredentials = credentials
-            };
-
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-
-            return tokenHandler.WriteToken(token);
-        }
-
-        [HttpGet("test-auth")]
-        public IActionResult TestAuth()
-        {
-            bool isAuthenticated = User?.Identity?.IsAuthenticated ?? false;
-            string userName = User?.Identity?.Name ?? "Not authenticated";
-            var claims = User?.Claims?.Select(c => new { type = c.Type, value = c.Value }).ToList();
+            // Save refresh token
+            user.RefreshToken = refreshToken;
+            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+            await _userManager.UpdateAsync(user);
 
             return Ok(new
             {
-                isAuthenticated = isAuthenticated,
-                userName = userName,
-                claims = claims
+                success = true,
+                message = "Login successful",
+                token = token,
+                refreshToken = refreshToken,
+                expiresIn = int.Parse(_configuration["JwtSettings:ExpirationMinutes"] ?? "480") * 60, // seconds
+                user = new
+                {
+                    id = user.Id,
+                    userId = user.Id,
+                    email = user.Email,
+                    firstName = user.FirstName,
+                    lastName = user.LastName,
+                    roles = roles
+                }
+            });
+        }
+
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest? model)
+        {
+            if (model == null)
+            {
+                return BadRequest(new { success = false, message = "Request body is required" });
+            }
+
+            if (string.IsNullOrEmpty(model.Token))
+            {
+                return BadRequest(new { success = false, message = "Access token is required" });
+            }
+
+            if (string.IsNullOrEmpty(model.RefreshToken))
+            {
+                return BadRequest(new { success = false, message = "Refresh token is required" });
+            }
+
+            var principal = GetPrincipalFromExpiredToken(model.Token);
+            if (principal == null)
+            {
+                return BadRequest(new { success = false, message = "Invalid access token" });
+            }
+
+            var email = principal.FindFirst(ClaimTypes.Email)?.Value;
+            if (string.IsNullOrEmpty(email))
+            {
+                return BadRequest(new { success = false, message = "Invalid token claims" });
+            }
+
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user == null || user.RefreshToken != model.RefreshToken || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
+            {
+                return BadRequest(new { success = false, message = "Invalid or expired refresh token" });
+            }
+
+            var newAccessToken = await GenerateJwtToken(user);
+            var newRefreshToken = GenerateRefreshToken();
+
+            user.RefreshToken = newRefreshToken;
+            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+            await _userManager.UpdateAsync(user);
+
+            return Ok(new
+            {
+                success = true,
+                token = newAccessToken,
+                refreshToken = newRefreshToken,
+                expiresIn = int.Parse(_configuration["JwtSettings:ExpirationMinutes"] ?? "480") * 60
             });
         }
 
         [HttpPost("logout")]
+        [Authorize]
         public async Task<IActionResult> Logout()
         {
-            string email = User.Identity?.IsAuthenticated == true ? User.Identity.Name : "Anonymous user";
-            _logger.LogInformation($"Logout request received for user {email}");
+            var email = User.FindFirst(ClaimTypes.Email)?.Value;
+            if (!string.IsNullOrEmpty(email))
+            {
+                var user = await _userManager.FindByEmailAsync(email);
+                if (user != null)
+                {
+                    user.RefreshToken = null;
+                    user.RefreshTokenExpiryTime = null;
+                    await _userManager.UpdateAsync(user);
 
-            await _signInManager.SignOutAsync();
-            _logger.LogInformation($"User {email} has logged out");
+                    _logger.LogInformation($"User {email} logged out");
+                }
+            }
 
             return Ok(new { success = true, message = "Logout successful" });
         }
 
-        [HttpGet("status")]
-        public async Task<IActionResult> CheckAuthStatus()
-        {
-            _logger.LogInformation("Authentication status check request received");
-
-            if (User.Identity?.IsAuthenticated == true)
-            {
-                _logger.LogInformation($"Authenticated user: {User.Identity.Name}");
-
-                var user = await _userManager.GetUserAsync(User);
-                if (user == null)
-                {
-                    _logger.LogWarning($"User is authenticated ({User.Identity.Name}) but not found in the database");
-                    return Ok(new { isAuthenticated = false });
-                }
-
-                var roles = await _userManager.GetRolesAsync(user);
-                _logger.LogInformation($"Authentication status for {user.Email}: authenticated. Roles: {string.Join(", ", roles)}");
-
-                return Ok(new
-                {
-                    isAuthenticated = true,
-                    user = new
-                    {
-                        id = user.Id,
-                        userId = user.Id,
-                        email = user.Email,
-                        firstName = user.FirstName,
-                        lastName = user.LastName,
-                        roles = roles
-                    }
-                });
-            }
-
-            _logger.LogInformation("Status check: user is not authenticated");
-            return Ok(new { isAuthenticated = false });
-        }
-
-
         [HttpGet("me")]
-        [Microsoft.AspNetCore.Authorization.Authorize]
+        [Authorize]
         public async Task<IActionResult> GetCurrentUser()
         {
             try
@@ -334,112 +293,111 @@ namespace PL.Controllers
             }
         }
 
-
-        [HttpPost("RefreshSession")]
+        [HttpGet("test-auth")]
         [Authorize]
-        public async Task<ActionResult<ApiResponse<object>>> RefreshSession()
+        public IActionResult TestAuth()
         {
+            var claims = User.Claims.Select(c => new { type = c.Type, value = c.Value }).ToList();
+
+            return Ok(new
+            {
+                isAuthenticated = true,
+                userName = User.Identity?.Name,
+                userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                email = User.FindFirst(ClaimTypes.Email)?.Value,
+                roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList(),
+                claims = claims
+            });
+        }
+
+        private async Task<string> GenerateJwtToken(ApplicationUser user)
+        {
+            var roles = await _userManager.GetRolesAsync(user);
+
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.Id),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Name, $"{user.FirstName} {user.LastName}"),
+                new Claim("FirstName", user.FirstName ?? ""),
+                new Claim("LastName", user.LastName ?? ""),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString())
+            };
+
+            foreach (var role in roles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
+
+            var jwtSettings = _configuration.GetSection("JwtSettings");
+            var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            var expirationMinutes = int.Parse(jwtSettings["ExpirationMinutes"] ?? "480");
+
+            var token = new JwtSecurityToken(
+                issuer: jwtSettings["Issuer"],
+                audience: jwtSettings["Audience"],
+                claims: claims,
+                expires: DateTime.UtcNow.AddMinutes(expirationMinutes),
+                signingCredentials: credentials
+            );
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        private string GenerateRefreshToken()
+        {
+            var randomNumber = new byte[64];
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(randomNumber);
+            return Convert.ToBase64String(randomNumber);
+        }
+
+        private ClaimsPrincipal? GetPrincipalFromExpiredToken(string? token)
+        {
+            if (string.IsNullOrEmpty(token))
+                return null;
+
+            var jwtSettings = _configuration.GetSection("JwtSettings");
+            var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
+
+            var tokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateAudience = true,
+                ValidateIssuer = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = jwtSettings["Issuer"],
+                ValidAudience = jwtSettings["Audience"],
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+                ValidateLifetime = false // We don't validate lifetime for refresh
+            };
+
+            var tokenHandler = new JwtSecurityTokenHandler();
             try
             {
-                _logger.LogInformation("RefreshSession called");
-                _logger.LogInformation("User.Identity.IsAuthenticated: {IsAuthenticated}", User.Identity.IsAuthenticated);
-                _logger.LogInformation("User.Identity.Name: {UserName}", User.Identity.Name);
+                var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out SecurityToken securityToken);
 
-                if (!User.Identity.IsAuthenticated)
+                if (securityToken is not JwtSecurityToken jwtSecurityToken ||
+                    !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
                 {
-                    _logger.LogWarning("RefreshSession: User not authenticated");
-                    return Unauthorized(new ApiResponse<object>
-                    {
-                        Success = false,
-                        Message = "User is not authorized"
-                    });
+                    return null;
                 }
 
-                var user = await _userManager.GetUserAsync(User);
-                if (user == null)
-                {
-                    _logger.LogWarning("RefreshSession: User not found in database");
-                    return Unauthorized(new ApiResponse<object>
-                    {
-                        Success = false,
-                        Message = "User not found"
-                    });
-                }
-
-                await _signInManager.RefreshSignInAsync(user);
-
-                _logger.LogInformation("Session refreshed for user: {Email}", user.Email);
-
-                return Ok(new ApiResponse<object>
-                {
-                    Success = true,
-                    Message = "Session refreshed successfully"
-                });
+                return principal;
             }
-            catch (Exception ex)
+            catch
             {
-                _logger.LogError(ex, "Error refreshing session");
-                return StatusCode(500, new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Error refreshing session"
-                });
+                return null;
             }
         }
+    }
 
-
-        [HttpPost("CheckAndRefreshSession")]
-        public async Task<ActionResult<ApiResponse<object>>> CheckAndRefreshSession([FromBody] RefreshSessionRequest request)
-        {
-            try
-            {
-                _logger.LogInformation("CheckAndRefreshSession called with email: {Email}", request.Email);
-
-                if (string.IsNullOrEmpty(request.Email))
-                {
-                    return BadRequest(new ApiResponse<object>
-                    {
-                        Success = false,
-                        Message = "Email is required"
-                    });
-                }
-
-                var user = await _userManager.FindByEmailAsync(request.Email);
-                if (user == null)
-                {
-                    _logger.LogWarning("User not found: {Email}", request.Email);
-                    return BadRequest(new ApiResponse<object>
-                    {
-                        Success = false,
-                        Message = "User not found"
-                    });
-                }
-
-                await _signInManager.SignInAsync(user, isPersistent: true);
-
-                _logger.LogInformation("Session refreshed for user: {Email}", user.Email);
-
-                return Ok(new ApiResponse<object>
-                {
-                    Success = true,
-                    Message = "Session refreshed successfully"
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error in CheckAndRefreshSession for email: {Email}", request?.Email);
-                return StatusCode(500, new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "Error refreshing session"
-                });
-            }
-        }
-
-
-        public class RefreshSessionRequest
-        {
-            public string Email { get; set; }
-        }
+    public class RefreshTokenRequest
+    {
+        public string Token { get; set; } = string.Empty;
+        public string RefreshToken { get; set; } = string.Empty;
     }
 }
