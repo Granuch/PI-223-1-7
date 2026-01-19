@@ -69,7 +69,8 @@ namespace PL.Controllers
                     PhoneNumber = model.PhoneNumber,
                     EmailConfirmed = true,
                     CreatedAt = DateTime.UtcNow
-                };
+                });
+            }
 
             var user = new ApplicationUser
             {
