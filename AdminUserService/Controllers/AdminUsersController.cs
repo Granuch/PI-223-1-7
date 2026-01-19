@@ -145,8 +145,7 @@ namespace PL.Controllers
         {
             try
             {
-                request.Role = "Administrator";
-                var result = await _userService.CreateUserAsync(request);
+                var result = await _userService.CreateAdminAsync(request);
 
                 if (result.Succeeded)
                 {
@@ -181,8 +180,7 @@ namespace PL.Controllers
         {
             try
             {
-                request.Role = "Manager";
-                var result = await _userService.CreateUserAsync(request);
+                var result = await _userService.CreateManagerAsync(request);
 
                 if (result.Succeeded)
                 {
@@ -318,17 +316,17 @@ namespace PL.Controllers
 
         [HttpPost("AssignRole")]
         [Authorize(Roles = "Administrator")]
-        public async Task<ActionResult<ApiResponse<object>>> AssignRole(string id, [FromBody] AssignRoleRequest request)
+        public async Task<ActionResult<ApiResponse<object>>> AssignRole([FromBody] AssignRoleRequest request)
         {
             try
             {
-                _logger.LogInformation("AssignRole called for user {UserId} with role {RoleName}", id, request.RoleName);
+                _logger.LogInformation("AssignRole called for user {UserId} with role {RoleName}", request.UserId, request.RoleName);
 
-                var result = await _userService.AssignRoleToUserAsync(id, request.RoleName);
+                var result = await _userService.AssignRoleToUserAsync(request.UserId, request.RoleName);
 
                 if (result.Succeeded)
                 {
-                    _logger.LogInformation("Role {RoleName} assigned to user {UserId}", request.RoleName, id);
+                    _logger.LogInformation("Role {RoleName} assigned to user {UserId}", request.RoleName, request.UserId);
                     return Ok(new ApiResponse<object>
                     {
                         Success = true,
@@ -345,7 +343,7 @@ namespace PL.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error assigning role to user {UserId}", id);
+                _logger.LogError(ex, "Error assigning role to user {UserId}", request.UserId);
                 return StatusCode(500, new ApiResponse<object>
                 {
                     Success = false,
@@ -356,14 +354,17 @@ namespace PL.Controllers
 
         [HttpPost("RemoveRole")]
         [Authorize(Roles = "Administrator")]
-        public async Task<ActionResult<ApiResponse<object>>> RemoveRole(string id, [FromBody] AssignRoleRequest request)
+        public async Task<ActionResult<ApiResponse<object>>> RemoveRole([FromBody] AssignRoleRequest request)
         {
             try
             {
-                var result = await _userService.RemoveRoleFromUserAsync(id, request.RoleName);
+                _logger.LogInformation("RemoveRole called for user {UserId} with role {RoleName}", request.UserId, request.RoleName);
+
+                var result = await _userService.RemoveRoleFromUserAsync(request.UserId, request.RoleName);
 
                 if (result.Succeeded)
                 {
+                    _logger.LogInformation("Role {RoleName} removed from user {UserId}", request.RoleName, request.UserId);
                     return Ok(new ApiResponse<object>
                     {
                         Success = true,
@@ -380,7 +381,7 @@ namespace PL.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error removing role from user {UserId}", id);
+                _logger.LogError(ex, "Error removing role from user {UserId}", request.UserId);
                 return StatusCode(500, new ApiResponse<object>
                 {
                     Success = false,

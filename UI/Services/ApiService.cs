@@ -610,19 +610,63 @@ namespace UI.Services
         {
             try
             {
+                _logger.LogInformation("UpdateOrderAsync called with id={Id}, order={@Order}", id, order);
+                
                 var currentOrder = await GetOrderByIdAsync(id);
-                if (!currentOrder.Success) return new ApiResponse<object> { Success = false };
+                if (!currentOrder.Success)
+                {
+                    _logger.LogWarning("GetOrderByIdAsync failed for id={Id}", id);
+                    return new ApiResponse<object> { Success = false, Message = "Order not found" };
+                }
 
-                var json = JsonConvert.SerializeObject(order);
+                // Получаем данные книги для отправки в API
+                var bookResult = await GetBookByIdAsync(order.BookId);
+                if (!bookResult.Success || bookResult.Data == null)
+                {
+                    return new ApiResponse<object> { Success = false, Message = "Book not found" };
+                }
+
+                var orderData = new
+                {
+                    id = order.Id,
+                    userId = order.UserId,
+                    bookId = order.BookId,
+                    orderDate = order.OrderDate.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                    type = order.Type,
+                    book = new
+                    {
+                        id = bookResult.Data.Id,
+                        name = bookResult.Data.Title,
+                        author = bookResult.Data.Author,
+                        description = bookResult.Data.Description ?? "",
+                        genre = bookResult.Data.GenreId,
+                        type = bookResult.Data.TypeId,
+                        isAvailable = bookResult.Data.IsAvailable,
+                        year = bookResult.Data.Year.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+                    }
+                };
+
+                var json = JsonConvert.SerializeObject(orderData);
+                _logger.LogInformation("Sending PUT request to /api/orders/update with body: {Json}", json);
+                
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var response = await SendWithRetryAsync(() => _httpClient.PutAsync("/api/orders/update", content));
 
-                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
+                var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("API response: StatusCode={StatusCode}, Content={Content}", 
+                    response.StatusCode, responseContent);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return new ApiResponse<object> { Success = false, Message = $"API Error: {response.StatusCode} - {responseContent}" };
+                }
+
+                return new ApiResponse<object> { Success = true };
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating order");
-                return new ApiResponse<object> { Success = false };
+                return new ApiResponse<object> { Success = false, Message = ex.Message };
             }
         }
 
@@ -782,14 +826,102 @@ namespace UI.Services
 
         public async Task<ApiResponse<object>> CreateAdminAsync(CreateUserRequest request)
         {
-            request.Role = "Administrator";
-            return await CreateUserAsync(request);
+            try
+            {
+                request.Role = "Administrator";
+                var json = JsonConvert.SerializeObject(request);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await SendWithRetryAsync(() => _httpClient.PostAsync("/api/users/createadmin", content));
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("CreateAdmin response: {StatusCode} - {Content}", response.StatusCode, responseContent);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    try
+                    {
+                        var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                        return apiResponse ?? new ApiResponse<object> { Success = true };
+                    }
+                    catch
+                    {
+                        return new ApiResponse<object> { Success = true };
+                    }
+                }
+
+                try
+                {
+                    var errorResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                    return errorResponse ?? new ApiResponse<object> 
+                    { 
+                        Success = false, 
+                        Message = $"Error: {response.StatusCode}" 
+                    };
+                }
+                catch
+                {
+                    return new ApiResponse<object> 
+                    { 
+                        Success = false, 
+                        Message = $"Error: {response.StatusCode} - {responseContent}" 
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating admin");
+                return new ApiResponse<object> { Success = false, Message = ex.Message };
+            }
         }
 
         public async Task<ApiResponse<object>> CreateManagerAsync(CreateUserRequest request)
         {
-            request.Role = "Manager";
-            return await CreateUserAsync(request);
+            try
+            {
+                request.Role = "Manager";
+                var json = JsonConvert.SerializeObject(request);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await SendWithRetryAsync(() => _httpClient.PostAsync("/api/users/createmanager", content));
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("CreateManager response: {StatusCode} - {Content}", response.StatusCode, responseContent);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    try
+                    {
+                        var apiResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                        return apiResponse ?? new ApiResponse<object> { Success = true };
+                    }
+                    catch
+                    {
+                        return new ApiResponse<object> { Success = true };
+                    }
+                }
+
+                try
+                {
+                    var errorResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                    return errorResponse ?? new ApiResponse<object> 
+                    { 
+                        Success = false, 
+                        Message = $"Error: {response.StatusCode}" 
+                    };
+                }
+                catch
+                {
+                    return new ApiResponse<object> 
+                    { 
+                        Success = false, 
+                        Message = $"Error: {response.StatusCode} - {responseContent}" 
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating manager");
+                return new ApiResponse<object> { Success = false, Message = ex.Message };
+            }
         }
 
         public async Task<ApiResponse<object>> UpdateUserAsync(string id, UpdateUserRequest request)
@@ -846,14 +978,30 @@ namespace UI.Services
             {
                 var json = JsonConvert.SerializeObject(request);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await SendWithRetryAsync(() => _httpClient.PostAsync($"/api/users/assignrole?id={Uri.EscapeDataString(id)}", content));
+                var response = await SendWithRetryAsync(() => _httpClient.PostAsync("/api/users/assignrole", content));
 
-                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
+                var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("AssignRole response: {StatusCode} - {Content}", response.StatusCode, responseContent);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return new ApiResponse<object> { Success = true, Message = "Role assigned successfully" };
+                }
+
+                try
+                {
+                    var errorResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                    return errorResponse ?? new ApiResponse<object> { Success = false, Message = $"Error: {response.StatusCode}" };
+                }
+                catch
+                {
+                    return new ApiResponse<object> { Success = false, Message = $"Error: {response.StatusCode} - {responseContent}" };
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error assigning role");
-                return new ApiResponse<object> { Success = false };
+                return new ApiResponse<object> { Success = false, Message = ex.Message };
             }
         }
 
@@ -863,14 +1011,30 @@ namespace UI.Services
             {
                 var json = JsonConvert.SerializeObject(request);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await SendWithRetryAsync(() => _httpClient.PostAsync($"/api/users/removerole?id={Uri.EscapeDataString(id)}", content));
+                var response = await SendWithRetryAsync(() => _httpClient.PostAsync("/api/users/removerole", content));
 
-                return new ApiResponse<object> { Success = response.IsSuccessStatusCode };
+                var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("RemoveRole response: {StatusCode} - {Content}", response.StatusCode, responseContent);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return new ApiResponse<object> { Success = true, Message = "Role removed successfully" };
+                }
+
+                try
+                {
+                    var errorResponse = JsonConvert.DeserializeObject<ApiResponse<object>>(responseContent);
+                    return errorResponse ?? new ApiResponse<object> { Success = false, Message = $"Error: {response.StatusCode}" };
+                }
+                catch
+                {
+                    return new ApiResponse<object> { Success = false, Message = $"Error: {response.StatusCode} - {responseContent}" };
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error removing role");
-                return new ApiResponse<object> { Success = false };
+                return new ApiResponse<object> { Success = false, Message = ex.Message };
             }
         }
 
