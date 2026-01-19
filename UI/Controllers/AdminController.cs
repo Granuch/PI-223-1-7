@@ -451,7 +451,7 @@ namespace UI.Controllers
             }
 
             Console.WriteLine("CREATING REQUEST...");
-            var request = new AssignRoleRequest { RoleName = roleName };
+            var request = new AssignRoleRequest { UserId = userId, RoleName = roleName };
 
             Console.WriteLine("CALLING API SERVICE...");
             var result = await _apiService.AssignRoleToUserAsync(userId, request);
@@ -483,7 +483,7 @@ namespace UI.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
-            var request = new AssignRoleRequest { RoleName = roleName };
+            var request = new AssignRoleRequest { UserId = userId, RoleName = roleName };
             var result = await _apiService.RemoveRoleFromUserAsync(userId, request);
 
             if (result.Success)
