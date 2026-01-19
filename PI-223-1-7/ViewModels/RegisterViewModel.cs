@@ -17,6 +17,11 @@ namespace PL.ViewModels
         [Display(Name = "Прізвище")]
         public string LastName { get; set; }
 
+        [Required(ErrorMessage = "Номер телефону обов'язковий")]
+        [Phone(ErrorMessage = "Неправильний формат номера телефону")]
+        [Display(Name = "Номер телефону")]
+        public string PhoneNumber { get; set; }
+
         [Required(ErrorMessage = "Введіть пароль")]
         [DataType(DataType.Password)]
         [Display(Name = "Пароль")]

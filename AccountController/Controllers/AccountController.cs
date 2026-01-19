@@ -62,10 +62,14 @@ namespace PL.Controllers
                 _logger.LogWarning($"User with email {model.Email} already exists");
                 return BadRequest(new
                 {
-                    success = false,
-                    message = "A user with this email already exists"
-                });
-            }
+                    UserName = model.Email,
+                    Email = model.Email,
+                    FirstName = model.FirstName,
+                    LastName = model.LastName,
+                    PhoneNumber = model.PhoneNumber,
+                    EmailConfirmed = true,
+                    CreatedAt = DateTime.UtcNow
+                };
 
             var user = new ApplicationUser
             {

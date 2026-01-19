@@ -17,6 +17,10 @@ namespace UI.Models.ViewModels
         [Display(Name = "Прізвище")]
         public string LastName { get; set; }
 
+        [Required(ErrorMessage = "Номер телефону обов'язковий")]
+        [Display(Name = "Номер телефону")]
+        public string PhoneNumber { get; set; }
+
         [Required(ErrorMessage = "Пароль обов'язковий")]
         [StringLength(100, ErrorMessage = "Пароль повинен містити мінімум {2} символів", MinimumLength = 6)]
         [DataType(DataType.Password)]
