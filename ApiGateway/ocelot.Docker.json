@@ -1,194 +1,192 @@
 {
-"Routes": [
-  {
-    //Orders - requires authentication
-    "DownstreamPathTemplate": "/Orders/GetAll",
-    "DownstreamScheme": "http",
-    "DownstreamHostAndPorts": [
-      {
-        "Host": "localhost",
-        "Port": 5000
+  "Routes": [
+    {
+      "DownstreamPathTemplate": "/Orders/GetAll",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "orders-service",
+          "Port": 5000
+        }
+      ],
+      "UpstreamPathTemplate": "/api/orders/getall",
+      "UpstreamHttpMethod": [ "GET" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
       }
-    ],
-    "UpstreamPathTemplate": "/api/orders/getall",
-    "UpstreamHttpMethod": [ "GET" ],
-    "AuthenticationOptions": {
-      "AuthenticationProviderKey": "Bearer",
-      "AllowedScopes": []
-    }
-  },
-  {
-    "DownstreamPathTemplate": "/Orders/CreateNewOrder",
-    "DownstreamScheme": "http",
-    "DownstreamHostAndPorts": [
-      {
-        "Host": "localhost",
-        "Port": 5000
+    },
+    {
+      "DownstreamPathTemplate": "/Orders/CreateNewOrder",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "orders-service",
+          "Port": 5000
+        }
+      ],
+      "UpstreamPathTemplate": "/api/orders/createnew",
+      "UpstreamHttpMethod": [ "Post" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
       }
-    ],
-    "UpstreamPathTemplate": "/api/orders/createnew",
-    "UpstreamHttpMethod": [ "Post" ],
-    "AuthenticationOptions": {
-      "AuthenticationProviderKey": "Bearer",
-      "AllowedScopes": []
-    }
-  },
-  {
-    "DownstreamPathTemplate": "/Orders/GetSpecific/{id}",
-    "DownstreamScheme": "http",
-    "DownstreamHostAndPorts": [
-      {
-        "Host": "localhost",
-        "Port": 5000
+    },
+    {
+      "DownstreamPathTemplate": "/Orders/GetSpecific/{id}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "orders-service",
+          "Port": 5000
+        }
+      ],
+      "UpstreamPathTemplate": "/api/orders/findspecific/{id}",
+      "UpstreamHttpMethod": [ "Get" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
       }
-    ],
-    "UpstreamPathTemplate": "/api/orders/findspecific/{id}",
-    "UpstreamHttpMethod": [ "Get" ],
-    "AuthenticationOptions": {
-      "AuthenticationProviderKey": "Bearer",
-      "AllowedScopes": []
-    }
-  },
-  {
-    "DownstreamPathTemplate": "/Orders/Update",
-    "DownstreamScheme": "http",
-    "DownstreamHostAndPorts": [
-      {
-        "Host": "localhost",
-        "Port": 5000
+    },
+    {
+      "DownstreamPathTemplate": "/Orders/Update",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "orders-service",
+          "Port": 5000
+        }
+      ],
+      "UpstreamPathTemplate": "/api/orders/update",
+      "UpstreamHttpMethod": [ "Put" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
       }
-    ],
-    "UpstreamPathTemplate": "/api/orders/update",
-    "UpstreamHttpMethod": [ "Put" ],
-    "AuthenticationOptions": {
-      "AuthenticationProviderKey": "Bearer",
-      "AllowedScopes": []
-    }
-  },
-  {
-    "DownstreamPathTemplate": "/Orders/Delete/{id}",
-    "DownstreamScheme": "http",
-    "DownstreamHostAndPorts": [
-      {
-        "Host": "localhost",
-        "Port": 5000
+    },
+    {
+      "DownstreamPathTemplate": "/Orders/Delete/{id}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "orders-service",
+          "Port": 5000
+        }
+      ],
+      "UpstreamPathTemplate": "/api/orders/delete/{id}",
+      "UpstreamHttpMethod": [ "Delete" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
       }
-    ],
-    "UpstreamPathTemplate": "/api/orders/delete/{id}",
-    "UpstreamHttpMethod": [ "Delete" ],
-    "AuthenticationOptions": {
-      "AuthenticationProviderKey": "Bearer",
-      "AllowedScopes": []
-    }
-  },
+    },
 
-  //Books - public read, authenticated for create/update/delete
-  {
-    "DownstreamPathTemplate": "/Books/GetAll",
-    "DownstreamScheme": "http",
-    "DownstreamHostAndPorts": [
-      {
-        "Host": "localhost",
-        "Port": 5001
+    {
+      "DownstreamPathTemplate": "/Books/GetAll",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "books-service",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/api/books/getall",
+      "UpstreamHttpMethod": [ "GET" ]
+    },
+    {
+      "DownstreamPathTemplate": "/Books/GetUserOrders",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "books-service",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/api/books/getuserorders",
+      "UpstreamHttpMethod": [ "GET" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
       }
-    ],
-    "UpstreamPathTemplate": "/api/books/getall",
-    "UpstreamHttpMethod": [ "GET" ]
-  },
-  {
-    "DownstreamPathTemplate": "/Books/GetUserOrders",
-    "DownstreamScheme": "http",
-    "DownstreamHostAndPorts": [
-      {
-        "Host": "localhost",
-        "Port": 5001
+    },
+    {
+      "DownstreamPathTemplate": "/Books/Filter",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "books-service",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/api/books/filter",
+      "UpstreamHttpMethod": [ "GET" ]
+    },
+    {
+      "DownstreamPathTemplate": "/Books/GetById/{id}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "books-service",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/api/books/getbyid/{id}",
+      "UpstreamHttpMethod": [ "GET" ]
+    },
+    {
+      "DownstreamPathTemplate": "/Books/CreateBook",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "books-service",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/api/books/createbook",
+      "UpstreamHttpMethod": [ "Post" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
       }
-    ],
-    "UpstreamPathTemplate": "/api/books/getuserorders",
-    "UpstreamHttpMethod": [ "GET" ],
-    "AuthenticationOptions": {
-      "AuthenticationProviderKey": "Bearer",
-      "AllowedScopes": []
-    }
-  },
-  {
-    "DownstreamPathTemplate": "/Books/Filter",
-    "DownstreamScheme": "http",
-    "DownstreamHostAndPorts": [
-      {
-        "Host": "localhost",
-        "Port": 5001
+    },
+    {
+      "DownstreamPathTemplate": "/Books/UpdateBook/{id}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "books-service",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/api/books/updatebook/{id}",
+      "UpstreamHttpMethod": [ "Put" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
       }
-    ],
-    "UpstreamPathTemplate": "/api/books/filter",
-    "UpstreamHttpMethod": [ "GET" ]
-  },
-  {
-    "DownstreamPathTemplate": "/Books/GetById/{id}",
-    "DownstreamScheme": "http",
-    "DownstreamHostAndPorts": [
-      {
-        "Host": "localhost",
-        "Port": 5001
+    },
+    {
+      "DownstreamPathTemplate": "/Books/DeleteBook/{id}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "books-service",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/api/books/delete/{id}",
+      "UpstreamHttpMethod": [ "Delete" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
       }
-    ],
-    "UpstreamPathTemplate": "/api/books/getbyid/{id}",
-    "UpstreamHttpMethod": [ "GET" ]
-  },
-  {
-    "DownstreamPathTemplate": "/Books/CreateBook",
-    "DownstreamScheme": "http",
-    "DownstreamHostAndPorts": [
-      {
-        "Host": "localhost",
-        "Port": 5001
-      }
-    ],
-    "UpstreamPathTemplate": "/api/books/createbook",
-    "UpstreamHttpMethod": [ "Post" ],
-    "AuthenticationOptions": {
-      "AuthenticationProviderKey": "Bearer",
-      "AllowedScopes": []
-    }
-  },
-  {
-    "DownstreamPathTemplate": "/Books/UpdateBook/{id}",
-    "DownstreamScheme": "http",
-    "DownstreamHostAndPorts": [
-      {
-        "Host": "localhost",
-        "Port": 5001
-      }
-    ],
-    "UpstreamPathTemplate": "/api/books/updatebook/{id}",
-    "UpstreamHttpMethod": [ "Put" ],
-    "AuthenticationOptions": {
-      "AuthenticationProviderKey": "Bearer",
-      "AllowedScopes": []
-    }
-  },
-  {
-    "DownstreamPathTemplate": "/Books/DeleteBook/{id}",
-    "DownstreamScheme": "http",
-    "DownstreamHostAndPorts": [
-      {
-        "Host": "localhost",
-        "Port": 5001
-      }
-    ],
-    "UpstreamPathTemplate": "/api/books/delete/{id}",
-    "UpstreamHttpMethod": [ "Delete" ],
-    "AuthenticationOptions": {
-      "AuthenticationProviderKey": "Bearer",
-      "AllowedScopes": []
-    }
-  },
+    },
     {
       "DownstreamPathTemplate": "/Books/OrderBook/{id}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "books-service",
           "Port": 5001
         }
       ],
@@ -204,7 +202,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "books-service",
           "Port": 5001
         }
       ],
@@ -216,7 +214,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "books-service",
           "Port": 5001
         }
       ],
@@ -228,7 +226,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "books-service",
           "Port": 5001
         }
       ],
@@ -239,12 +237,13 @@
         "AllowedScopes": []
       }
     },
+
     {
       "DownstreamPathTemplate": "/AdminUsers/GetAllUsers",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "adminuser-service",
           "Port": 5005
         }
       ],
@@ -260,7 +259,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "adminuser-service",
           "Port": 5005
         }
       ],
@@ -276,7 +275,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "adminuser-service",
           "Port": 5005
         }
       ],
@@ -292,7 +291,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "adminuser-service",
           "Port": 5005
         }
       ],
@@ -308,7 +307,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "adminuser-service",
           "Port": 5005
         }
       ],
@@ -324,7 +323,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "adminuser-service",
           "Port": 5005
         }
       ],
@@ -340,7 +339,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "adminuser-service",
           "Port": 5005
         }
       ],
@@ -356,7 +355,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "adminuser-service",
           "Port": 5005
         }
       ],
@@ -372,7 +371,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "adminuser-service",
           "Port": 5005
         }
       ],
@@ -388,7 +387,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "adminuser-service",
           "Port": 5005
         }
       ],
@@ -404,7 +403,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "adminuser-service",
           "Port": 5005
         }
       ],
@@ -420,7 +419,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "adminuser-service",
           "Port": 5005
         }
       ],
@@ -436,7 +435,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "adminuser-service",
           "Port": 5005
         }
       ],
@@ -452,7 +451,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "adminuser-service",
           "Port": 5005
         }
       ],
@@ -468,7 +467,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "adminuser-service",
           "Port": 5005
         }
       ],
@@ -476,13 +475,12 @@
       "UpstreamHttpMethod": [ "Get" ]
     },
 
-    //Account - public endpoints for authentication
     {
       "DownstreamPathTemplate": "/api/account/test-auth",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "account-service",
           "Port": 5010
         }
       ],
@@ -498,7 +496,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "account-service",
           "Port": 5010
         }
       ],
@@ -510,7 +508,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "account-service",
           "Port": 5010
         }
       ],
@@ -522,7 +520,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "account-service",
           "Port": 5010
         }
       ],
@@ -538,7 +536,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "account-service",
           "Port": 5010
         }
       ],
@@ -554,7 +552,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "account-service",
           "Port": 5010
         }
       ],
@@ -570,7 +568,7 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
+          "Host": "account-service",
           "Port": 5010
         }
       ],
@@ -582,31 +580,31 @@
       }
     },
     {
-        "DownstreamPathTemplate": "/api/account/CheckAndRefreshSession",
-        "DownstreamScheme": "http",
-        "DownstreamHostAndPorts": [
-            {
-                "Host": "localhost",
-                "Port": 5010
-            }
-        ],
-        "UpstreamPathTemplate": "/api/account/checkandrefresh",
-        "UpstreamHttpMethod": [ "Post" ]
+      "DownstreamPathTemplate": "/api/account/CheckAndRefreshSession",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "account-service",
+          "Port": 5010
+        }
+      ],
+      "UpstreamPathTemplate": "/api/account/checkandrefresh",
+      "UpstreamHttpMethod": [ "Post" ]
     },
     {
-        "DownstreamPathTemplate": "/api/account/refresh-token",
-        "DownstreamScheme": "http",
-        "DownstreamHostAndPorts": [
-            {
-                "Host": "localhost",
-                "Port": 5010
-            }
-        ],
-        "UpstreamPathTemplate": "/api/account/refresh-token",
-        "UpstreamHttpMethod": [ "Post" ]
+      "DownstreamPathTemplate": "/api/account/refresh-token",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "account-service",
+          "Port": 5010
+        }
+      ],
+      "UpstreamPathTemplate": "/api/account/refresh-token",
+      "UpstreamHttpMethod": [ "Post" ]
     }
   ],
   "GlobalConfiguration": {
-    "BaseUrl": "https://localhost:5003"
+    "BaseUrl": "http://api-gateway:5003"
   }
 }

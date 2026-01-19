@@ -1,91 +1,153 @@
-#  Library Management System
+# Library Management System
 
-> [!NOTE]
-> Система управління бібліотекою - це сучасний веб-додаток, побудований на мікросервісній архітектурі з використанням ASP.NET Core 9.0. Система забезпечує повне управління книгами, замовленнями та користувачами з розподіленою обробкою даних через API Gateway.
+[![.NET](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](https://www.docker.com/)
+![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-9.0-512BD4)
+![EF Core](https://img.shields.io/badge/EF%20Core-10.0-512BD4)
+![SQL Server](https://img.shields.io/badge/SQL%20Server-2022-CC2927)
+![Nginx](https://img.shields.io/badge/Nginx-Reverse%20Proxy-009639)
+![JWT](https://img.shields.io/badge/Auth-JWT-orange)
+![Ocelot](https://img.shields.io/badge/API%20Gateway-Ocelot-blue)
 
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Granuch_PI-223-1-7&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Granuch_PI-223-1-7)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Granuch_PI-223-1-7&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Granuch_PI-223-1-7)
-[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=Granuch_PI-223-1-7&metric=bugs)](https://sonarcloud.io/summary/new_code?id=Granuch_PI-223-1-7)
-[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=Granuch_PI-223-1-7&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=Granuch_PI-223-1-7)
-[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=Granuch_PI-223-1-7&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=Granuch_PI-223-1-7)
-[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=Granuch_PI-223-1-7&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=Granuch_PI-223-1-7)
-[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=Granuch_PI-223-1-7&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=Granuch_PI-223-1-7)
-[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=Granuch_PI-223-1-7&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=Granuch_PI-223-1-7)
 
-##  Ключові особливості
+A production-ready library management system built with microservices architecture, featuring JWT authentication, Docker containerization, and modern .NET practices.
 
--  Мікросервісна архітектура з API Gateway (Ocelot)
--  Автентифікація Cookie-based аутентифікацією
--  Гнучка система ролей (Administrator, Manager, RegisteredUser)
--  Повне управління каталогом книг з фільтрацією та пошуком
--  Система замовлень з відстеженням статусу
--  Сучасний веб-інтерфейс на ASP.NET Core MVC
--  Комплексне тестування з NUnit та Moq
--  Безпека даних з Data Protection API
+> **Note**: This is a portfolio project demonstrating enterprise-level software architecture and development practices. **Not currently deployed** - deployment instructions available for local and production environments.
 
-##  Архітектура системи
+##  Project Overview
 
-### Мікросервіси
+This application showcases a complete microservices-based library system with separated concerns, scalable architecture, and production-ready features including API gateway, rate limiting, and containerization.
 
-| Сервіс | Порт | Призначення | Технології |
-|--------|------|-------------|-------------|
-| **API Gateway** | 5003 | Точка входу, маршрутизація запитів | Ocelot, ASP.NET Core |
-| **UI Service** | 7280 | Веб-інтерфейс користувача | ASP.NET Core MVC, Bootstrap |
-| **Account Service** | 5010 | Автентифікація та авторизація | ASP.NET Core Identity, JWT |
-| **Books Service** | 5001 | Управління каталогом книг | ASP.NET Core Web API |
-| **Orders Service** | 5000 | Система замовлень | ASP.NET Core Web API |
-| **Admin Service** | 5005 | Адміністративне управління | ASP.NET Core Web API |
+### Key Features
 
-### Шари архітектури
+- **Microservices Architecture** - Independently deployable services with clear boundaries
+- **JWT Authentication** - Secure token-based authentication with refresh tokens
+- **API Gateway** - Centralized routing with Ocelot
+- **Docker Support** - Full containerization with docker-compose
+- **Rate Limiting** - API protection against abuse
+- **Role-Based Access Control** - Administrator, Manager, and User roles
+- **Reverse Proxy** - Nginx for load balancing and SSL termination
+- **Comprehensive Testing** - Unit tests with NUnit and Moq
+
+##  Architecture
+
+### System Components
 
 ```
- Library-Management-System/
-├──  UI/                          # Presentation Layer (MVC)
-├──  ApiGateway/                  # API Gateway (Ocelot)
-├──  AccountController/           # Authentication Service
-├──  BooksService/                # Books Microservice
-├──  OrdersService/               # Orders Microservice
-├──  AdminUserService/            # Admin Management Service
-├──  DAL/ (PI-223-1-7)            # Data Access Layer
-├──  BLL/                         # Business Logic Layer
-├──  Mapping/                     # DTOs and AutoMapper
-└──  Tests/                       # Unit Tests
+┌─────────────┐
+│   Nginx     │ ← Reverse Proxy (Port 80/443)
+└──────┬──────┘
+       │
+┌──────▼──────────────────────────────────────┐
+│           API Gateway (Ocelot)              │ ← Port 5003
+│        - Routing & Rate Limiting            │
+└──────┬──────────────────────────────────────┘
+       │
+       ├─────────┬─────────┬─────────┬─────────┐
+       │         │         │         │         │
+   ┌───▼───┐ ┌──▼──┐  ┌──▼──┐  ┌───▼───┐ ┌──▼──┐
+   │Account│ │Books│  │Order│  │ Admin │ │ UI  │
+   │ :5010 │ │:5001│  │:5000│  │ :5005 │ │:8080│
+   └───┬───┘ └──┬──┘  └──┬──┘  └───┬───┘ └─────┘
+       │        │        │         │
+       └────────┴────────┴─────────┘
+                    │
+              ┌─────▼─────┐
+              │ SQL Server│
+              │   :1433   │
+              └───────────┘
 ```
 
-##  Швидкий старт
+### Microservices
 
-### Передумови
+| Service | Port | Responsibility | Technologies |
+|---------|------|----------------|--------------|
+| **API Gateway** | 5003 | Request routing, rate limiting, authentication validation | Ocelot, ASP.NET Core |
+| **UI Service** | 8080 | Web interface, user interactions | ASP.NET Core MVC, Bootstrap |
+| **Account Service** | 5010 | Authentication, JWT token management, user registration | ASP.NET Core Identity, JWT |
+| **Books Service** | 5001 | Book catalog management, search, filtering | ASP.NET Core Web API |
+| **Orders Service** | 5000 | Order processing, book reservations | ASP.NET Core Web API |
+| **Admin Service** | 5005 | User management, role assignment | ASP.NET Core Web API |
+| **Nginx** | 80/443 | Reverse proxy, SSL termination, load balancing | Nginx Alpine |
+| **SQL Server** | 1433 | Persistent data storage | MS SQL Server 2022 |
 
-> [!IMPORTANT]
-> Переконайтеся, що у вас встановлено:
-> - **.NET 9.0 SDK**
-> - **SQL Server** (LocalDB або повна версія)
-> - **Visual Studio 2022** або **VS Code**
+### Technology Stack
 
-###  Запуск системи
+**Backend**
+- .NET 9.0
+- Entity Framework Core 9.0
+- ASP.NET Core Identity
+- Ocelot API Gateway
+- AutoMapper
+- JWT Bearer Authentication
 
-1. **Клонування репозиторію**
+**Frontend**
+- ASP.NET Core MVC
+- Bootstrap 5
+- jQuery
+- Font Awesome
+
+**Infrastructure**
+- Docker & Docker Compose
+- Nginx (Reverse Proxy)
+- SQL Server 2022
+
+**Testing**
+- NUnit
+- Moq
+- Coverlet (Code Coverage)
+
+##  Getting Started
+
+### Prerequisites
+
+- [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (for containerized deployment)
+- [SQL Server](https://www.microsoft.com/sql-server) or Docker SQL Server image
+
+### Option 1: Docker Deployment (Recommended)
+
+**Quick start** - entire system with one command:
+
 ```bash
-git clone https://github.com/your-username/library-management-system.git
+# Clone the repository
+git clone https://github.com/yourusername/library-management-system.git
 cd library-management-system
+
+# Start all services
+docker-compose up -d
+
+# Access the application
+# Web UI: http://localhost
+# API Gateway: http://localhost:5003
 ```
 
-2. **Налаштування бази даних**
+**Services startup order:**
+1. SQL Server (waits for health check)
+2. Account Service (applies migrations, seeds data)
+3. Other microservices (Books, Orders, Admin)
+4. API Gateway (routes to all services)
+5. UI & Nginx (public entry point)
+
+### Option 2: Local Development
+
+**1. Database Setup**
 ```bash
 cd PI-223-1-7
 dotnet ef database update
 ```
 
-3. **Запуск мікросервісів** (в окремих терміналах)
+**2. Start Services** (each in separate terminal)
 
 ```bash
+# Account Service (must start first - handles migrations)
+cd AccountController
+dotnet run --urls="http://localhost:5010"
+
 # API Gateway
 cd ApiGateway
 dotnet run --urls="https://localhost:5003"
-
-# Account Service
-cd AccountController
-dotnet run --urls="http://localhost:5010"
 
 # Books Service
 cd BooksService
@@ -104,266 +166,370 @@ cd UI
 dotnet run --urls="https://localhost:7280"
 ```
 
-4. **Доступ до додатку**
-   - **Веб-додаток**: https://localhost:7280
-   - **API Gateway**: https://localhost:5003
+**3. Access Application**
+- Web Interface: https://localhost:7280
+- API Gateway: https://localhost:5003
+- Swagger (if enabled): https://localhost:5001/swagger
 
-### 👤 Тестові облікові записи
+### Default Credentials
 
-> [!TIP]
-> Система автоматично створює тестових користувачів:
+The system automatically creates test users:
 
-| Роль | Email | Пароль | Доступ |
-|------|-------|---------|--------|
-| **Administrator** | admin@example.com | Admin123 | Повний доступ |
-| **Manager** | manager@example.com | Manager123 | Управління книгами та замовленнями |
-| **User** | user1@example.com | User123! | Перегляд та замовлення книг |
+| Role | Email | Password | Permissions |
+|------|-------|----------|-------------|
+| **Administrator** | admin@example.com | Admin123 | Full system access |
+| **Manager** | manager@example.com | Manager123 | Manage books and orders |
+| **User** | user1@example.com | User123! | View books, create orders |
 
-##  Система безпеки
+>  **Security Warning**: Change these credentials in production! Update in `AccountController/Controllers/RoleInitializer.cs` and `AccountController/SeedDemoData.cs`
 
-### Автентифікація та авторизація
+##  Security Features
 
-- **Автентифікація**: Cookie-based сесії
-- **Data Protection API** для захисту cookies між сервісами
-- **Cross-service authentication** через спільні ключі шифрування
+### Authentication & Authorization
 
-### Ролі та дозволи
+**JWT Token-Based Authentication**
+- Access tokens (60 min expiry)
+- Refresh tokens (7 day expiry)
+- Secure token storage in HTTP-only session
+- Automatic token refresh middleware
 
-| Роль | Дозволи |
-|------|---------|
-|  Guest | Перегляд каталогу, пошук книг |
-|  RegisteredUser | + Замовлення книг, перегляд власних замовлень |
-|  Manager | + Управління каталогом, перегляд всіх замовлень |
-|  Administrator | + Управління користувачами, видалення книг |
-
-##  API Documentation
-
-###  API Gateway Routes
-
-#### Books API
-```http
-GET    /api/books/getall          # Отримати всі книги
-GET    /api/books/getbyid/{id}    # Книга за ID
-GET    /api/books/filter          # Фільтрація книг
-POST   /api/books/createbook      # Створити книгу [Manager+]
-PUT    /api/books/updatebook/{id} # Оновити книгу [Manager+]
-DELETE /api/books/delete/{id}     # Видалити книгу [Admin]
+**Configuration** (appsettings.json):
+```json
+{
+  "JwtSettings": {
+    "SecretKey": "YOUR-SECRET-KEY-HERE",  //  CHANGE THIS
+    "Issuer": "LibraryApp",
+    "Audience": "LibraryAppUsers",
+    "ExpirationMinutes": 60
+  }
+}
 ```
 
-#### Orders API
-```http
-GET    /api/orders/getall         # Всі замовлення [Manager+]
-POST   /api/orders/createnew      # Створити замовлення [User+]
-GET    /api/orders/findspecific/{id} # Замовлення за ID
-DELETE /api/orders/delete/{id}    # Видалити замовлення [User+]
-```
+### Rate Limiting
 
-#### Authentication API
-```http
-POST   /api/account/reg           # Реєстрація
-POST   /api/account/log           # Вхід
-POST   /api/account/logout        # Вихід
-GET    /api/account/stat          # Статус автентифікації
-```
-
-#### Admin API
-```http
-GET    /api/users/getall          # Всі користувачі [Admin]
-POST   /api/users/createuser      # Створити користувача [Admin]
-PUT    /api/users/updateuser      # Оновити користувача [Admin]
-DELETE /api/users/deleteuser      # Видалити користувача [Admin]
-POST   /api/users/assignrole      # Призначити роль [Admin]
-```
-
-##  Модель даних
-
-### Основні сутності
+Protects against brute-force attacks and API abuse:
 
 ```csharp
-// Book Entity
+// Authentication endpoints: 5 requests/minute
+// General API: 100 requests/minute
+// Global: 200 requests/minute per IP
+```
+
+### Role-Based Access Control
+
+| Role | Capabilities |
+|------|-------------|
+| **Guest** | Browse catalog, search books |
+| **RegisteredUser** | + Create orders, view own orders |
+| **Manager** | + Manage catalog, view all orders |
+| **Administrator** | + User management, role assignment |
+
+## 📡 API Documentation
+
+### Authentication Endpoints
+
+```http
+POST   /api/account/reg           # Register new user
+POST   /api/account/log           # Login
+POST   /api/account/logout        # Logout [Auth Required]
+POST   /api/account/refresh-token # Refresh JWT token
+GET    /api/account/me            # Get current user [Auth Required]
+```
+
+### Books API
+
+```http
+GET    /api/books/getall          # Get all books
+GET    /api/books/getbyid/{id}    # Get book by ID
+GET    /api/books/filter          # Filter books (genre, type, search)
+POST   /api/books/createbook      # Create book [Manager+]
+PUT    /api/books/updatebook/{id} # Update book [Manager+]
+DELETE /api/books/delete/{id}     # Delete book [Admin]
+POST   /api/books/orderbook/{id}  # Order a book [User+]
+GET    /api/books/getuserorders   # Get user's ordered books [Auth]
+```
+
+### Orders API
+
+```http
+GET    /api/orders/getall         # Get all orders [Manager+]
+GET    /api/orders/findspecific/{id} # Get specific order [Auth]
+POST   /api/orders/createnew      # Create order [User+]
+PUT    /api/orders/update         # Update order [Manager+]
+DELETE /api/orders/delete/{id}    # Delete order [Auth]
+```
+
+### Admin API
+
+```http
+GET    /api/users/getall          # Get all users [Admin]
+GET    /api/users/getuserbyid     # Get user by ID [Admin/Manager]
+POST   /api/users/createuser      # Create user [Admin]
+PUT    /api/users/updateuser      # Update user [Admin]
+DELETE /api/users/deleteuser      # Delete user [Admin]
+POST   /api/users/assignrole      # Assign role to user [Admin]
+POST   /api/users/removerole      # Remove role from user [Admin]
+GET    /api/users/getallroles     # Get all available roles [Admin/Manager]
+```
+
+**Example Request:**
+
+```bash
+# Login
+curl -X POST https://localhost:5003/api/account/log \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@example.com",
+    "password": "Admin123"
+  }'
+
+# Response
+{
+  "success": true,
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "refreshToken": "base64-encoded-token",
+  "expiresIn": 3600,
+  "user": {
+    "id": "user-id",
+    "email": "admin@example.com",
+    "roles": ["Administrator"]
+  }
+}
+
+# Use token in subsequent requests
+curl -X GET https://localhost:5003/api/books/getall \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..."
+```
+
+## 🗄️ Data Models
+
+### Core Entities
+
+**Book**
+```csharp
 public class Book
 {
     public int Id { get; set; }
     public string Name { get; set; }
     public string Author { get; set; }
     public string Description { get; set; }
-    public GenreTypes Genre { get; set; }     // Fiction, Science, History, etc.
-    public BookTypes Type { get; set; }       // Physical, Digital, Audio
+    public GenreTypes Genre { get; set; }      // Fiction, Science, History, etc.
+    public BookTypes Type { get; set; }        // Physical, Digital, Audio
     public bool IsAvailable { get; set; }
     public DateTime Year { get; set; }
-    public virtual ICollection<Order> Orders { get; set; }
+    public ICollection<Order> Orders { get; set; }
 }
+```
 
-// Order Entity
+**Order**
+```csharp
 public class Order
 {
     public int Id { get; set; }
     public string UserId { get; set; }
     public int BookId { get; set; }
     public DateTime OrderDate { get; set; }
-    public OrderStatusTypes Type { get; set; } // Pending, Approved, Completed, Cancelled
-    public virtual Book Book { get; set; }
+    public OrderStatusTypes Type { get; set; }  // Pending, Approved, Completed, Cancelled
+    public Book Book { get; set; }
 }
+```
 
-// Application User
+**ApplicationUser** (extends IdentityUser)
+```csharp
 public class ApplicationUser : IdentityUser
 {
     public string FirstName { get; set; }
     public string LastName { get; set; }
     public DateTime CreatedAt { get; set; }
-    public virtual ICollection<Order> Orders { get; set; }
+    public string RefreshToken { get; set; }
+    public DateTime? RefreshTokenExpiryTime { get; set; }
+    public ICollection<Order> Orders { get; set; }
 }
 ```
 
-##  Тестування
+##  Testing
 
-### Запуск тестів
+### Running Tests
+
 ```bash
 cd Tests
 dotnet test --logger:"console;verbosity=detailed"
+
+# With coverage
+dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
 ```
 
-### Покриття тестами
-- **BookService**: CRUD операції, фільтрація, сортування, доступність
-- **OrderService**: Управління замовленнями, валідація
-- **UserService**: Управління користувачами, ролями, автентифікація
+### Test Coverage
 
-### Тестові фреймворки
-- **NUnit** - основний фреймворк тестування
-- **Moq** - створення mock об'єктів
-- **AutoMapper** - тестування маппінгу
+- **BookService**: CRUD operations, filtering, sorting, availability management
+- **OrderService**: Order lifecycle, validation, business rules
+- **UserService**: User management, authentication, role assignment
 
-##  Технології та залежності
+### Testing Technologies
+- NUnit 4.3.2 - Testing framework
+- Moq 4.20.72 - Mocking library
+- Coverlet - Code coverage
 
-### Backend
-- **ASP.NET Core 9.0** - основний фреймворк
-- **Entity Framework Core** - ORM для роботи з базою даних
-- **ASP.NET Core Identity** - автентифікація та авторизація
-- **Ocelot** - API Gateway
-- **AutoMapper** - маппінг між моделями
+##  Docker Configuration
 
-### Frontend
-- **ASP.NET Core MVC** - веб-фреймворк
-- **Bootstrap 5** - CSS фреймворк
-- **jQuery** - JavaScript бібліотека
-- **Razor Pages** - шаблонізатор
+### Environment Variables
 
-### База даних
-- **SQL Server** - основна база даних
-- **Entity Framework Migrations** - управління схемою БД
+**Production deployment** - set these environment variables:
 
-### Тестування
-- **NUnit** - unit testing framework
-- **Moq** - mocking library
-- **coverlet** - code coverage
+```yaml
+# Database
+- SA_PASSWORD=YourStrong@Passw0rd  #  CHANGE THIS
+- ConnectionStrings__DefaultConnection=Server=sqlserver;Database=LibraryDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;
 
-## Конфігурація
-
-### appsettings.json (приклад)
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=LibraryDb;Trusted_Connection=True;"
-  },
-  "ApiSettings": {
-    "BaseUrl": "https://localhost:5003"
-  }
-}
+# JWT Configuration
+- JwtSettings__SecretKey=YOUR-LONG-RANDOM-SECRET-KEY  #  CHANGE THIS (min 32 chars)
+- JwtSettings__Issuer=LibraryApp
+- JwtSettings__Audience=LibraryAppUsers
 ```
 
-### Ocelot Configuration
+### Service Health Checks
+
+All services include health check endpoints:
+
+```bash
+# Check service health
+curl http://localhost:5010/api/account/health  # Account Service
+curl http://localhost/health                    # Nginx
+```
+
+### Docker Commands
+
+```bash
+# Build and start
+docker-compose up -d --build
+
+# View logs
+docker-compose logs -f [service-name]
+
+# Stop all services
+docker-compose down
+
+# Remove volumes ( deletes database)
+docker-compose down -v
+```
+
+## Production Deployment
+
+### SSL Setup (Optional)
+
+The project includes SSL-ready nginx configuration. To enable HTTPS:
+
+1. Obtain SSL certificates (e.g., Let's Encrypt)
+2. Place certificates in `nginx/ssl/`
+3. Switch nginx config: `cp nginx/nginx.ssl.conf nginx/nginx.conf`
+4. Update `docker-compose.yml` to mount SSL volume
+
+Example with Let's Encrypt:
+```bash
+# On your server
+chmod +x scripts/setup-ssl.sh
+./scripts/setup-ssl.sh
+```
+
+### DuckDNS Setup (Free Dynamic DNS)
+
+For home/lab hosting:
+```bash
+chmod +x scripts/update-duckdns.sh
+./scripts/update-duckdns.sh
+```
+
+##  Project Structure
+
+```
+Library-Management-System/
+├── AccountController/        # Authentication & JWT service
+├── AdminUserService/         # User management service
+├── ApiGateway/              # Ocelot API Gateway
+├── BooksService/            # Books catalog service
+├── OrdersService/           # Order management service
+├── UI/                      # ASP.NET Core MVC web interface
+├── PI-223-1-7 (DAL)/       # Data Access Layer
+├── BLL/                     # Business Logic Layer
+├── Mapping/                 # DTOs & AutoMapper profiles
+├── Tests/                   # Unit tests
+├── nginx/                   # Nginx configurations
+├── scripts/                 # Deployment scripts
+└── docker-compose.yml       # Container orchestration
+```
+
+##  Configuration
+
+### API Gateway (Ocelot)
+
+Routes are defined in `ApiGateway/ocelot.json` (local) and `ApiGateway/ocelot.Docker.json` (Docker):
+
 ```json
 {
   "Routes": [
     {
       "DownstreamPathTemplate": "/Books/GetAll",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{"Host": "localhost", "Port": 5001}],
+      "DownstreamHostAndPorts": [
+        { "Host": "books-service", "Port": 5001 }
+      ],
       "UpstreamPathTemplate": "/api/books/getall",
       "UpstreamHttpMethod": ["GET"]
     }
-  ],
-  "GlobalConfiguration": {
-    "BaseUrl": "https://localhost:5003"
-  }
+  ]
 }
 ```
 
-##  Можливості для розвитку
+### Database Migrations
 
-### Поточні функції
--  Повна мікросервісна архітектура
--  Автентифікація через API Gateway
--  Система ролей та дозволів
--  Управління каталогом книг
--  Система замовлень
--  Адміністративна панель
--  Unit тестування
+Migrations are automatically applied on startup by Account Service. For manual control:
 
-### Майбутні вдосконалення
--  **Containerization** з Docker
--  **Health Checks** для мікросервісів
--  **Логування** з Serilog/ELK Stack
--  **Internationalization** (i18n)
--  **Performance monitoring** з Application Insights
--  **JWT tokens** перехід на використання JWT токенів
-
-##  Внесок у проект
-
-### Як зробити внесок
-
-1. **Fork** репозиторій
-2. Створіть гілку для нової функції:
-   ```bash
-   git checkout -b feature/amazing-feature
-   ```
-3. Зробіть коміт змін:
-   ```bash
-   git commit -m 'Add amazing feature'
-   ```
-4. Відправте в гілку:
-   ```bash
-   git push origin feature/amazing-feature
-   ```
-5. Створіть **Pull Request**
-
-### Coding Standards
-- Використовуйте **C# naming conventions**
-- Додавайте **XML documentation** для публічних методів
-- Пишіть **unit tests** для нової функціональності
-- Дотримуйтесь **SOLID principles**
-
-## Troubleshooting
-
-### Часті проблеми
-
-**Проблема**: Сервіси не можуть з'єднатися
-```bash
-# Перевірте, чи запущені всі сервіси на правильних портах
-netstat -an | findstr "5003 5010 5001 5000 5005"
-```
-
-**Проблема**: Помилки автентифікації між сервісами
-```bash
-# Перевірте Data Protection ключі
-ls C:\temp\keys\
-```
-
-**Проблема**: База даних не ініціалізована
 ```bash
 cd PI-223-1-7
-dotnet ef database drop
+
+# Create new migration
+dotnet ef migrations add MigrationName
+
+# Apply migrations
 dotnet ef database update
+
+# Rollback
+dotnet ef database update PreviousMigrationName
+
+# Remove last migration
+dotnet ef migrations remove
 ```
 
-## Підтримка
+##  Known Limitations & Future Enhancements
 
-Якщо у вас виникли питання або проблеми:
+**Current Limitations:**
+- No distributed caching (Redis) for scalability
+- No message queue for async operations
+- Single database instance (no read replicas)
+- No circuit breaker pattern implementation
 
-1. Перевірте [Issues](https://github.com/your-username/library-management-system/issues)
-2. Створіть новий Issue з детальним описом
-3. Надайте логи та кроки для відтворення проблеми
+**Planned Features:**
+- [ ] Redis caching layer
+- [ ] Elasticsearch for advanced search
+- [ ] GraphQL API alongside REST
+- [ ] Kubernetes deployment manifests
+- [ ] Monitoring with Prometheus/Grafana
+- [ ] Distributed tracing with OpenTelemetry
 
-## Ліцензія
+##  Contributing
 
-Цей проект ліцензовано під [MIT License](LICENSE).
+This is a portfolio project, but suggestions and feedback are welcome!
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+##  License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+⭐ Star this repository if you find it helpful!

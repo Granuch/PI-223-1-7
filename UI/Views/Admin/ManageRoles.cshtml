@@ -73,6 +73,7 @@
                                     </div>
                                     <form asp-action="RemoveRole" method="post" class="d-inline"
                                           onsubmit="return confirm('Ви впевнені, що хочете видалити роль @userRole?')">
+                                        @Html.AntiForgeryToken()
                                         <input type="hidden" name="userId" value="@Model.UserId" />
                                         <input type="hidden" name="roleName" value="@userRole" />
                                         <button type="submit" class="btn btn-sm btn-outline-danger" title="Видалити роль">
@@ -137,6 +138,7 @@
                                     {
                                         <form asp-action="AssignRole" method="post" class="d-inline"
                                               onsubmit="return confirm('Ви впевнені, що хочете призначити роль @role.Name?')">
+                                            @Html.AntiForgeryToken()
                                             <input type="hidden" name="userId" value="@Model.UserId" />
                                             <input type="hidden" name="roleName" value="@role.Name" />
                                             <button type="submit" class="btn btn-sm btn-outline-success" title="Призначити роль">

@@ -15,7 +15,10 @@ namespace PI_223_1_7.Models
         public string LastName { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public virtual ICollection<ApplicationUserRole> UserRoles { get; set; }
+        public string? RefreshToken { get; set; }
+        public DateTime? RefreshTokenExpiryTime { get; set; }
+
+        public virtual ICollection<ApplicationUserRole> UserRoles { get; set; } = new List<ApplicationUserRole>();
 
         public virtual ICollection<Order> Orders { get; set; }
     }

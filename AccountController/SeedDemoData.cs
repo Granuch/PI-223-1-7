@@ -2,6 +2,7 @@
 using BLL.Services;
 using Mapping.DTOs;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PI_223_1_7.DbContext;
@@ -16,8 +17,17 @@ using System.Threading.Tasks;
 
 public class SeedDemoData
 {
+    private static readonly SemaphoreSlim _seedLock = new SemaphoreSlim(1, 1);
+    
     public static async Task SeedData(IServiceProvider serviceProvider)
     {
+        // Try to acquire lock, if can't get it in 5 seconds, another service is seeding
+        if (!await _seedLock.WaitAsync(TimeSpan.FromSeconds(5)))
+        {
+            Console.WriteLine("Another service is already seeding data. Skipping...");
+            return;
+        }
+        
         try
         {
             Console.WriteLine("Starting database seeding...");
@@ -46,24 +56,37 @@ public class SeedDemoData
                     await CreateDemoUsers(userManager);
                 }
             }
+            catch (DbUpdateException dbEx) when (dbEx.InnerException?.Message?.Contains("2601") == true || 
+                                                   dbEx.InnerException?.Message?.Contains("duplicate") == true)
+            {
+                Console.WriteLine("Users/roles already exist (seeded by another service). Continuing...");
+            }
             catch (Exception ex)
             {
                 Console.WriteLine($"Identity services not available. Skipping user and role seeding. Error: {ex.Message}");
             }
 
-            Console.WriteLine("Seeding books...");
-            var books = await SeedBooks(bookService);
+            try
+            {
+                Console.WriteLine("Seeding books...");
+                var books = await SeedBooks(bookService);
 
-            if (books == null || books.Count == 0)
-            {
-                IEnumerable<BookDTO> bookss = await bookService.GetAllBooksAsync();
-                Console.WriteLine("Seeding orders...");
-                await SeedOrders(unitOfWork, bookss.ToList());
+                if (books == null || books.Count == 0)
+                {
+                    IEnumerable<BookDTO> bookss = await bookService.GetAllBooksAsync();
+                    Console.WriteLine("Seeding orders...");
+                    await SeedOrders(unitOfWork, bookss.ToList());
+                }
+                else
+                {
+                    Console.WriteLine("Seeding orders...");
+                    await SeedOrders(unitOfWork, books);
+                }
             }
-            else
+            catch (DbUpdateException dbEx) when (dbEx.InnerException?.Message?.Contains("2601") == true || 
+                                                   dbEx.InnerException?.Message?.Contains("duplicate") == true)
             {
-                Console.WriteLine("Seeding orders...");
-                await SeedOrders(unitOfWork, books);
+                Console.WriteLine("Books/orders already exist (seeded by another service). Continuing...");
             }
           
             Console.WriteLine("Database seeding completed successfully.");
@@ -75,7 +98,11 @@ public class SeedDemoData
             {
                 Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
             }
-            throw;
+            // Don't throw - allow application to start even if seeding fails
+        }
+        finally
+        {
+            _seedLock.Release();
         }
     }
 
